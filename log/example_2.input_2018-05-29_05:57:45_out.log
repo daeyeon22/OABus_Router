@@ -1,0 +1,10 @@
+================================================================
+    ICCAD 2018 Contest on Obstacle-aware Bus Routing            
+    Authors : Daeyeon Kim, Seungwon Kim                         
+    Advisor : Seok-Hyeong Kang                                  
+================================================================
+Input     : ../bench/example_2.input.input
+Output    : ../output/example_2.input.output
+# threads : 1
+Fail to get parameters
+Fail to read ../bench/example_2.input.input
