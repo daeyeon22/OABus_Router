@@ -1,0 +1,4 @@
+./code/*.log
+./bench/*
+./image/svg/*
+
