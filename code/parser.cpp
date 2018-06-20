@@ -200,7 +200,12 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
                     track.ll = Point(atoi(llxStr.c_str()), atoi(llyStr.c_str()));
                     track.ur = Point(atoi(urxStr.c_str()), atoi(uryStr.c_str()));
                     track.layer = layerName;
+                    
+                    Layer* lyr = &this->layers[this->layerHashMap[layerName]];
+                    lyr->tracks.push_back(track.id);
+
                     this->tracks.push_back(track);
+                
                 }
             }
         }
@@ -308,7 +313,8 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                                 this->bits.push_back(bit);
                                 this->bitHashMap[bit.name] = bit.id;
                                 bitFlag = true;
-                                targetBit = &bit;
+                                targetBit = &this->bits[bit.id];//bit;
+                                bus.bits.push_back(bit.id);
                                 continue;
                             }else if(*iter == "ENDBIT"){
                                 bitFlag = false;
@@ -336,6 +342,8 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                                 pin.boundary.ur.y = atoi(uryStr.c_str());
                                 targetBit->pins.push_back(pin.id);
                                 this->pins.push_back(pin);
+                            
+                            
                             }
                         }
 

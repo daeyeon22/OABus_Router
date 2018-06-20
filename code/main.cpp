@@ -3,6 +3,14 @@
 
 using namespace std;
 
+OABusRouter::Circuit* OABusRouter::Circuit::instance = nullptr;
+OABusRouter::Circuit* OABusRouter::Circuit::shared(){
+    if (instance == nullptr) 
+        instance = new Circuit();
+    return instance;
+}
+
+
 int main(int argc, char** argv){
     
     cout << "================================================================" <<endl;
@@ -36,15 +44,14 @@ int main(int argc, char** argv){
     cout << "Output    : " << outputFileName << endl;
     cout << "# threads : " << numThreads << endl;
 
-
-
-    OABusRouter::Circuit ckt;
-
-    if(!ckt.read_iccad2018(inputFileName)){
+    if(!ckt->read_iccad2018(inputFileName)){
         cout << "Fail to read " << inputFileName << endl;
     }
 
 
+    ckt->GenPlot();
+
+    cout << "End program" << endl;
     return 0;
 }
 

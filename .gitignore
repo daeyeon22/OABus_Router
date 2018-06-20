@@ -1,4 +1,6 @@
 ./code/*.log
 ./bench/*
 ./image/svg/*
+./code/*.swp
+./image/*.swp
 

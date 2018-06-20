@@ -13,16 +13,60 @@
 #include <cstdlib>
 #include <cstring>
 
+// BOOST Library
+#include <boost/foreach.hpp>
+#include <boost/geometry.hpp>
+#include <boost/geometry/index/rtree.hpp>
+#include <boost/geometry/geometries/point.hpp>
+#include <boost/geometry/geometries/box.hpp>
+#include <boost/geometry/geometries/segment.hpp>
+#include <boost/geometry/geometries/polygon.hpp>
+#include <boost/icl/interval_map.hpp>
+#include <boost/icl/interval_set.hpp>
+#include <boost/icl/interval_base_map.hpp>
+
+#include "flute.h"
+
+// Dense hash map
 #include <sparsehash/dense_hash_map>
 
+// Pre-define
 #define INIT_STR "INITSTR"
 #define VERTICAL 111
 #define HORIZONTAL 222
 
+
+#define ckt OABusRouter::Circuit::shared()
+
+
+// Namespace
 using namespace std;
 using google::dense_hash_map;
+namespace bg = boost::geometry;
+namespace bgi = boost::geometry::index;
+namespace bi = boost::icl;
+
+// Boost Intervals
+typedef set<int> IntSetT;
+typedef bi::interval<int> IntervalT;
+typedef bi::interval_set<int> IntervalSetT;
+typedef bi::interval_map<int, IntSetT> IntervalMapT;
+typedef bi::discrete_interval<int> DiscreteIntervalT;
+
+// Boost Geometries
+
+typedef pair<int,int> PairT;
+typedef bg::model::point<float,2,bg::cs::cartesian> bgPointT;
+typedef bg::model::box<bgPointT> bgBoxT;
+typedef bg::model::segment<bgPointT> bgSegmentT;
+typedef bg::model::polygon<bgPointT> bgPolygonT;
+typedef bgi::rtree<pair<bgSegmentT, int>, bgi::rstar<16>> SegRtreeT;
+typedef bgi::rtree<pair<bgBoxT, int>, bgi::rstar<16>> BoxRtreeT;
+typedef bgi::rtree<pair<bgPointT, int>, bgi::rstar<16>> PointRtreeT;
 
 
+
+// Obstacle-Aware On-Track Bus Router
 namespace OABusRouter
 {
     struct Point
@@ -33,8 +77,8 @@ namespace OABusRouter
         // Constructor
         Point() : x(INT_MAX), y(INT_MAX) {}
         Point(int ix, int iy) : x(ix), y(iy) {}
-        Point(Point& pt) : x(pt.x), y(pt.y) {}
-        
+        Point(const Point& pt) : x(pt.x), y(pt.y) {}
+
         void print();
     };
     
@@ -54,12 +98,12 @@ namespace OABusRouter
             ll(ill), 
             ur(iur) {}
 
-        Rect(Rect& rt) : 
+        Rect(const Rect& rt) : 
             ll(rt.ll), 
             ur(rt.ur) {}
 
         void print();
-
+        Point center();
     };
 
     
@@ -70,6 +114,16 @@ namespace OABusRouter
         int spacing;
         string name;
         Rect boundary;
+        
+        vector<int> tracks;
+        vector<int> trackOffsets;
+
+        int lower_bound(int coord);
+        int upper_bound(int coord);
+        bool is_vertical(){ return (this->direction == VERTICAL)? true : false; }
+        bool is_horizontal(){ return (this->direction == HORIZONTAL)? true : false; }
+
+
 
         Layer() : 
             id(INT_MAX), 
@@ -97,9 +151,17 @@ namespace OABusRouter
     {
         int id;
         int width;
+        int offset;
         string layer;
         Point ll;
         Point ur;
+        
+        // Segment tree
+        IntervalMapT assignedIntervals;
+        IntervalSetT emptyIntervals;
+
+
+
 
         Track() : 
             id(INT_MAX), 
@@ -126,6 +188,11 @@ namespace OABusRouter
         string layer;
         Rect boundary;
 
+        int leftBoundary(){ return this->boundary.ll.x; }
+        int rightBoundary(){ return this->boundary.ur.x; }
+        int topBoundary(){ return this->boundary.ur.y; }
+        int bottomBoundary(){ return this->boundary.ll.x; }
+
         Pin() : 
             id(INT_MAX), 
             bitName(INIT_STR), 
@@ -148,6 +215,9 @@ namespace OABusRouter
         string name;
         string busName;
         vector<int> pins;
+
+
+        Rect boundary();
 
         Bit() : 
             id(INT_MAX), 
@@ -205,6 +275,12 @@ namespace OABusRouter
         string layer;
         Rect boundary;
 
+        // Member functions
+        int leftBoundary(){ return this->boundary.ll.x; }
+        int rightBoundary(){ return this->boundary.ur.x; }
+        int topBoundary(){ return this->boundary.ur.y; }
+        int bottomBoundary(){ return this->boundary.ll.x; }
+
         Obstacle() : 
             id(INT_MAX), 
             layer(INIT_STR) {}
@@ -222,7 +298,14 @@ namespace OABusRouter
 
     class Circuit
     {
+      private:
+        static Circuit* instance;
+
+        
       public:
+        static Circuit* shared();
+
+
         // Parameters
         int runtime;
         int alpha;
@@ -245,6 +328,12 @@ namespace OABusRouter
         dense_hash_map<string,int> bitHashMap;
         dense_hash_map<string,int> busHashMap;
         dense_hash_map<string,int> layerHashMap;
+
+
+        BoxRtreeT pinRtree;
+        SegRtreeT trackRtree;
+
+
 
         // Initializer
         Circuit() :
@@ -275,6 +364,9 @@ namespace OABusRouter
         bool getBusInfo(char* fileName);
         bool getObstacleInfo(char* fileName);
 
+
+
+        void GenPlot();
 
     };
 
