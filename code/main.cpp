@@ -48,8 +48,18 @@ int main(int argc, char** argv){
         cout << "Fail to read " << inputFileName << endl;
     }
 
-
+    cout << "Initialize" << endl;
+    ckt->Init();
+    
+    cout << "Generate Backbone" << endl;
+    ckt->GenBackbone_v2();
+   
+    //ckt->RoutingPoint();
+    cout << "Generate Plot file" << endl;
     ckt->GenPlot();
+
+
+    //ckt->InitRoutingDirection();
 
     cout << "End program" << endl;
     return 0;

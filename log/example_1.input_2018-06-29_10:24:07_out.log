@@ -1,0 +1,124 @@
+================================================================
+    ICCAD 2018 Contest on Obstacle-aware Bus Routing            
+    Authors : Daeyeon Kim, Seungwon Kim                         
+    Advisor : Seok-Hyeong Kang                                  
+================================================================
+Input     : ../bench/example_1.input
+Output    : ../output/example_1.input
+# threads : 1
+Runtime : 1
+Alpha : 5
+Beta : 1
+Gamma : 5
+Delta : 8
+Epsilon : 200
+LLX : 0
+LLY : 0
+URX : 1000
+URY : 1000
+Track coord 100 0 100 1000
+Track Offset 100
+Track coord 140 0 140 1000
+Track Offset 140
+Track coord 180 0 180 1000
+Track Offset 180
+Track coord 220 0 220 1000
+Track Offset 220
+Track coord 260 0 260 1000
+Track Offset 260
+Track coord 360 0 360 1000
+Track Offset 360
+Track coord 400 0 400 1000
+Track Offset 400
+Track coord 440 0 440 1000
+Track Offset 440
+Track coord 480 0 480 1000
+Track Offset 480
+Track coord 520 0 520 1000
+Track Offset 520
+Track coord 620 0 620 1000
+Track Offset 620
+Track coord 660 0 660 1000
+Track Offset 660
+Track coord 700 0 700 1000
+Track Offset 700
+Track coord 740 0 740 1000
+Track Offset 740
+Track coord 780 0 780 1000
+Track Offset 780
+Track coord 880 0 880 1000
+Track Offset 880
+Track coord 920 0 920 1000
+Track Offset 920
+Track coord 960 0 960 1000
+Track Offset 960
+Track coord 0 50 1000 50
+Track Offset 50
+Track coord 0 100 1000 100
+Track Offset 100
+Track coord 0 200 1000 200
+Track Offset 200
+Track coord 0 250 1000 250
+Track Offset 250
+Track coord 0 350 1000 350
+Track Offset 350
+Track coord 0 400 1000 400
+Track Offset 400
+Track coord 0 450 1000 450
+Track Offset 450
+Track coord 0 550 1000 550
+Track Offset 550
+Track coord 0 600 1000 600
+Track Offset 600
+Track coord 0 650 1000 650
+Track Offset 650
+Track coord 0 750 1000 750
+Track Offset 750
+Track coord 0 800 1000 800
+Track Offset 800
+Track coord 450 500 1000 500
+Track Offset 500
+Track coord 450 700 1000 700
+Track Offset 700
+Track coord 450 850 1000 850
+Track Offset 850
+Track coord 450 900 1000 900
+Track Offset 900
+Pin (0 795) (20 805)
+Pin (980 595) (1000 605)
+Pin (0 745) (20 755)
+Pin (980 695) (1000 705)
+Pin (0 645) (20 655)
+Pin (980 745) (1000 755)
+Success parsing
+Initialize
+Design Boundary (0 0) (1000 1000)
+# of layers : 2
+# of tracks : 34
+Design Offset (0 0)
+Generate Backbone
+( 0) Pin Shape L2 HORIZONTAL 
+    ( 0) Track Index (1 13) Pin (0 795) (20 805) Seq 2
+    ( 1) Track Index (2 12) Pin (0 745) (20 755) Seq 7
+    ( 2) Track Index (3 10) Pin (0 645) (20 655) Seq -424742264
+
+
+( 1) Pin Shape L2 HORIZONTAL 
+    ( 0) Track Index (17 9) Pin (980 595) (1000 605) Seq 2
+    ( 1) Track Index (16 11) Pin (980 695) (1000 705) Seq 0
+    ( 2) Track Index (15 12) Pin (980 745) (1000 755) Seq 32767
+
+
+ 0 :  x= 140  y= 800  e=1
+ 1 :  x= 960  y= 600  e=1
+
+0 0 
+ 0 :  x= 180  y= 750  e=1
+ 1 :  x= 920  y= 700  e=1
+
+0 0 
+ 0 :  x= 220  y= 650  e=1
+ 1 :  x= 880  y= 750  e=1
+
+0 0 
+End program

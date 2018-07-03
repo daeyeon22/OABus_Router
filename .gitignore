@@ -1,6 +1,10 @@
-./code/*.log
-./bench/*
+./bench/**
 ./image/svg/*
-./code/*.swp
 ./image/*.swp
 
+./log/**
+./code/*.o
+./code/plot/**
+./code/gnuplot/**
+./code/*.swp
+./code/*.log

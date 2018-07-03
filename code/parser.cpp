@@ -1,3 +1,4 @@
+#include "func.h"
 #include "circuit.h"
 #include <boost/foreach.hpp>
 #include <boost/tokenizer.hpp>
@@ -5,7 +6,6 @@
 
 #define READ_FAILED 100
 #define INVALID_FILE_FORMAT 200
-
 
 
 bool OABusRouter::Circuit::getParam(char* fileName){
@@ -18,7 +18,7 @@ bool OABusRouter::Circuit::getParam(char* fileName){
     bool designFlag = false;
     bool epsilonFlag = false;
     string line = "";
-    string delim = " ";
+    string delim = " ()";
 
 
     try{
@@ -74,13 +74,18 @@ bool OABusRouter::Circuit::getParam(char* fileName){
             }
 
             if(*iter == "DESIGN_BOUNDARY"){
+
                 string str = *(++iter);
+                cout << "LLX : " << str << endl;
                 this->designBoundary.ll.x = atoi(str.c_str());
                 str = *(++iter);
+                cout << "LLY : " << str << endl;
                 this->designBoundary.ll.y = atoi(str.c_str());
                 str = *(++iter);
+                cout << "URX : " << str << endl;
                 this->designBoundary.ur.x = atoi(str.c_str());
                 str = *(++iter);
+                cout << "URY : " << str << endl;
                 this->designBoundary.ur.y = atoi(str.c_str());
                 designFlag = true;
             }
@@ -194,18 +199,23 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
                     string urxStr = *iter++;
                     string uryStr = *iter++;
                     string widthStr = *iter++;
+
+                    printf("Track coord %s %s %s %s\n", llxStr.c_str(), llyStr.c_str(), urxStr.c_str(), uryStr.c_str());
+
                     Track track;
                     track.id = this->tracks.size();
                     track.width = atoi(widthStr.c_str());
                     track.ll = Point(atoi(llxStr.c_str()), atoi(llyStr.c_str()));
                     track.ur = Point(atoi(urxStr.c_str()), atoi(uryStr.c_str()));
                     track.layer = layerName;
-                    
-                    Layer* lyr = &this->layers[this->layerHashMap[layerName]];
-                    lyr->tracks.push_back(track.id);
-
+                    Layer* layer = &this->layers[this->layerHashMap[layerName]];
+                    //lyr->tracks.push_back(track.id);
+                    track.offset = (layer->is_vertical())?track.ll.x:track.ll.y;
+                    layer->trackOffsets.push_back(track.offset);
+                    printf("Track Offset %d\n", track.offset);
                     this->tracks.push_back(track);
-                
+                    pair<string,int> info(track.layer,track.offset);
+                    this->trackHashMap[GetHashKey(info)] = track.id; 
                 }
             }
         }
@@ -267,14 +277,14 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                         iter = tokens.begin();
                         string numBitStr = *iter++;
                         bus.numBits = atoi(numBitStr.c_str());
-                        cout << "numBits : " << numBitStr << endl;
+                        //cout << "numBits : " << numBitStr << endl;
                         // Number of Pin Shapes
                         if(!getline(inputFile,line)) throw READ_FAILED;
                         tokens = boost::tokenizer<boost::char_separator<char>>(line, sep);
                         iter = tokens.begin();
                         string numPinShapeStr = *iter++;
                         bus.numPinShapes = atoi(numPinShapeStr.c_str());
-                        cout << "numPinShape : " << numPinShapeStr << endl;
+                        //cout << "numPinShape : " << numPinShapeStr << endl;
                         // Width Information
                         if(!getline(inputFile,line)) throw READ_FAILED;
                         tokens = boost::tokenizer<boost::char_separator<char>>(line, sep);
@@ -315,6 +325,8 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                                 bitFlag = true;
                                 targetBit = &this->bits[bit.id];//bit;
                                 bus.bits.push_back(bit.id);
+                                
+                                
                                 continue;
                             }else if(*iter == "ENDBIT"){
                                 bitFlag = false;
@@ -336,14 +348,19 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                                 pin.id = this->pins.size();
                                 pin.bitName = targetBit->name;
                                 pin.layer = layerStr;
-                                pin.boundary.ll.x = atoi(llxStr.c_str());
-                                pin.boundary.ll.y = atoi(llyStr.c_str());
-                                pin.boundary.ur.x = atoi(urxStr.c_str());
-                                pin.boundary.ur.y = atoi(uryStr.c_str());
+                                int llx = atoi(llxStr.c_str());
+                                int lly = atoi(llyStr.c_str());
+                                int urx = atoi(urxStr.c_str());
+                                int ury = atoi(uryStr.c_str());
+                                printf("Pin (%d %d) (%d %d)\n", llx, lly, urx, ury);
+                                pin.boundary = Rect(Point(llx, lly), Point(urx, ury));
                                 targetBit->pins.push_back(pin.id);
+                                bus.llx = min(llx, bus.llx);
+                                bus.lly = min(lly, bus.lly);
+                                bus.urx = max(urx, bus.urx);
+                                bus.ury = max(ury, bus.ury);
+                                
                                 this->pins.push_back(pin);
-                            
-                            
                             }
                         }
 
@@ -354,8 +371,6 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                     // END BUS
                 }
             }
-
-
         }
 
         inputFile.close();
@@ -454,6 +469,15 @@ bool OABusRouter::Circuit::read_iccad2018(char* fileName)
     }
     
 
+    for(int i=0; i<this->layers.size(); i++)
+    {
+        Layer* layer = &this->layers[i];
+        sort(layer->trackOffsets.begin(), layer->trackOffsets.end(), [](int left, int right){
+                return left < right;
+                });
+    }
+
+    /*
     for(auto& it : this->layers){
         it.print();
     }
@@ -477,7 +501,7 @@ bool OABusRouter::Circuit::read_iccad2018(char* fileName)
     for(auto& it : this->obstacles){
         it.print();
     }
-
+    */
     cout << "Success parsing" << endl;
     return true;
 }
@@ -492,11 +516,29 @@ void OABusRouter::Point::print()
     printf("Point (%d %d)\n", this->x, this->y);
 }
 
-void OABusRouter::Layer::print()
+void OABusRouter::Layer::print(bool all = false)
 {
     string dir = (this->direction == VERTICAL)? "vertical" : "horizontal";
+    printf("\n ================================== \n");
     printf("(%d) Layer %s %s %d\n", this->id, this->name.c_str(), dir.c_str(), this->spacing);
+    printf("    The number of tracks : %d\n", (int)this->trackOffsets.size());
+
+    if(all)
+    {
+        
+
+    }
+    printf("\n ================================== \n");
+
 }
+
+void OABusRouter::Gcell::print()
+{
+    printf("(%d) Gcell %s (%d %d) (%d %d) Num Tracks %d\n", this->id, this->layer.c_str(), 
+            this->boundary.ll.x, this->boundary.ll.y, this->boundary.ur.x, this->boundary.ur.y,
+            (int)this->trackOffsets.size());       
+}
+
 
 void OABusRouter::Track::print()
 {

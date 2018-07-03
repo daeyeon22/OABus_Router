@@ -40,6 +40,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <iostream>
 
 extern void GenBusPlot(int busid, const char* fileName);
+extern void GenBusPlot_v2(int busid, const char* fileName);
 
 namespace svg
 {

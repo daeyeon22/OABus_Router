@@ -138,20 +138,20 @@ DTYPE flute_wl(int d, DTYPE x[], DTYPE y[], int acc)
         l = ADIFF(x[0], x[1]) + ADIFF(y[0], y[1]);
     else if (d==3) {
         if (x[0] > x[1]) {
-            xu = max(x[0], x[2]);
-            xl = min(x[1], x[2]);
+            xu = _max(x[0], x[2]);
+            xl = _min(x[1], x[2]);
         }
         else {
-            xu = max(x[1], x[2]);
-            xl = min(x[0], x[2]);
+            xu = _max(x[1], x[2]);
+            xl = _min(x[0], x[2]);
         }
         if (y[0] > y[1]) {
-            yu = max(y[0], y[2]);
-            yl = min(y[1], y[2]);
+            yu = _max(y[0], y[2]);
+            yl = _min(y[1], y[2]);
         }
         else {
-            yu = max(y[1], y[2]);
-            yl = min(y[0], y[2]);
+            yu = _max(y[1], y[2]);
+            yl = _min(y[0], y[2]);
         }
         l = (xu-xl) + (yu-yl);
     }
@@ -302,7 +302,7 @@ DTYPE flutes_wl_LD(int d, DTYPE xs[], DTYPE ys[], int s[])
                 sum += dd[rlist->seg[i]];
             for (i=10; rlist->seg[i]>0; i--)
                 sum -= dd[rlist->seg[i]];
-            minl = min(minl, sum);
+            minl = _min(minl, sum);
             l[j++] = sum;
         }
     }
@@ -322,9 +322,9 @@ DTYPE flutes_wl_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc)
     DTYPE distx[MAXD], disty[MAXD], xydiff;
 
     if (s[0] < s[d-1]) {
-        ms = max(s[0], s[1]);
+        ms = _max(s[0], s[1]);
         for (i=2; i<=ms; i++)
-            ms = max(ms, s[i]);
+            ms = _max(ms, s[i]);
         if (ms <= d-3) {
             for (i=0; i<=ms; i++) {
                 x1[i] = xs[i];
@@ -344,9 +344,9 @@ DTYPE flutes_wl_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc)
         }
     }    
     else {  // (s[0] > s[d-1])
-        ms = min(s[0], s[1]);
+        ms = _min(s[0], s[1]);
         for (i=2; i<=d-1-ms; i++)
-            ms = min(ms, s[i]);
+            ms = _min(ms, s[i]);
         if (ms >= 2) {
             x1[0] = xs[ms];
             y1[0] = ys[0];
@@ -567,12 +567,14 @@ static int ordery(const void *a, const void *b)
 
 Tree flute(int d, DTYPE x[], DTYPE y[], int acc)
 {
+    printf("f-1\n");
     DTYPE *xs, *ys, minval;
     int *s;
     int i, j, k, minidx;
     struct point *pt, **ptp, *tmpp;
     Tree t;
     
+    printf("f-2\n");
     if (d==2) {
         t.deg = 2;
         t.length = ADIFF(x[0], x[1]) + ADIFF(y[0], y[1]);
@@ -616,6 +618,7 @@ Tree flute(int d, DTYPE x[], DTYPE y[], int acc)
             qsort(ptp, d, sizeof(struct point *), orderx);
         }
 
+    printf("f-3\n");
 #if REMOVE_DUPLICATE_PIN==1
         ptp[d] = &pt[d];
         ptp[d]->x = ptp[d]->y = -999999;
@@ -630,6 +633,7 @@ Tree flute(int d, DTYPE x[], DTYPE y[], int acc)
         d = j;
 #endif
         
+    printf("f-4\n");
         for (i=0; i<d; i++) {
             xs[i] = ptp[i]->x;
             ptp[i]->o = i;
@@ -662,12 +666,14 @@ Tree flute(int d, DTYPE x[], DTYPE y[], int acc)
         
         t = flutes(d, xs, ys, s, acc);
 
+    printf("f-5\n");
         free(xs);
         free(ys);
         free(s);
         free(pt);
         free(ptp);
     }
+    printf("f-6\n");
 
     return t;
 }
@@ -870,9 +876,9 @@ Tree flutes_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc)
     DTYPE distx[MAXD], disty[MAXD], xydiff;
 
     if (s[0] < s[d-1]) {
-        ms = max(s[0], s[1]);
+        ms = _max(s[0], s[1]);
         for (i=2; i<=ms; i++)
-            ms = max(ms, s[i]);
+            ms = _max(ms, s[i]);
         if (ms <= d-3) {
             for (i=0; i<=ms; i++) {
                 x1[i] = xs[i];
@@ -897,9 +903,9 @@ Tree flutes_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc)
         }
     }
     else {  // (s[0] > s[d-1])
-        ms = min(s[0], s[1]);
+        ms = _min(s[0], s[1]);
         for (i=2; i<=d-1-ms; i++)
-            ms = min(ms, s[i]);
+            ms = _min(ms, s[i]);
         if (ms >= 2) {
             x1[0] = xs[ms];
             y1[0] = ys[0];
@@ -1066,10 +1072,10 @@ Tree flutes_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc)
             ll = t1.length + t2.length;
             coord1 = t1.branch[t1.branch[nn1].n].y;
             coord2 = t2.branch[t2.branch[nn2].n].y;
-            if (t2.branch[nn2].y > max(coord1, coord2))
-                ll -= t2.branch[nn2].y - max(coord1, coord2);
-            else if (t2.branch[nn2].y < min(coord1, coord2))
-                ll -= min(coord1, coord2) - t2.branch[nn2].y;
+            if (t2.branch[nn2].y > _max(coord1, coord2))
+                ll -= t2.branch[nn2].y - _max(coord1, coord2);
+            else if (t2.branch[nn2].y < _min(coord1, coord2))
+                ll -= _min(coord1, coord2) - t2.branch[nn2].y;
         }
         else {  // if (!BreakInX(maxbp))
             n1 = n2 = 0;
@@ -1096,10 +1102,10 @@ Tree flutes_MD(int d, DTYPE xs[], DTYPE ys[], int s[], int acc)
             ll = t1.length + t2.length;
             coord1 = t1.branch[t1.branch[p].n].x;
             coord2 = t2.branch[t2.branch[0].n].x;
-            if (t2.branch[0].x > max(coord1, coord2))
-                ll -= t2.branch[0].x - max(coord1, coord2);
-            else if (t2.branch[0].x < min(coord1, coord2))
-                ll -= min(coord1, coord2) - t2.branch[0].x;
+            if (t2.branch[0].x > _max(coord1, coord2))
+                ll -= t2.branch[0].x - _max(coord1, coord2);
+            else if (t2.branch[0].x < _min(coord1, coord2))
+                ll -= _min(coord1, coord2) - t2.branch[0].x;
         }
         if (minl > ll) {
             minl = ll;
@@ -1232,12 +1238,12 @@ Tree hmergetree(Tree t1, Tree t2, int s[])
     extra = 2*t.deg-3;
     coord1 = t1.branch[t1.branch[nn1].n].y;
     coord2 = t2.branch[t2.branch[nn2].n].y;
-    if (t2.branch[nn2].y > max(coord1, coord2)) {
-        t.branch[extra].y = max(coord1, coord2);
+    if (t2.branch[nn2].y > _max(coord1, coord2)) {
+        t.branch[extra].y = _max(coord1, coord2);
         t.length -= t2.branch[nn2].y - t.branch[extra].y;
     }  
-    else if (t2.branch[nn2].y < min(coord1, coord2)) {
-        t.branch[extra].y = min(coord1, coord2);
+    else if (t2.branch[nn2].y < _min(coord1, coord2)) {
+        t.branch[extra].y = _min(coord1, coord2);
         t.length -= t.branch[extra].y - t2.branch[nn2].y;
     }
     else t.branch[extra].y = t2.branch[nn2].y;
@@ -1294,12 +1300,12 @@ Tree vmergetree(Tree t1, Tree t2)
     extra = 2*t.deg-3;
     coord1 = t1.branch[t1.branch[t1.deg-1].n].x;
     coord2 = t2.branch[t2.branch[0].n].x;
-    if (t2.branch[0].x > max(coord1, coord2)) {
-        t.branch[extra].x = max(coord1, coord2);
+    if (t2.branch[0].x > _max(coord1, coord2)) {
+        t.branch[extra].x = _max(coord1, coord2);
         t.length -= t2.branch[0].x - t.branch[extra].x;
     }        
-    else if (t2.branch[0].x < min(coord1, coord2)) {
-        t.branch[extra].x = min(coord1, coord2);
+    else if (t2.branch[0].x < _min(coord1, coord2)) {
+        t.branch[extra].x = _min(coord1, coord2);
         t.length -= t.branch[extra].x - t2.branch[0].x;
     }
     else t.branch[extra].x = t2.branch[0].x;

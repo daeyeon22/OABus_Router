@@ -25,7 +25,9 @@
 #include <boost/icl/interval_set.hpp>
 #include <boost/icl/interval_base_map.hpp>
 
-#include "flute.h"
+#include "func.h"
+//#include "flute.h"
+
 
 // Dense hash map
 #include <sparsehash/dense_hash_map>
@@ -34,7 +36,8 @@
 #define INIT_STR "INITSTR"
 #define VERTICAL 111
 #define HORIZONTAL 222
-
+#define GCELL_WIDTH 2000
+#define GCELL_HEIGHT 2000
 
 #define ckt OABusRouter::Circuit::shared()
 
@@ -63,8 +66,6 @@ typedef bg::model::polygon<bgPointT> bgPolygonT;
 typedef bgi::rtree<pair<bgSegmentT, int>, bgi::rstar<16>> SegRtreeT;
 typedef bgi::rtree<pair<bgBoxT, int>, bgi::rstar<16>> BoxRtreeT;
 typedef bgi::rtree<pair<bgPointT, int>, bgi::rstar<16>> PointRtreeT;
-
-
 
 // Obstacle-Aware On-Track Bus Router
 namespace OABusRouter
@@ -115,7 +116,7 @@ namespace OABusRouter
         string name;
         Rect boundary;
         
-        vector<int> tracks;
+        //vector<int> tracks;
         vector<int> trackOffsets;
 
         int lower_bound(int coord);
@@ -143,7 +144,7 @@ namespace OABusRouter
 
         }
 
-        void print();
+        void print(bool all);
     };
 
 
@@ -175,6 +176,34 @@ namespace OABusRouter
         {
             ll = tr.ll;
             ur = tr.ur;
+        }
+
+        void print();
+    };
+
+
+    struct Gcell
+    {
+        int id;
+        int cap;
+        int direction;
+        string layer;
+        Rect boundary;
+        
+        vector<Gcell*> adjs;
+
+
+        // sorted
+        //vector<int> tracks;
+        vector<int> trackOffsets;
+        
+        Gcell() :
+            id(INT_MAX),
+            cap(INT_MIN),
+            direction(INT_MAX),
+            layer(INIT_STR)
+        {
+
         }
 
         void print();
@@ -240,6 +269,8 @@ namespace OABusRouter
         int id;
         int numBits;
         int numPinShapes;
+        int llx, lly;
+        int urx, ury;
         string name;
 
         vector<int> bits;
@@ -250,6 +281,10 @@ namespace OABusRouter
             id(INT_MAX), 
             numBits(INT_MAX), 
             numPinShapes(INT_MAX), 
+            llx(INT_MAX),
+            lly(INT_MAX),
+            urx(INT_MIN),
+            ury(INT_MIN),
             name(INIT_STR)
         {
             width.set_empty_key(INIT_STR);
@@ -259,6 +294,10 @@ namespace OABusRouter
             id(b.id),
             numBits(b.numBits),
             numPinShapes(b.numPinShapes),
+            llx(b.llx),
+            lly(b.lly),
+            urx(b.urx),
+            ury(b.ury),
             name(b.name)
         {
             bits = b.bits;
@@ -267,7 +306,6 @@ namespace OABusRouter
 
         void print();
     };
-
 
     struct Obstacle
     {
@@ -295,6 +333,122 @@ namespace OABusRouter
         void print();
 
     };
+    
+    struct TreeNode
+    {
+        int index;
+        int pinID;
+        int parent;
+        int x, y;
+        int z;
+        //Point coord;
+        bool isPin;
+        bool isSteiner;
+        
+        vector<int> neighbor;
+        vector<int> edge;
+
+        TreeNode() :
+            index(INT_MAX),
+            pinID(INT_MAX),
+            parent(INT_MAX),
+            x(INT_MAX),
+            y(INT_MAX),
+            z(INT_MAX),
+            isPin(false),
+            isSteiner(false)
+        {}
+        
+        TreeNode(const TreeNode& node) :
+            index(node.index),
+            pinID(node.pinID),
+            parent(node.parent),
+            x(node.x),
+            y(node.y),
+            z(node.z),
+            isPin(node.isPin),
+            isSteiner(node.isSteiner),
+            neighbor(node.neighbor),
+            edge(node.edge)
+        {}
+
+    
+    };
+
+    struct TreeEdge
+    {
+        int length;
+        int n1;
+        int n2;
+        
+        TreeEdge() : 
+            length(INT_MAX),
+            n1(INT_MAX),
+            n2(INT_MAX) 
+        {}
+    };
+
+    struct Segment
+    {
+        int x1, x2;
+        int y1, y2;
+        int z;
+        int bitID;
+
+        Segment(){}
+        Segment(int x_1 = INT_MAX, 
+                int y_1 = INT_MAX,
+                int x_2 = INT_MAX,
+                int y_2 = INT_MAX,
+                int bit_ID = INT_MAX) :
+            x1(x_1),
+            y1(y_1),
+            x2(x_2),
+            y2(y_2),
+            bitID(bit_ID) 
+        {}
+        Segment(const Segment& seg) :
+            x1(seg.x1),
+            y1(seg.y1),
+            x2(seg.x2),
+            y2(seg.y2),
+            bitID(seg.bitID)
+        {}
+
+
+    };
+
+
+    struct StTree
+    {
+        int index;
+        int numNodes;
+        int numEdges;
+        int length;
+        
+        vector<TreeNode> nodes;
+        vector<TreeEdge> edges;
+           
+        StTree() :
+            index(INT_MAX),
+            numNodes(INT_MAX),
+            numEdges(INT_MAX),
+            length(INT_MAX)
+        {}
+
+        StTree(const StTree& tree) :
+            index(tree.index),
+            numNodes(tree.numNodes),
+            numEdges(tree.numEdges),
+            length(tree.length),
+            nodes(tree.nodes),
+            edges(tree.edges)
+        {}
+
+
+    };
+
+
 
     class Circuit
     {
@@ -323,11 +477,23 @@ namespace OABusRouter
         vector<Obstacle> obstacles;
         vector<Bit> bits;
         vector<Pin> pins;
+        vector<Gcell> gCells;
+        vector<StTree> stTrees;
+        vector<Segment> segs;
+
+        vector<int> gCellOffsetLX;
+        vector<int> gCellOffsetLY;
+        vector<int> gCellOffsetUX;
+        vector<int> gCellOffsetUY;
 
         // Hash Map
         dense_hash_map<string,int> bitHashMap;
         dense_hash_map<string,int> busHashMap;
         dense_hash_map<string,int> layerHashMap;
+        dense_hash_map<size_t,int> trackHashMap;
+        dense_hash_map<size_t,int> gCellHashMap; 
+        dense_hash_map<int,int> stTreeHashMap;
+
 
 
         BoxRtreeT pinRtree;
@@ -347,6 +513,9 @@ namespace OABusRouter
             bitHashMap.set_empty_key(INIT_STR);
             busHashMap.set_empty_key(INIT_STR);
             layerHashMap.set_empty_key(INIT_STR);
+            trackHashMap.set_empty_key(0);
+            stTreeHashMap.set_empty_key(0);
+            gCellHashMap.set_empty_key(0);
         }
 
 
@@ -365,15 +534,22 @@ namespace OABusRouter
         bool getObstacleInfo(char* fileName);
 
 
-
+        // Route
+        void Init();
+        void GenBackbone();
+        void GenBackbone_v2();
+        void LayerAssignment();
+        void RoutingPoint();
+        void InitRoutingDirection();
+        // Util
+        
         void GenPlot();
-
+        void GenTopology();
     };
 
 
+
 };
-
-
 
 
 #endif
