@@ -5,6 +5,46 @@
 using namespace OABusRouter;
 
 
+void OABusRouter::Circuit::InitGcellParameters()
+{
+    int tmpmax = INT_MIN;
+    int tmpmin = INT_MAX;
+    int numBuses = this->buses.size();
+    
+
+    for(int i=0; i < numBuses; i++)
+    {
+        Bus* curB = &this->buses[i];
+        tmpmax = max(curB->numBits, tmpmax);
+        tmpmin = min(curB->numBits, tmpmin);
+    }
+
+    int minpitchV = INT_MAX;
+    int maxpitchV = INT_MIN;
+    int minpitchH = INT_MAX;
+    int maxpitchH = INT_MIN;
+    int numLayers = this->layers.size();
+
+    for(int i=0; i < numLayers; i++)
+    {
+        Layer* curL = &this->layers[i];
+        int wirepitch = abs(curL->trackOffsets[0] - curL->trackOffsets[1]);
+        if(curL->is_vertical())
+        {
+            maxpitchH = max(wirepitch, maxpitchH);
+            minpitchH = min(wirepitch, minpitchH);
+        }
+        else
+        {
+            maxpitchV = max(wirepitch, maxpitchV);
+            minpitchV = min(wirepitch, minpitchV);
+        }
+    }
+
+    this->GCELL_WIDTH = minpitchH * tmpmax * 2;
+    this->GCELL_HEIGHT = minpitchV * tmpmax * 2;
+
+}
 
 
 void OABusRouter::Circuit::Init()
@@ -161,12 +201,10 @@ void OABusRouter::Circuit::InitRoutingDirection()
         numBits = curBus->numBits;
         numPinShapes = curBus->numPinShapes;
         
-        
         int busLLX = curBus->llx;
         int busLLY = curBus->lly;
         int busURX = curBus->urx;
         int busURY = curBus->ury;
-
 
         // Sequence array 
         // bottom to top
@@ -177,8 +215,6 @@ void OABusRouter::Circuit::InitRoutingDirection()
         int lidx[numPinShapes];
         int dir[numPinShapes];
         int placeDir[numPinShapes];
-
-       
 
 
         for(int p=0; p < numPinShapes; p++)

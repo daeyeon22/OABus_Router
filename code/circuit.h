@@ -33,13 +33,18 @@
 #include <sparsehash/dense_hash_map>
 
 // Pre-define
+#ifndef PREDEF
+#define PREDEF 
 #define INIT_STR "INITSTR"
 #define VERTICAL 111
 #define HORIZONTAL 222
-#define GCELL_WIDTH 2000
-#define GCELL_HEIGHT 2000
+#endif
 
+//#define GCELL_WIDTH 2000
+//#define GCELL_HEIGHT 2000
 #define ckt OABusRouter::Circuit::shared()
+#define GCELL_WIDTH ckt->GCELL_WIDTH
+#define GCELL_HEIGHT ckt->GCELL_HEIGHT
 
 
 // Namespace
@@ -113,23 +118,36 @@ namespace OABusRouter
         int id;
         int direction;
         int spacing;
+        int llx, lly;
+        int urx, ury;
         string name;
-        Rect boundary;
-        
+        //Rect boundary;
         //vector<int> tracks;
         vector<int> trackOffsets;
 
-        int lower_bound(int coord);
-        int upper_bound(int coord);
-        bool is_vertical(){ return (this->direction == VERTICAL)? true : false; }
-        bool is_horizontal(){ return (this->direction == HORIZONTAL)? true : false; }
+        //int lower_bound(int coord);
+        //int upper_bound(int coord);
+        
+        bool is_vertical()
+        { 
+            return (this->direction == VERTICAL)? true : false; 
+        }
+        
+        bool is_horizontal()
+        { 
+            return (this->direction == HORIZONTAL)? true : false; 
+        }
 
 
 
         Layer() : 
             id(INT_MAX), 
             direction(INT_MAX), 
-            spacing(INT_MAX), 
+            spacing(INT_MAX),
+            llx(INT_MAX),
+            lly(INT_MAX),
+            urx(INT_MIN),
+            ury(INT_MIN),
             name(INIT_STR) 
         {
 
@@ -139,6 +157,10 @@ namespace OABusRouter
             id(lr.id),
             direction(lr.direction),
             spacing(lr.spacing),
+            llx(lr.llx),
+            lly(lr.lly),
+            urx(lr.urx),
+            ury(lr.ury),
             name(lr.name)
         {
 
@@ -153,13 +175,15 @@ namespace OABusRouter
         int id;
         int width;
         int offset;
+        int llx, lly;
+        int urx, ury;
         string layer;
         Point ll;
         Point ur;
         
         // Segment tree
-        IntervalMapT assignedIntervals;
-        IntervalSetT emptyIntervals;
+        //IntervalMapT assignedIntervals;
+        //IntervalSetT emptyIntervals;
 
 
 
@@ -167,47 +191,24 @@ namespace OABusRouter
         Track() : 
             id(INT_MAX), 
             width(INT_MAX), 
+            llx(INT_MAX),
+            lly(INT_MAX),
+            urx(INT_MIN),
+            ury(INT_MIN),
             layer(INIT_STR) {}
 
         Track(const Track& tr) :
             id(tr.id),
             width(tr.width),
-            layer(tr.layer)
-        {
-            ll = tr.ll;
-            ur = tr.ur;
-        }
+            llx(tr.llx),
+            lly(tr.lly),
+            urx(tr.urx),
+            ury(tr.ury),
+            layer(tr.layer) {}
 
         void print();
     };
 
-
-    struct Gcell
-    {
-        int id;
-        int cap;
-        int direction;
-        string layer;
-        Rect boundary;
-        
-        vector<Gcell*> adjs;
-
-
-        // sorted
-        //vector<int> tracks;
-        vector<int> trackOffsets;
-        
-        Gcell() :
-            id(INT_MAX),
-            cap(INT_MIN),
-            direction(INT_MAX),
-            layer(INIT_STR)
-        {
-
-        }
-
-        void print();
-    };
 
 
     struct Pin
@@ -310,144 +311,31 @@ namespace OABusRouter
     struct Obstacle
     {
         int id;
+        int llx, lly;
+        int urx, ury;
         string layer;
-        Rect boundary;
-
-        // Member functions
-        int leftBoundary(){ return this->boundary.ll.x; }
-        int rightBoundary(){ return this->boundary.ur.x; }
-        int topBoundary(){ return this->boundary.ur.y; }
-        int bottomBoundary(){ return this->boundary.ll.x; }
+        //Rect boundary;
 
         Obstacle() : 
             id(INT_MAX), 
+            llx(INT_MAX),
+            lly(INT_MAX),
+            urx(INT_MIN),
+            ury(INT_MIN),
             layer(INIT_STR) {}
 
         Obstacle(const Obstacle& obs) :
             id(obs.id),
-            layer(obs.layer)
-        {
-            boundary = obs.boundary;   
-        }
+            llx(obs.llx),
+            lly(obs.lly),
+            urx(obs.urx),
+            ury(obs.ury),
+            layer(obs.layer) {}
 
         void print();
 
     };
     
-    struct TreeNode
-    {
-        int index;
-        int pinID;
-        int parent;
-        int x, y;
-        int z;
-        //Point coord;
-        bool isPin;
-        bool isSteiner;
-        
-        vector<int> neighbor;
-        vector<int> edge;
-
-        TreeNode() :
-            index(INT_MAX),
-            pinID(INT_MAX),
-            parent(INT_MAX),
-            x(INT_MAX),
-            y(INT_MAX),
-            z(INT_MAX),
-            isPin(false),
-            isSteiner(false)
-        {}
-        
-        TreeNode(const TreeNode& node) :
-            index(node.index),
-            pinID(node.pinID),
-            parent(node.parent),
-            x(node.x),
-            y(node.y),
-            z(node.z),
-            isPin(node.isPin),
-            isSteiner(node.isSteiner),
-            neighbor(node.neighbor),
-            edge(node.edge)
-        {}
-
-    
-    };
-
-    struct TreeEdge
-    {
-        int length;
-        int n1;
-        int n2;
-        
-        TreeEdge() : 
-            length(INT_MAX),
-            n1(INT_MAX),
-            n2(INT_MAX) 
-        {}
-    };
-
-    struct Segment
-    {
-        int x1, x2;
-        int y1, y2;
-        int z;
-        int bitID;
-
-        Segment(){}
-        Segment(int x_1 = INT_MAX, 
-                int y_1 = INT_MAX,
-                int x_2 = INT_MAX,
-                int y_2 = INT_MAX,
-                int bit_ID = INT_MAX) :
-            x1(x_1),
-            y1(y_1),
-            x2(x_2),
-            y2(y_2),
-            bitID(bit_ID) 
-        {}
-        Segment(const Segment& seg) :
-            x1(seg.x1),
-            y1(seg.y1),
-            x2(seg.x2),
-            y2(seg.y2),
-            bitID(seg.bitID)
-        {}
-
-
-    };
-
-
-    struct StTree
-    {
-        int index;
-        int numNodes;
-        int numEdges;
-        int length;
-        
-        vector<TreeNode> nodes;
-        vector<TreeEdge> edges;
-           
-        StTree() :
-            index(INT_MAX),
-            numNodes(INT_MAX),
-            numEdges(INT_MAX),
-            length(INT_MAX)
-        {}
-
-        StTree(const StTree& tree) :
-            index(tree.index),
-            numNodes(tree.numNodes),
-            numEdges(tree.numEdges),
-            length(tree.length),
-            nodes(tree.nodes),
-            edges(tree.edges)
-        {}
-
-
-    };
-
 
 
     class Circuit
@@ -467,8 +355,13 @@ namespace OABusRouter
         int delta;
         int gamma;
         int epsilon;
-        Rect designBoundary;
-
+        int llx, lly;
+        int urx, ury;
+        
+        //Rect designBoundary;
+        // 
+        //int GCELL_WIDTH;
+        //int GCELL_HEIGHT;
 
         // Objects
         vector<Layer> layers;
@@ -477,27 +370,37 @@ namespace OABusRouter
         vector<Obstacle> obstacles;
         vector<Bit> bits;
         vector<Pin> pins;
-        vector<Gcell> gCells;
-        vector<StTree> stTrees;
-        vector<Segment> segs;
+        
+        
+        // should remove //
+        //vector<Gcell> gCells;
+        //vector<StTree> stTrees;
+        //vector<Segment> segs;
+        //vector<int> gCellOffsetLX;
+        //vector<int> gCellOffsetLY;
+        //vector<int> gCellOffsetUX;
+        //vector<int> gCellOffsetUY;
+        ///////////////////
 
-        vector<int> gCellOffsetLX;
-        vector<int> gCellOffsetLY;
-        vector<int> gCellOffsetUX;
-        vector<int> gCellOffsetUY;
+
+
+
 
         // Hash Map
         dense_hash_map<string,int> bitHashMap;
         dense_hash_map<string,int> busHashMap;
         dense_hash_map<string,int> layerHashMap;
         dense_hash_map<size_t,int> trackHashMap;
-        dense_hash_map<size_t,int> gCellHashMap; 
-        dense_hash_map<int,int> stTreeHashMap;
+        
+        // should remove //
+        //dense_hash_map<size_t,int> gCellHashMap; 
+        //dense_hash_map<int,int> stTreeHashMap;
+        ///////////////////
 
 
 
-        BoxRtreeT pinRtree;
-        SegRtreeT trackRtree;
+        //BoxRtreeT pinRtree;
+        //SegRtreeT trackRtree;
 
 
 
@@ -508,14 +411,21 @@ namespace OABusRouter
             beta(INT_MAX),
             delta(INT_MAX),
             gamma(INT_MAX),
-            epsilon(INT_MAX)
+            epsilon(INT_MAX),
+            llx(INT_MAX),
+            lly(INT_MAX),
+            urx(INT_MIN),
+            ury(INT_MIN)
         {
             bitHashMap.set_empty_key(INIT_STR);
             busHashMap.set_empty_key(INIT_STR);
             layerHashMap.set_empty_key(INIT_STR);
             trackHashMap.set_empty_key(0);
-            stTreeHashMap.set_empty_key(0);
-            gCellHashMap.set_empty_key(0);
+            
+            // should remove // 
+            //stTreeHashMap.set_empty_key(0);
+            //gCellHashMap.set_empty_key(0);
+            ///////////////////
         }
 
 
@@ -535,16 +445,16 @@ namespace OABusRouter
 
 
         // Route
-        void Init();
-        void GenBackbone();
-        void GenBackbone_v2();
-        void LayerAssignment();
-        void RoutingPoint();
-        void InitRoutingDirection();
+        //void Init();
+        //void GenBackbone();
+        //void GenBackbone_v2();
+        //void LayerAssignment();
+        //void RoutingPoint();
+        //void InitRoutingDirection();
         // Util
         
-        void GenPlot();
-        void GenTopology();
+        //void GenPlot();
+        //void GenTopology();
     };
 
 

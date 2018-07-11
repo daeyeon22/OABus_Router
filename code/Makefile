@@ -28,7 +28,7 @@ CONCERTLIBS     = -L$(CONCERTDIR)/../lib/$(SYSTEM)/$(LIBFORMAT) -lconcert -lm -p
 DEBUG = -g -gstrict-dwarf -gdwarf-2
 
 
-$(EXE): func.o main.o util.o parser.o flute.o flute_mst.o dl.o mst2.o neighbors.o dist.o heap.o err.o init.o RSMT.o
+$(EXE): func.o main.o util.o parser.o flute.o flute_mst.o dl.o mst2.o neighbors.o dist.o heap.o err.o
 	$(CXX) $(DEBUG) $(CXXOPTS) $^ -o $@ $(LINKCFLAGS) 
 #2> out.log
 
@@ -68,14 +68,14 @@ flute_mst.o: flute_mst.c flute.h
 	$(CXX) $(CCFLAGS) -c -o $@ $< 
 #gcc -O3 -I. -c -o flute_mst.o flute_mst.c
 
-util.o: util.cpp circuit.h flute.h util.h func.h
-	$(CXX) $(CFLAGS) -c -o $@ $<  
+#util.o: util.cpp circuit.h flute.h util.h func.h
+#	$(CXX) $(CFLAGS) -c -o $@ $<  
 
 init.o: init.cpp circuit.h func.h
 	$(CXX) $(CFLAGS) -c -o $@ $<  
 
-RSMT.o: RSMT.cpp flute.h circuit.h global.h
-	$(CXX) $(CFLAGS) -c -o $@ $<  
+#RSMT.o: RSMT.cpp flute.h circuit.h global.h
+#	$(CXX) $(CFLAGS) -c -o $@ $<  
 
 
 
