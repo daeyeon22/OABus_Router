@@ -125,14 +125,6 @@ void OABusRouter::Circuit::Init()
                             );
 
                     //cout << "Bound (" << lowerBound << " " << upperBound << ") # tracks " << layer->trackOffsets.size() <<  endl;
-                    /*
-                    gcell.tracks.insert(
-                            gcell.tracks.end(), 
-                            (layer->tracks.begin() + lowerBound), 
-                            (layer->tracks.begin() + upperBound)
-                            );
-                    */
-
                     this->gCells.push_back(gcell);
                     tuple<string,int,int> keyValue = make_tuple(layer->name,x1,y1);
                     this->gCellHashMap[GetHashKey(keyValue)] = gcell.id;

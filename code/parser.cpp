@@ -75,18 +75,22 @@ bool OABusRouter::Circuit::getParam(char* fileName){
 
             if(*iter == "DESIGN_BOUNDARY"){
 
-                string str = *(++iter);
-                //cout << "LLX : " << str << endl;
-                this->llx = atoi(str.c_str());
-                str = *(++iter);
-                //cout << "LLY : " << str << endl;
-                this->lly = atoi(str.c_str());
-                str = *(++iter);
-                //cout << "URX : " << str << endl;
-                this->urx = atoi(str.c_str());
-                str = *(++iter);
-               // cout << "URY : " << str << endl;
-                this->ury = atoi(str.c_str());
+                int llx, lly, urx, ury;
+                string llxStr = *(++iter);
+                string llyStr = *(++iter);
+                string urxStr = *(++iter);
+                string uryStr = *(++iter);
+
+                llx = atoi(llxStr.c_str());
+                lly = atoi(llyStr.c_str());
+                urx = atoi(urxStr.c_str());
+                ury = atoi(uryStr.c_str());
+                
+                this->originX = llx;
+                this->originY = lly;
+                this->width = abs(urx - llx);
+                this->height = abs(ury - lly);
+                
                 designFlag = true;
             }
 
@@ -192,21 +196,25 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
                 if(*iter == "ENDTRACKS"){
                     inputFile.close();
                     return true;
-                //}else{
+                }else{
                     string layerName = *iter++;
                     string llxStr = *iter++;
                     string llyStr = *iter++;
                     string urxStr = *iter++;
                     string uryStr = *iter++;
                     string widthStr = *iter++;
+                    
+
 
                     printf("Track coord %s %s %s %s\n", llxStr.c_str(), llyStr.c_str(), urxStr.c_str(), uryStr.c_str());
 
                     Track track;
                     track.id = this->tracks.size();
                     track.width = atoi(widthStr.c_str());
-                    track.ll = Point(atoi(llxStr.c_str()), atoi(llyStr.c_str()));
-                    track.ur = Point(atoi(urxStr.c_str()), atoi(uryStr.c_str()));
+                    track.llx = atoi(llxStr.c_str());
+                    track.lly = atoi(llyStr.c_str());
+                    track.urx = atoi(urxStr.c_str());
+                    track.ury = atoi(uryStr.c_str());
                     track.layer = layerName;
                     Layer* layer = &this->layers[this->layerHashMap[layerName]];
                     //lyr->tracks.push_back(track.id);

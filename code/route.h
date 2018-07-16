@@ -1,6 +1,11 @@
 #ifndef ROUTER_H
 #define ROUTER_H
-
+#include <iostream>
+#include <vector>
+#include <string>
+#include <map>
+#include <climits>
+#include <sparsehash/dense_hash_map>
 
 #ifndef PREDEF
 #define PREDEF
@@ -8,14 +13,14 @@
 #define VERTICAL 111 
 #endif
 
-
 #ifndef DTYPE       // Data type used by FLUTE
 #define DTYPE int
 #endif
 
 #define rou OABusRouter::Router::shared()
 
-
+using namespace std;
+using google::dense_hash_map;
 
 namespace OABusRouter
 {
@@ -43,8 +48,8 @@ namespace OABusRouter
             n(node.n),
             x(node.x),
             y(node.y),
-            l(node.z),
-            steiner(node.isSteiner),
+            l(node.l),
+            steiner(node.steiner),
             neighbor(node.neighbor),
             edge(node.edge)
         {}
@@ -99,6 +104,7 @@ namespace OABusRouter
     struct StTree
     {
         //int index;
+        int deg;
         int numNodes;
         int numEdges;
         int length;
@@ -108,6 +114,7 @@ namespace OABusRouter
            
         StTree() :
             //index(INT_MAX),
+            deg(INT_MAX),
             numNodes(INT_MAX),
             numEdges(INT_MAX),
             length(INT_MAX)
@@ -115,6 +122,7 @@ namespace OABusRouter
 
         StTree(const StTree& tree) :
             //index(tree.index),
+            deg(tree.deg),
             numNodes(tree.numNodes),
             numEdges(tree.numEdges),
             length(tree.length),
@@ -122,6 +130,7 @@ namespace OABusRouter
             edges(tree.edges)
         {}
 
+        void print();
 
     };
 
@@ -202,10 +211,25 @@ namespace OABusRouter
             height(hg)
         {
             direction.set_empty_key(0);
+            // Offsets initialize
+            for(int c=0; c < numCols; c++)
+            {
+                int urx = (c+1)*GCELL_WIDTH;
+                offsetxs.push_back(urx);
+            }
+       
+            for(int r=0; r < numRows; r++)
+            {
+                int ury = (r+1)*GCELL_HEIGHT;
+                offsetys.push_back(ury);
+            }
+       
+            // initialize gcells
+            gcells = vector<Gcell>(numCols*numRows*numLayers, Gcell());
         }
 
         // Copy constructor
-        Grid3D(const Grid3d& grid):
+        Grid3D(const Grid3D& grid):
             numCols(grid.numCols),
             numRows(grid.numRows),
             numLayers(grid.numLayers),
@@ -214,17 +238,20 @@ namespace OABusRouter
             xoffset(grid.xoffset),
             yoffset(grid.yoffset),
             gcells(grid.gcells),
-            direction(grid.direction)
+            direction(grid.direction),
+            width(grid.width),
+            height(grid.height)
         {}
 
         // Initialize function
+        void CreateGCs();
         void InitGcellCap(int l, int dir, vector<int> &offsets);
 
 
         // member functions
         int GetIndex(int col, int row, int layer);
-        int GetOffsetx(int col);
-        int GetOffsety(int row);
+        int GetOffset_x(int col);
+        int GetOffset_y(int row);
         int GetColum(int crd);
         int GetRow(int crd);
 
@@ -252,6 +279,10 @@ namespace OABusRouter
         // Generate Initial Topology for each bus
         void GenBackbone();
         void GenStTree(int id, DTYPE x[], DTYPE y[], int l[]);
+        
+        // Mapping 3D
+        void TopologyMapping3D();
+        
 
     };
 

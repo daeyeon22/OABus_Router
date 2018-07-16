@@ -26,8 +26,11 @@ CONCERTDIR 	= /home/tool/IBM/ILOG/127/concert/include
 # FLUTE #
 FLUTEDIR 	= ./flute
 FLUTESRC 	= $(FLUTEDIR)/neighbors.o $(FLUTEDIR)/mst2.o \
-		$(FLUTEDIR)/dl.o $(FLUTEDIR)/err.o $(FLUTEDIR)/heap.o \
-		$(FLUTEDIR)/dist.o $(FLUTEDIR)/flute.o $(FLUTEDIR)/flute_mst.o 
+			$(FLUTEDIR)/dl.o $(FLUTEDIR)/err.o $(FLUTEDIR)/heap.o \
+			$(FLUTEDIR)/dist.o $(FLUTEDIR)/flute.o $(FLUTEDIR)/flute_mst.o 
+
+SRC			= func.o main.o parser.o route.o \
+			  rsmt.o
 
 CPLEXLIBS       = -L$(CPLEXDIR)/../lib/$(SYSTEM)/$(LIBFORMAT) -lilocplex -lcplex
 CONCERTLIBS     = -L$(CONCERTDIR)/../lib/$(SYSTEM)/$(LIBFORMAT) -lconcert -lm -pthread -fopenmp -static-libstdc++ -std=c++11
@@ -35,60 +38,63 @@ CONCERTLIBS     = -L$(CONCERTDIR)/../lib/$(SYSTEM)/$(LIBFORMAT) -lconcert -lm -p
 DEBUG = -g -gstrict-dwarf -gdwarf-2
 
 
-$(EXE): $(FLUTESRC) func.o main.o util.o parser.o route.o
+$(EXE): $(FLUTESRC) $(SRC) 
 	$(CXX) $(DEBUG) $(CXXOPTS) $^ -o $@ $(LINKCFLAGS) 
 #2> out.log
-
 func.o: func.cpp func.h
 	$(CXX) $(CFLAGS) -c -o $@ $<  
-
 main.o: main.cpp circuit.h
 	$(CXX) $(CFLAGS) -c -o $@ $<
 
 parser.o: parser.cpp circuit.h func.h
 	$(CXX) $(CFLAGS) -c -o $@ $<
 
+route.o: route.cpp route.h circuit.h
+	$(CXX) $(CFLAGS) -c -o $@ $<  
+
+rsmt.o: rsmt.cpp route.h circuit.h
+	$(CXX) $(CFLAGS) -c -o $@ $<  
+
 #util.o: util.cpp circuit.h flute.h util.h func.h
 #	$(CXX) $(CFLAGS) -c -o $@ $<  
 
-init.o: init.cpp circuit.h func.h
-	$(CXX) $(CFLAGS) -c -o $@ $<  
-
-route.h: route.cpp route.h circuit.h
-	$(CXX) $(CFLAGS) -c -o $@ $<  
+#init.o: init.cpp circuit.h func.h
+#	$(CXX) $(CFLAGS) -c -o $@ $<  
 
 
 #RSMT.o: RSMT.cpp flute.h circuit.h global.h
 #	$(CXX) $(CFLAGS) -c -o $@ $<  
 
-############ FLUTE #################
 
-neighbors.o: $(FLUTEDIR)/neighbors.c $(FLUTEDIR)/neighbors.h
+############### FLUTE #################
+
+flute/neighbors.o: $(FLUTEDIR)/neighbors.c $(FLUTEDIR)/neighbors.h
 	$(CXX) $(CCFLAGS) -c -o $@ $< 
 
-mst2.o: $(FLUTEDIR)/mst2.c $(FLUTEDIR)/mst2.h
+flute/mst2.o: $(FLUTEDIR)/mst2.c $(FLUTEDIR)/mst2.h
 	$(CXX) $(CCFLAGS) -c -o $@ $< 
 
-dl.o: $(FLUTEDIR)/dl.c $(FLUTEDIR)/dl.h
+flute/dl.o: $(FLUTEDIR)/dl.c $(FLUTEDIR)/dl.h
 	$(CXX) $(CCFLAGS) -c -o $@ $< 
 
-err.o: $(FLUTEDIR)/err.c $(FLUTEDIR)/err.h
+flute/err.o: $(FLUTEDIR)/err.c $(FLUTEDIR)/err.h
 	$(CXX) $(CCFLAGS) -c -o $@ $< 
 
-heap.o: $(FLUTEDIR)/heap.c $(FLUTEDIR)/heap.h
+flute/heap.o: $(FLUTEDIR)/heap.c $(FLUTEDIR)/heap.h
 	$(CXX) $(CCFLAGS) -c -o $@ $< 
 
-dist.o: $(FLUTEDIR)/dist.c $(FLUTEDIR)/dist.h
+flute/dist.o: $(FLUTEDIR)/dist.c $(FLUTEDIR)/dist.h
 	$(CXX) $(CCFLAGS) -c -o $@ $< 
 
-flute.o: $(FLUTEDIR)/flute.c $(FLUTEDIR)/flute.h
+flute/flute.o: $(FLUTEDIR)/flute.c $(FLUTEDIR)/flute.h
 	$(CXX) $(CCFLAGS) -c -o $@ $< 
 
-flute_mst.o: $(FLUTEDIR)/flute_mst.c $(FLUTEDIR)/flute.h
+flute/flute_mst.o: $(FLUTEDIR)/flute_mst.c $(FLUTEDIR)/flute.h
 	$(CXX) $(CCFLAGS) -c -o $@ $< 
-####################################
 
+########################################
 
+	
 .PHONY: clean
 clean:
 	/bin/rm -f *.o 2> /dev/null; /bin/rm -f $(EXE) 2> /dev/null; /bin/rm -f *.log;

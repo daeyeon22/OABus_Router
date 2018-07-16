@@ -1,8 +1,0 @@
-parser.o: In function `OABusRouter::Circuit::getTrackInfo(char*)':
-/home/dykim/OABus_Router/code/parser.cpp:212: undefined reference to `unsigned long GetHashKey<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int>(std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int>)'
-init.o: In function `OABusRouter::Circuit::Init()':
-/home/dykim/OABus_Router/code/init.cpp:74: undefined reference to `int GetLowerBound<int>(std::vector<int, std::allocator<int> >&, int)'
-/home/dykim/OABus_Router/code/init.cpp:75: undefined reference to `int GetUpperBound<int>(std::vector<int, std::allocator<int> >&, int)'
-/home/dykim/OABus_Router/code/init.cpp:36: undefined reference to `int GetLowerBound<int>(std::vector<int, std::allocator<int> >&, int)'
-/home/dykim/OABus_Router/code/init.cpp:37: undefined reference to `int GetUpperBound<int>(std::vector<int, std::allocator<int> >&, int)'
-collect2: error: ld returned 1 exit status

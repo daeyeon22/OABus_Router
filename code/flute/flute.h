@@ -28,8 +28,8 @@
 /*************************************/
 /* Internal Parameters and Functions */
 /*************************************/
-#define POWVFILE "POWV9.dat"        // LUT for POWV (Wirelength Vector)
-#define POSTFILE "POST9.dat"        // LUT for POST (Steiner Tree)
+#define POWVFILE "flute/POWV9.dat"        // LUT for POWV (Wirelength Vector)
+#define POSTFILE "flute/POST9.dat"        // LUT for POST (Steiner Tree)
 #define D 9                         // LUT is used for d <= D, D <= 9
 #define TAU(A) (8+1.3*(A))
 #define D1(A) (25+120/((A)*(A)))     // flute_mr is used for D1 < d <= D2

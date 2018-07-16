@@ -1,14 +1,24 @@
 
 #include "circuit.h"
+#include "route.h"
 
 using namespace std;
 
+
+
+// Static variables
 OABusRouter::Circuit* OABusRouter::Circuit::instance = nullptr;
 OABusRouter::Circuit* OABusRouter::Circuit::shared(){
-    if (instance == nullptr) 
-        instance = new Circuit();
+    if (instance == nullptr) instance = new Circuit();
     return instance;
 }
+
+OABusRouter::Router* OABusRouter::Router::instance = nullptr;
+OABusRouter::Router* OABusRouter::Router::shared(){
+    if(instance == nullptr) instance = new Router();
+    return instance;
+}
+//
 
 
 int main(int argc, char** argv){
@@ -18,8 +28,6 @@ int main(int argc, char** argv){
     cout << "    Authors : Daeyeon Kim, Seungwon Kim                         " <<endl;
     cout << "    Advisor : Seok-Hyeong Kang                                  " <<endl;
     cout << "================================================================" <<endl;
-
-
 
     char* inputFileName;
     char* outputFileName;
@@ -48,15 +56,24 @@ int main(int argc, char** argv){
         cout << "Fail to read " << inputFileName << endl;
     }
 
+
     cout << "Initialize" << endl;
-    ckt->Init();
+    rou->InitGrid3D();
+    
+    
+    //cout << "Initialize" << endl;
+    //ckt->Init();
     
     cout << "Generate Backbone" << endl;
-    ckt->GenBackbone_v2();
+    rou->GenBackbone();
+    //ckt->GenBackbone_v2();
    
     //ckt->RoutingPoint();
-    cout << "Generate Plot file" << endl;
-    ckt->GenPlot();
+    //cout << "Generate Plot file" << endl;
+    //ckt->GenPlot();
+
+    cout << "Topology Mapping 3D" << endl;
+    rou->TopologyMapping3D();
 
 
     //ckt->InitRoutingDirection();
