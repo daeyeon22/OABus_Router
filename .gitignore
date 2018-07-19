@@ -13,5 +13,6 @@ code/*.o
 code/iccad18obr
 
        
-       
+*.o   
 *.swp
+iccad18obr
