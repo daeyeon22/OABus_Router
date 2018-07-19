@@ -97,13 +97,25 @@ void OABusRouter::Router::CreateClips()
 // 3D mapping
 void OABusRouter::Router::TopologyMapping3D()
 {
+    //
+    //struct Line
+    //{
+    //    int x1, y1;
+    //    int x2, y2;
+    //    Line(int _x1, int _y1, int _x2, int _y2) :
+    //        x1(_x1), y1(_y1), x2(_x2), y2(_y2) {}
+    //};
+
 
     //RSMT* _rsmt = &this->rsmt;
     // Variables
     int numTrees, numEdges, numNodes, numLayers, numNeighbor;
+    int numRows, numCols; 
     int l1, l2, ubl, lbl, avgl, bw;
     int x1, y1, x2, y2;
+    int llx, lly, urx, ury;
     int verl, horl, curl;
+    int col, row, lidx, curid;
     int segx1, segx2, segy1, segy2, segl, segid, busid;
     bool st1, st2, verline, horline, via;
     
@@ -114,8 +126,13 @@ void OABusRouter::Router::TopologyMapping3D()
     vector<int> horizontals;
 
 
-    numLayers = ckt->layers.size();
+    //numLayers = ckt->layers.size();
     numTrees = this->rsmt.trees.size();
+    numCols = this->grid.numCols;
+    numRows = this->grid.numRows;
+    numLayers = this->grid.numLayers;
+
+
 
     for(int i=0; i < numLayers; i++)
     {
@@ -171,8 +188,14 @@ void OABusRouter::Router::TopologyMapping3D()
         
         //
         //tree->print();
-
+        //vector<Line> verlines[numLayers][numCols];
+        //vector<Line> horlines[numLayers][numRows];
         
+        vector<IntervalSetT> verIntervalSet(numLayers*numCols);//[numLayers][numCols];
+        vector<IntervalSetT> horIntervalSet(numLayers*numRows);//[numLayers][numRows];
+
+
+        //
         numEdges = tree->numEdges;
 
         for(int j=0; j < numEdges ; j++)
@@ -235,17 +258,33 @@ void OABusRouter::Router::TopologyMapping3D()
                 
                 //printf("Create segment H (%2d %2d) (%2d %2d) m%d\n", segx1, segy1, segx2, segy2, segl);
                 
+                llx = min(segx1, segx2);
+                urx = max(segx1, segx2);
+                lly = min(segy1, segy2);
+                ury = max(segy1, segy2);
+                if(lly != ury)
+                {
+                    cout << "Invalid line type.." << endl;
+                    exit(0);
+                }
+
+
+                row = ury;
+                curid = segl*numRows + row;                
+                horIntervalSet[curid] += IntervalT::closed(llx, urx);
+                
                 // Create segment
-                segid = this->segs.size();
-                Segment seg(segid,segx1, segy1, segx2, segy2, segl);
-                this->segs.push_back(seg);
-                tree->segs.push_back(segid);
+                //segid = this->segs.size();
+                //Segment seg(segid,segx1, segy1, segx2, segy2, segl);
+                //this->segs.push_back(seg);
+                //tree->segs.push_back(segid);
 
                 // Mapping the bitwith for each segment
-                busid = this->rsmt.GetBusID(tree->id);
-                bw = ckt->buses[busid].numBits;
-                this->bitwidth[segid] = bw;
-            
+                //busid = this->rsmt.GetBusID(tree->id);
+                //bw = ckt->buses[busid].numBits;
+                //this->bitwidth[segid] = bw;
+                //this->seg2bus[segid] = busid;
+
             }
 
 
@@ -274,10 +313,53 @@ void OABusRouter::Router::TopologyMapping3D()
                     segy2 = y1;
                     segl = curl;
                 }
-                
+
+
+                llx = min(segx1, segx2);
+                urx = max(segx1, segx2);
+                lly = min(segy1, segy2);
+                ury = max(segy1, segy2);
+                if(llx != urx)
+                {
+                    cout << "Invalid line type.." << endl;
+                    exit(0);
+                }
+
+                col = urx; // llx == urx
+                curid = segl*numCols + col;
+                verIntervalSet[curid] += IntervalT::closed(lly, ury);
+
                 //printf("Create segment V (%2d %2d) (%2d %2d) m%d\n", segx1, segy1, segx2, segy2, segl);
+           
+            }
+            //l1 = &this->layers[n1->l];
+            //l2 = &this->layers[n2->l];
+            //printf("Edge (%d %d %d) -> (%d %d %d)\n", 
+        }
+        //
+  
+        // vertical lines
+        for(int idx = 0; idx < numLayers*numCols; idx++)
+        {
+            lidx = (int)(1.0*idx / numCols + 0.5);
+            col = idx % numCols;
+
+            // Start iterating
+            IntervalSetT &curSet = verIntervalSet[idx];
+            IntervalSetT::iterator it = curSet.begin();
+            DiscreteIntervalT intv;
+            while(it != curSet.end())
+            {
+                intv = (*it++);
                 segid = this->segs.size();
-                Segment seg(segid,segx1, segy1, segx2, segy2, segl);
+                segx1 = col;
+                segy1 = intv.lower();
+                segx2 = col;
+                segy2 = intv.upper();
+                segl = lidx;
+
+
+                Segment seg(segid, segx1, segy1, segx2, segy2, segl);
                 this->segs.push_back(seg);
                 tree->segs.push_back(segid);
             
@@ -285,13 +367,46 @@ void OABusRouter::Router::TopologyMapping3D()
                 busid = this->rsmt.GetBusID(tree->id);
                 bw = ckt->buses[busid].numBits;
                 this->bitwidth[segid] = bw;
-            
+                this->seg2bus[segid] = busid;
             }
-            //l1 = &this->layers[n1->l];
-            //l2 = &this->layers[n2->l];
-            //printf("Edge (%d %d %d) -> (%d %d %d)\n", 
         }
-   
+
+        // horizontal lines
+        for(int idx = 0; idx < numLayers*numRows; idx++)
+        {
+            lidx = (int)(1.0*idx / numRows + 0.5);
+            row = idx % numRows;
+
+            // Start iterating
+            IntervalSetT &curSet = horIntervalSet[idx];
+            IntervalSetT::iterator it = curSet.begin();
+            DiscreteIntervalT intv;
+            while(it != curSet.end())
+            {
+                intv = (*it++);
+                segid = this->segs.size();
+                segx1 = intv.lower();
+                segy1 = row;
+                segx2 = intv.upper();
+                segy2 = row;
+                segl = lidx;
+
+                Segment seg(segid, segx1, segy1, segx2, segy2, segl);
+                this->segs.push_back(seg);
+                tree->segs.push_back(segid);
+            
+                // Mapping the bitwith for each segment
+                busid = this->rsmt.GetBusID(tree->id);
+                bw = ckt->buses[busid].numBits;
+                this->bitwidth[segid] = bw;
+                this->seg2bus[segid] = busid;
+            }
+        }
+
+
+
+
+
         //printf("\n\n");
         tree->print();
 
@@ -339,12 +454,12 @@ int OABusRouter::Grid3D::GetIndex(int col, int row, int layer)
 
 int OABusRouter::Grid3D::GetOffset_x(int col)
 {
-    return GCELL_WIDTH*col + xoffset;
+    return offsetxs[col] - GCELL_WIDTH; //*col + xoffset;
 }
 
 int OABusRouter::Grid3D::GetOffset_y(int row)
 {
-    return GCELL_HEIGHT*row + yoffset;
+    return offsetys[row] - GCELL_HEIGHT; //*row + yoffset;
 }
 
 int OABusRouter::Grid3D::GetColum(int xcrd)
@@ -388,7 +503,7 @@ void OABusRouter::Router::InitGrid3D()
     for(int i=0; i < numLayers; i++)
     {
         Layer* curL = &ckt->layers[i];
-        cout << "#tracks : " << curL->trackOffsets.size() << endl;
+        //cout << "#tracks : " << curL->trackOffsets.size() << endl;
         int wirepitch = abs(curL->trackOffsets[0] - curL->trackOffsets[1]);
         dir[i] = curL->direction;
         if(curL->is_vertical())
@@ -423,6 +538,22 @@ void OABusRouter::Router::InitGrid3D()
             offset_y,
             sizeH,
             sizeV);
+
+
+    ////////////////////////////////////
+    printf("GCell (%4d %4d) col: %3d row: %3d\n", GCELL_WIDTH, GCELL_HEIGHT, numCols, numRows);
+    for(auto& os : this->grid.offsetxs)
+    {
+        printf("OffsetX %4d\n", os);
+    }
+
+    for(auto& os : this->grid.offsetys)
+    {
+        printf("OffsetY %4d\n", os);
+    }
+    printf("\n\n");
+    
+    ///////////////////////////////////
 
     // Create Gcells
     //this->grid.CreateGCs();

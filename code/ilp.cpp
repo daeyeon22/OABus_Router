@@ -203,15 +203,19 @@ void OABusRouter::Router::SolveILP()
         model.add(IloMaximize(env, objective));
         model.add(cplexConsts);
 
+
+        cplex.exportModel("./ilp/formulation.lp");
         if(cplex.solve())
         {
             printf("ILP(%3d) solved!\n", ILP_ITER_COUNT++);
+        }else{
+            printf("????\n");
         }
 
     }catch(IloException& ex){
-
+        cerr << "Error: " << ex << endl;
     }catch(...){
-
+        cerr << "Error" << endl;
     }
 }
 

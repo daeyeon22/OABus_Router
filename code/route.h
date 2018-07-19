@@ -340,6 +340,9 @@ namespace OABusRouter
         void CreateClips();
         void SolveILP();
 
+
+        // Make Plot
+        void Plot();
     };
 
 

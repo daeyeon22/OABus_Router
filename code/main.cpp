@@ -1,6 +1,7 @@
 
 #include "circuit.h"
 #include "route.h"
+//#include "util.h"
 
 using namespace std;
 
@@ -80,6 +81,10 @@ int main(int argc, char** argv){
     rou->SolveILP();
     //<< endl;
     //ckt->InitRoutingDirection();
+
+
+    cout << "Create Plot" << endl;
+    rou->Plot();
 
     cout << "End program" << endl;
     return 0;

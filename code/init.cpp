@@ -44,6 +44,10 @@ void OABusRouter::Circuit::InitGcellParameters()
     this->GCELL_WIDTH = minpitchH * tmpmax * 2;
     this->GCELL_HEIGHT = minpitchV * tmpmax * 2;
 
+
+    printf("GCELL Size (%3d %3d)\n", this->GCELL_WIDTH, this->GCELL_HEIGHT);
+
+
 }
 
 
