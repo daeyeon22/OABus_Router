@@ -97,11 +97,13 @@ void OABusRouter::RSMT::CreateTree(int id, int d, DTYPE x[], DTYPE y[], DTYPE l[
     int numEdges = 2*d - 3;
     int nbrcnt[numNodes] = {0};
     int edgecnt = 0;
+    int treeid = trees.size();
 
     // Flute
     FluteNormal(d, x, y, acc, coeffV, &tree);
 
     // make StTree
+    sttree.id = treeid;
     sttree.deg = degree;
     sttree.numNodes = numNodes;
     sttree.numEdges = numEdges;
@@ -164,9 +166,23 @@ void OABusRouter::RSMT::CreateTree(int id, int d, DTYPE x[], DTYPE y[], DTYPE l[
         }
     }
 
-    mapID[id] = (int)trees.size();
+    //int treeid = trees.size();
+    treeID[id] = treeid;
+    busID[treeid] = id;
     trees.push_back(sttree);
 }
+
+
+int OABusRouter::RSMT::GetBusID(int treeid)
+{
+    return busID[treeid];
+}
+
+int OABusRouter::RSMT::GetTreeID(int busid)
+{
+    return treeID[busid];
+}
+
 
 //////////////// FLUTE //////////////////
 

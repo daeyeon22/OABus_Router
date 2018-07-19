@@ -76,6 +76,9 @@ int main(int argc, char** argv){
     rou->TopologyMapping3D();
 
 
+    cout << "Solve ILP" << endl;
+    rou->SolveILP();
+    //<< endl;
     //ckt->InitRoutingDirection();
 
     cout << "End program" << endl;

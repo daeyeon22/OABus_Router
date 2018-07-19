@@ -1,10 +1,14 @@
-./bench/**
-./image/svg/*
-./image/*.swp
+/bench/**
+/image/svg/*
+/image/*.swp
 
-./log/**
-./code/*.o
-./code/plot/**
-./code/gnuplot/**
-./code/*.swp
-./code/*.log
+/eval/**
+/log/*.log
+/log/**
+/code/plot/**
+/code/gnuplot/**
+/code/*.swp
+/code/*.log
+/code/*.o
+/code/iccad18obr
+
