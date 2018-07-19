@@ -2,13 +2,16 @@
 /image/svg/*
 /image/*.swp
 
-/eval/**
-/log/*.log
-/log/**
-/code/plot/**
-/code/gnuplot/**
-/code/*.swp
-/code/*.log
-/code/*.o
-/code/iccad18obr
+eval/**
+log/*.log
+log/**
+code/plot/**
+code/gnuplot/**
+code/*.swp
+code/*.log
+code/*.o
+code/iccad18obr
 
+       
+       
+*.swp
