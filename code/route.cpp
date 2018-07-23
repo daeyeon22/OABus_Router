@@ -384,6 +384,7 @@ void OABusRouter::Router::TopologyMapping3D()
                         bw = ckt->buses[busid].numBits;
                         this->bitwidth[segid] = bw;
                         this->seg2bus[segid] = busid;
+                        this->assign[segid] = false;
                     }
 
                 }
@@ -415,6 +416,7 @@ void OABusRouter::Router::TopologyMapping3D()
                         bw = ckt->buses[busid].numBits;
                         this->bitwidth[segid] = bw;
                         this->seg2bus[segid] = busid;
+                        this->assign[segid] = false;
                     }
 
                 }
@@ -556,17 +558,17 @@ void OABusRouter::Router::InitGrid3D()
 
 
     ////////////////////////////////////
-    printf("GCell (%4d %4d) col: %3d row: %3d\n", GCELL_WIDTH, GCELL_HEIGHT, numCols, numRows);
-    for(auto& os : this->grid.offsetxs)
-    {
-        printf("OffsetX %4d\n", os);
-    }
+    //printf("GCell (%4d %4d) col: %3d row: %3d\n", GCELL_WIDTH, GCELL_HEIGHT, numCols, numRows);
+    //for(auto& os : this->grid.offsetxs)
+    //{
+    //    printf("OffsetX %4d\n", os);
+    //}
 
-    for(auto& os : this->grid.offsetys)
-    {
-        printf("OffsetY %4d\n", os);
-    }
-    printf("\n\n");
+    //for(auto& os : this->grid.offsetys)
+    //{
+    //    printf("OffsetY %4d\n", os);
+    //}
+    //printf("\n\n");
     
     ///////////////////////////////////
 
@@ -641,7 +643,7 @@ void OABusRouter::Grid3D::InitGcellCap(int layer, int dir, vector<int> &offsets)
                         return (!fallLL && !fallUR && targetL);
                     }), back_inserter(queries));
 
-            cout << "Queries size : " << queries.size() << endl;
+            //cout << "Queries size : " << queries.size() << endl;
             cap = queries.size();
                 /*
             for(int i=0; i < queries.size(); i++)

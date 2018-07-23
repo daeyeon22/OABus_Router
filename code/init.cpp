@@ -224,7 +224,7 @@ void OABusRouter::Circuit::InitRoutingDirection()
             {
                 Bit* curBit = &this->bits[curBus->bits[b]];
                 Pin* curPin = &this->pins[curBit->pins[p]];
-                Layer* curLayer = &this->layers[this->layerHashMap[curPin->layer]];
+                Layer* curLayer = &this->layers[curPin->l];
             
                 int llx = curPin->boundary.ll.x;
                 int lly = curPin->boundary.ll.y;
@@ -437,7 +437,7 @@ void OABusRouter::Circuit::RoutingPoint()
             for(int k=0; k < numPinShapes; k++)
             {
                 Pin* curPin = &this->pins[this->bits[curBus->bits[j]].pins[k]];
-                Layer* curLayer = &this->layers[this->layerHashMap[curPin->layer]];
+                Layer* curLayer = &this->layers[curPin->l];
 
                 if(curLayer->is_vertical())
                 {

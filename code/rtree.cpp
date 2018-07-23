@@ -28,7 +28,7 @@ void OABusRouter::Router::CreateTrackRtree()
         y1 = curT->lly;
         x2 = curT->urx;
         y2 = curT->ury;
-        curl = ckt->layerHashMap[curT->layer];
+        curl = curT->l; //ckt->layerHashMap[curT->l];
         dir = ckt->layers[curl].direction;
 
         curS = SegmentBG(PointBG(x1,y1), PointBG(x2,y2));

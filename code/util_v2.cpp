@@ -180,7 +180,7 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         urx = min(urx, layoutOffsetX + layoutWidth);
         ury = min(ury, layoutOffsetY + layoutHeight);
         
-        curl = ckt->layerHashMap[curPin->layer];   
+        curl = curPin->l; //ckt->layerHashMap[curPin->layer];   
         content = curPin->bitName;
         textOffsetX = (int)(1.0*(urx-llx)/2 + 0.5);
         textOffsetY = (int)(1.0*(ury-lly)/2 + 0.5);

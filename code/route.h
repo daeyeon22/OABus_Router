@@ -365,7 +365,32 @@ namespace OABusRouter
         int bitid;
         int trackid;
 
-        Wire() {}
+        Wire():
+            id(INT_MAX),
+            x1(INT_MAX),
+            y1(INT_MAX),
+            y2(INT_MAX),
+            l(INT_MAX),
+            seq(INT_MAX),
+            width(INT_MAX),
+            busid(INT_MAX),
+            bitid(INT_MAX),
+            trackid(INT_MAX){}
+        
+        Wire(const Wire& w):
+            id(w.id),
+            x1(w.x1),
+            y1(w.y1),
+            x2(w.x2),
+            y2(w.y2),
+            l(w.l),
+            seq(w.seq),
+            width(w.width),
+            busid(w.busid),
+            bitid(w.bitid),
+            trackid(w.trackid) {}
+
+
     };
 
     class Router
@@ -382,14 +407,18 @@ namespace OABusRouter
 
 
         // Created Segments
-        vector<Segment> segs;
+        vector<Segment>         segs;
+        vector<Wire>            wires;
+        
         dense_hash_map<int,int> seg2bus;
         dense_hash_map<int,int> bitwidth;
+        dense_hash_map<int,bool> assign;
 
         Router()
         {
             seg2bus.set_empty_key(0);
             bitwidth.set_empty_key(0);
+            assign.set_empty_key(0);
         }
 
         // Initialize Grid3D
