@@ -127,32 +127,6 @@ namespace OABusRouter
     };
 
 
-    struct Segment
-    {
-        int id;
-        int x1, x2;
-        int y1, y2;
-        int l;
-    
-        bool assign;
-
-
-        Segment(int _id = INT_MAX,
-                int x_1 = INT_MAX, 
-                int y_1 = INT_MAX,
-                int x_2 = INT_MAX,
-                int y_2 = INT_MAX,
-                int _l = INT_MAX) :
-            id(_id),
-            x1(x_1),
-            y1(y_1),
-            x2(x_2),
-            y2(y_2),
-            l(_l) {}
-
-    };
-
-
 
 
 
@@ -168,7 +142,7 @@ namespace OABusRouter
         vector<TreeNode> nodes;
         vector<TreeEdge> edges;
         vector<int> segs;
-
+        vector<int> junctions;
 
         StTree() :
             id(INT_MAX),
@@ -353,6 +327,66 @@ namespace OABusRouter
     };
 
 
+    struct Segment
+    {
+        int id;
+        int x1, x2;
+        int y1, y2;
+        int l;
+   
+        vector<int> neighbor;   // segment id
+        vector<int> wires;      // segment id 
+                                // sorted increasing sequence
+
+        bool assign;
+
+
+        Segment(int _id = INT_MAX,
+                int x_1 = INT_MAX, 
+                int y_1 = INT_MAX,
+                int x_2 = INT_MAX,
+                int y_2 = INT_MAX,
+                int _l = INT_MAX) :
+            id(_id),
+            x1(x_1),
+            y1(y_1),
+            x2(x_2),
+            y2(y_2),
+            l(_l) {}
+
+    };
+
+
+    struct Junction
+    {
+        int id;
+        int x, y;
+        int l1, l2;
+        int s1, s2;
+        int bw;
+
+        Junction() :
+            id(INT_MAX),
+            x(INT_MAX),
+            y(INT_MAX),
+            l1(INT_MAX),
+            l2(INT_MAX),
+            s1(INT_MAX),
+            s2(INT_MAX),
+            bw(INT_MAX) {}
+
+        Junction(const Junction& j) :
+            id(j.id), 
+            x(j.x),
+            y(j.y),
+            l1(j.l1),
+            l2(j.l2),
+            s1(j.s1),
+            s2(j.s2),
+            bw(j.bw) {}
+    };
+
+
     struct Wire
     {
         int id;
@@ -364,6 +398,7 @@ namespace OABusRouter
         int busid;
         int bitid;
         int trackid;
+        bool vertical;
 
         Wire():
             id(INT_MAX),
@@ -375,7 +410,8 @@ namespace OABusRouter
             width(INT_MAX),
             busid(INT_MAX),
             bitid(INT_MAX),
-            trackid(INT_MAX){}
+            trackid(INT_MAX),
+            vertical(false) {}
         
         Wire(const Wire& w):
             id(w.id),
@@ -388,8 +424,34 @@ namespace OABusRouter
             width(w.width),
             busid(w.busid),
             bitid(w.bitid),
-            trackid(w.trackid) {}
+            trackid(w.trackid),
+            vertical(w.vertical) {}
+    };
 
+    struct Via
+    {
+        int id;
+        int x, y;
+        int l1, l2;
+        int w1, w2;
+
+        Via():
+            id(INT_MAX),
+            x(INT_MAX),
+            y(INT_MAX),
+            l1(INT_MAX),
+            l2(INT_MAX),
+            w1(INT_MAX),
+            w2(INT_MAX) {}
+
+        Via(const Via& v):
+            id(v.id),
+            x(v.x),
+            y(v.y),
+            l1(v.l1),
+            l2(v.l2),
+            w1(v.w1),
+            w2(v.w2) {}
 
     };
 
@@ -408,15 +470,22 @@ namespace OABusRouter
 
         // Created Segments
         vector<Segment>         segs;
+        vector<Junction>        junctions;
         vector<Wire>            wires;
-        
+        vector<Via>             vias;
+
         dense_hash_map<int,int> seg2bus;
+        dense_hash_map<int,int> junc2bus;
+        dense_hash_map<int,int> via2bus;
+
         dense_hash_map<int,int> bitwidth;
         dense_hash_map<int,bool> assign;
 
         Router()
         {
             seg2bus.set_empty_key(0);
+            junc2bus.set_empty_key(0);
+            via2bus.set_empty_key(0);
             bitwidth.set_empty_key(0);
             assign.set_empty_key(0);
         }
@@ -436,6 +505,7 @@ namespace OABusRouter
         void CreateClips();
         void SolveILP();
         void TrackAssign();
+        void CreateVia();
 
         // Make Plot
         void Plot();

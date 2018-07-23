@@ -42,7 +42,8 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
     int xoffset, yoffset;
     int llx, lly, urx, ury, curl;
     int col, row; 
-    
+    int wireid;
+
     //char* fileName = plotall.c_str();
 
 
@@ -52,7 +53,9 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
     layoutHeight = ckt->height;
 
 
+#ifdef DEBUG
     printf("Layout (%8d %8d) (%8d %8d)\n", layoutOffsetX, layoutOffsetY, layoutWidth, layoutHeight);
+#endif
 
     Dimensions dimensions(layoutWidth, layoutHeight);
     Document doc(fileName, Layout(dimensions, Layout::BottomLeft, 1));
@@ -93,8 +96,9 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         ury = layoutOffsetY + layoutHeight;
 
         doc << Line(Point(llx,lly), Point(urx,ury), Stroke(5, Color::Black));
+#ifdef DEBUG
         printf("Line (%8d %8d) (%8d %8d)\n", llx, lly, urx, ury);
-
+#endif
     
     }
 
@@ -107,11 +111,13 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         ury = yoffset;
 
         doc << Line(Point(llx,lly), Point(urx,ury), Stroke(5, Color::Black));
+#ifdef DEBUG
         printf("Line (%8d %8d) (%8d %8d)\n", llx, lly, urx, ury);
+#endif
     }
 
-    int pinid, bitid, segid;
-    int numBuses, numPins, numBits, numSegs;
+    int pinid, bitid, segid, viaid;
+    int numBuses, numPins, numBits, numSegs, numWires, numVias;
     int centerX, centerY;
     int textOffsetX, textOffsetY;
     int GCllx, GClly, GCurx, GCury;
@@ -122,7 +128,9 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
     numBits = ckt->bits.size();
     numPins = ckt->pins.size();
     numSegs = rou->segs.size();
-    
+    numWires = rou->wires.size();
+    numVias = rou->vias.size();
+
     //
     for(segid=0; segid < numSegs; segid++)
     {
@@ -150,13 +158,15 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         textOffsetY = (int)(1.0*(ury-lly)/2 + 0.5);
        
 
-        Polygon poly(colors[curl], Stroke(5, Color::Black));
+        Polygon poly(Fill(colors[curl], 0.3), Stroke(5, Color::Black));
         poly << Point(llx,lly) << Point(llx,ury) << Point(urx, ury) << Point(urx, lly);
         doc << poly;
         
 
         //doc << Rectangle(Point(llx,lly), (urx-llx), (ury-lly), colors[curl]);
+#ifdef DEBUG
         printf("Rect (%8d %8d) (%8d %8d)\n", llx, lly, urx, ury);
+#endif
         //doc << Text(Point(textOffsetX, textOffsetY), content, Fill(), Font(300));
 
     }
@@ -190,13 +200,67 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         poly << Point(llx,lly) << Point(llx,ury) << Point(urx, ury) << Point(urx, lly);
         doc << poly;
         //doc << Rectangle(Point(llx,lly), (urx-llx), (ury-lly), colors[curl]);
+#ifdef DEBUG
         printf("Rect (%8d %8d) (%8d %8d)\n", llx, lly, urx, ury);
+#endif
         //doc << Text(Point(textOffsetX, textOffsetY), content, Fill(), Font(300));
     }
 
 
+    // Wire
+    for(wireid=0; wireid < numWires; wireid++)
+    {
+        br::Wire* curWire = &rou->wires[wireid];
+        target = (curWire->busid == busid)? true : false;
+        if(!target && !all) continue;
+
+        llx = curWire->x1 + layoutOffsetX;
+        lly = curWire->y1 + layoutOffsetY;
+        urx = curWire->x2 + layoutOffsetX;
+        ury = curWire->y2 + layoutOffsetY;
+        curl = curWire->l; //ckt->layerHashMap[curPin->layer];   
+
+        if(llx == urx)
+        {
+            llx -= (int)(1.0*curWire->width/2);
+            urx += (int)(1.0*curWire->width/2);
+        }
+
+        if(lly == ury)
+        {
+            lly -= (int)(1.0*curWire->width/2);
+            ury += (int)(1.0*curWire->width/2);
+        }
+
+        Polygon poly(colors[curl], Stroke(10, Color::Black));
+        poly << Point(llx,lly) << Point(llx,ury) << Point(urx, ury) << Point(urx, lly);
+        doc << poly;
+        //doc << Rectangle(Point(llx,lly), (urx-llx), (ury-lly), colors[curl]);
+#ifdef DEBUG
+        printf("Rect (%8d %8d) (%8d %8d)\n", llx, lly, urx, ury);
+#endif
+    }
 
 
+    // Via
+    for(viaid=0; viaid < numVias; viaid++)
+    {
+        br::Via* curV = &rou->vias[viaid];
+        
+        target = (rou->via2bus[viaid] == busid)? true : false;
+        if(!target && !all) continue;
+
+        centerX = curV->x;
+        centerY = curV->y;
+        curl = curV->l1;
+        double diameter = 1000;
+
+        doc << Circle(Point(centerX, centerY), diameter, Fill(colors[curl], 1.0), Stroke(10, Color::Black));
+//#ifdef DEBUG
+        printf("Circle (%8d %8d) Diameter %d\n", centerX, centerY, (int)diameter);
+//#endif
+
+    }
     // Category
     //int coffsetx, coffsety;
     //int cwidth, cheight;

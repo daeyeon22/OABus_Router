@@ -87,8 +87,11 @@ int main(int argc, char** argv){
     rou->TrackAssign();
 
 
-    //cout << "Create Plot" << endl;
-    //rou->Plot();
+    cout << "Create Via" << endl;
+    rou->CreateVia();
+
+    cout << "Create Plot" << endl;
+    rou->Plot();
 
     cout << "End program" << endl;
     return 0;

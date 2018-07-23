@@ -97,17 +97,7 @@ void OABusRouter::Router::CreateClips()
 // 3D mapping
 void OABusRouter::Router::TopologyMapping3D()
 {
-    //
-    //struct Line
-    //{
-    //    int x1, y1;
-    //    int x2, y2;
-    //    Line(int _x1, int _y1, int _x2, int _y2) :
-    //        x1(_x1), y1(_y1), x2(_x2), y2(_y2) {}
-    //};
 
-
-    //RSMT* _rsmt = &this->rsmt;
     // Variables
     int numTrees, numEdges, numNodes, numLayers, numNeighbor;
     int numRows, numCols; 
@@ -138,6 +128,9 @@ void OABusRouter::Router::TopologyMapping3D()
     hid.set_empty_key(0);
     direction.set_empty_key(0);
 
+
+
+    // Divide vertical, horizontal layer separately
     for(int i=0; i < numLayers; i++)
     {
         direction[i] = ckt->layers[i].direction;
@@ -154,12 +147,11 @@ void OABusRouter::Router::TopologyMapping3D()
     numVerticals = verticals.size();
     numHorizontals = horizontals.size();
 
-    
-    // Print all
+    // Create Segment for steiner tree
     for(int i=0; i < numTrees; i++)
     {
         StTree* tree = this->rsmt[i];
-        //
+        
         //
         // Assign layer for steiners
         numNodes = tree->numNodes;
@@ -194,34 +186,21 @@ void OABusRouter::Router::TopologyMapping3D()
             }else{
             }
         }
-
-        
-        //
-        //tree->print();
-        //vector<Line> verlines[numLayers][numCols];
-        //vector<Line> horlines[numLayers][numRows];
-        
+       
+        // Interval Sets
+        // Remove overlapped Segment 
         vector<IntervalSetT> verIntervalSet(numVerticals*numCols);//[numLayers][numCols];
         vector<IntervalSetT> horIntervalSet(numHorizontals*numRows);//[numLayers][numRows];
 
-
-        //
         numEdges = tree->numEdges;
-
         for(int j=0; j < numEdges ; j++)
         {
-
+               
             e = &tree->edges[j];
             n1 = &tree->nodes[e->n1];
             n2 = &tree->nodes[e->n2];
 
-
             //
-            //
-            verline = false;
-            horline = false;
-            via = false;
-            
             x1 = n1->x;
             y1 = n1->y;
             l1 = n1->l;
@@ -229,6 +208,9 @@ void OABusRouter::Router::TopologyMapping3D()
             y2 = n2->y;
             l2 = n2->l;
 
+            verline = false;
+            horline = false;
+            via = false;
             if(x1 != x2) horline = true;
             if(y1 != y2) verline = true;
 
@@ -240,6 +222,7 @@ void OABusRouter::Router::TopologyMapping3D()
             };
 
 
+            // If horizontal line, Add interval into the horizontal interval set
             if(horline)
             {
                 sort(horizontals.begin(), horizontals.end(), lamb);
@@ -265,9 +248,6 @@ void OABusRouter::Router::TopologyMapping3D()
                     segl = curl;
                 }
                 
-                
-                //printf("Create segment H (%2d %2d) (%2d %2d) m%d\n", segx1, segy1, segx2, segy2, segl);
-                
                 llx = min(segx1, segx2);
                 urx = max(segx1, segx2);
                 lly = min(segy1, segy2);
@@ -278,26 +258,13 @@ void OABusRouter::Router::TopologyMapping3D()
                     exit(0);
                 }
 
-
                 row = ury;
                 curid = hid[segl]*numRows + row;                
                 horIntervalSet[curid] += IntervalT::closed(llx, urx);
-                
-                // Create segment
-                //segid = this->segs.size();
-                //Segment seg(segid,segx1, segy1, segx2, segy2, segl);
-                //this->segs.push_back(seg);
-                //tree->segs.push_back(segid);
-
-                // Mapping the bitwith for each segment
-                //busid = this->rsmt.GetBusID(tree->id);
-                //bw = ckt->buses[busid].numBits;
-                //this->bitwidth[segid] = bw;
-                //this->seg2bus[segid] = busid;
-
             }
 
 
+            // If vertical line, Add interval into the vertical interval set
             if(verline)
             {
                 sort(verticals.begin(), verticals.end(), lamb);
@@ -339,15 +306,26 @@ void OABusRouter::Router::TopologyMapping3D()
                 curid = vid[segl]*numCols + col;
                 verIntervalSet[curid] += IntervalT::closed(lly, ury);
 
-                //printf("Create segment V (%2d %2d) (%2d %2d) m%d\n", segx1, segy1, segx2, segy2, segl);
-           
             }
-            //l1 = &this->layers[n1->l];
-            //l2 = &this->layers[n2->l];
-            //printf("Edge (%d %d %d) -> (%d %d %d)\n", 
         }
         //
-  
+
+       
+        
+        int numQ, segindex;
+        int jid, x, y, l1, l2, s1, s2, bw;
+        SegmentBG seg1, seg2;
+        PointBG pt;
+        vector<PointBG> intersection;
+        SegRtree sRtree;
+        Segment* curS, *tarS;
+        vector<SegmentValT> queries;
+        dense_hash_map<int,int> segNuml;
+        segNuml.set_empty_key(0);
+        bw = bitwidth[busid];
+
+        //
+        // Create segment
         for(lidx = 0; lidx < numLayers; lidx++)
         {
              
@@ -385,6 +363,11 @@ void OABusRouter::Router::TopologyMapping3D()
                         this->bitwidth[segid] = bw;
                         this->seg2bus[segid] = busid;
                         this->assign[segid] = false;
+
+                        // Rtree
+                        SegmentBG segbg(PointBG(segx1, segy1), PointBG(segy1, segy2));
+                        segNuml[segid] = segl;
+                        sRtree.insert(SegmentValT(segbg, segl));
                     }
 
                 }
@@ -417,9 +400,95 @@ void OABusRouter::Router::TopologyMapping3D()
                         this->bitwidth[segid] = bw;
                         this->seg2bus[segid] = busid;
                         this->assign[segid] = false;
+                    
+                    
+                        // Rtree
+                        SegmentBG segbg(PointBG(segx1, segy1), PointBG(segy1, segy2));
+                        segNuml[segid] = segl;
+                        sRtree.insert(SegmentValT(segbg, segid));
                     }
 
                 }
+            }
+
+
+
+        }
+        //
+
+
+        // Create junction
+        for(segindex=0; segindex < tree->segs.size(); segindex++)
+        {
+            queries.clear();
+            s1 = tree->segs[segindex];
+            l1 = segNuml[s1];            
+            
+            curS = &segs[s1];
+            segl = curS->l;
+            segx1 = curS->x1;
+            segy1 = curS->y1;
+            segx2 = curS->x2;
+            segy2 = curS->y2;
+            seg1 = SegmentBG(PointBG(segx1, segy1), PointBG(segx2, segy2));
+            
+            //
+            sRtree.query(bgi::intersects(seg1), back_inserter(queries));
+            numQ = queries.size();
+
+            // 
+            for(int k=0; k < numQ; k++)
+            {
+                jid = junctions.size();
+                seg2 = queries[k].first;
+                s2 = queries[k].second;
+                l2 = segNuml[s2];
+                tarS = &segs[s2];
+
+                bool adj = ( (l1+1 == l2) || (l1 == l2+1) )? true : false;
+                if(!adj) continue;
+
+                //if(l1+1 == l2) continue;
+
+                intersection.clear();
+                bg::intersection(seg1, seg2, intersection);
+
+                if(intersection.size() == 0)
+                {
+                    cout << "Invalid segments..." << endl;
+                    exit(0);
+                }
+
+                pt = intersection[0];
+                x = (int)(bg::get<0>(pt) + 0.5);
+                y = (int)(bg::get<1>(pt) + 0.5);
+                if(l1 > l2)
+                {
+                    swap(s1, s2);
+                    swap(l1, l2);
+                }
+                
+                // Junction
+                Junction junc;
+                junc.id = jid;
+                junc.x = x;
+                junc.y = y;
+                junc.l1 = l1;
+                junc.l2 = l2;
+                junc.s1 = s1;
+                junc.s2 = s2;
+                junc.bw = bw;
+
+                // Add junction into the vector, and mapping
+                junctions.push_back(junc);
+                tree->junctions.push_back(junc.id);
+                junc2bus[jid] = busid;
+                
+                sRtree.remove(queries[k]);
+                
+                // Add neighbor 
+                curS->neighbor.push_back(s2);
+                tarS->neighbor.push_back(s1);
             }
         }
 
@@ -454,9 +523,16 @@ void OABusRouter::StTree::print()
         }else{
             printf("(%d) H-Line (%2d %2d) (%2d %2d) m%d\n", i,curS->x1, curS->y1, curS->x2, curS->y2, curS->l);
         }
+    }
+    
 
+    for(i=0; i < junctions.size(); i++)
+    {
+        Junction* curJ = &rou->junctions[junctions[i]];
+        printf("(%d) Junction (%2d %2d) M%d M%d Edge (%d %d)\n", i, curJ->x, curJ->y, curJ->l1, curJ->l2, curJ->s1, curJ->s2);
 
     }
+
     printf("\n\n");
 
 
