@@ -83,8 +83,12 @@ int main(int argc, char** argv){
     //ckt->InitRoutingDirection();
 
 
-    cout << "Create Plot" << endl;
-    rou->Plot();
+    cout << "TrackAssign" << endl;
+    rou->TrackAssign();
+
+
+    //cout << "Create Plot" << endl;
+    //rou->Plot();
 
     cout << "End program" << endl;
     return 0;

@@ -28,14 +28,13 @@
 #include "func.h"
 //#include "flute.h"
 
-
 // Dense hash map
 #include <sparsehash/dense_hash_map>
 
+#define INIT_STR "INITSTR"
 // Pre-define
 #ifndef PREDEF
 #define PREDEF 
-#define INIT_STR "INITSTR"
 #define VERTICAL 111
 #define HORIZONTAL 222
 #endif
@@ -340,8 +339,6 @@ namespace OABusRouter
 
     };
     
-
-
     class Circuit
     {
       private:

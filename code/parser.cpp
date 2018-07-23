@@ -74,7 +74,6 @@ bool OABusRouter::Circuit::getParam(char* fileName){
             }
 
             if(*iter == "DESIGN_BOUNDARY"){
-
                 int llx, lly, urx, ury;
                 string llxStr = *(++iter);
                 string llyStr = *(++iter);
@@ -168,6 +167,7 @@ bool OABusRouter::Circuit::getLayerInfo(char* fileName){
     inputFile.close();
     return false;
 }
+
 bool OABusRouter::Circuit::getTrackInfo(char* fileName){
 
     ifstream inputFile(fileName);

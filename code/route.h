@@ -13,6 +13,7 @@
 #include <boost/icl/interval_map.hpp>
 #include <boost/icl/interval_set.hpp>
 #include <boost/icl/interval_base_map.hpp>
+#include <boost/geometry.hpp>
 
 
 #ifndef PREDEF
@@ -30,6 +31,8 @@
 using namespace std;
 using google::dense_hash_map;
 namespace bi = boost::icl;
+namespace bg = boost::geometry;
+namespace bgi = boost::geometry::index;
 
 //namespace bi = boost::icl;
 
@@ -39,6 +42,19 @@ typedef bi::interval_map<int,IDSetT> IntervalMapT;
 typedef bi::interval<int> IntervalT;
 typedef bi::interval_set<int> IntervalSetT;
 typedef bi::discrete_interval<int> DiscreteIntervalT;
+
+
+// Boost geometries
+typedef bg::model::point<float,2, bg::cs::cartesian> PointBG;
+typedef bg::model::segment<PointBG> SegmentBG;
+typedef bg::model::box<PointBG> BoxBG;
+typedef pair<PointBG,int> PointValT;
+typedef pair<SegmentBG,int> SegmentValT;
+typedef pair<BoxBG,int> BoxValT;
+
+typedef bgi::rtree<PointValT, bgi::rstar<16>> PointRtree;
+typedef bgi::rtree<SegmentValT, bgi::rstar<16>> SegRtree;
+typedef bgi::rtree<BoxValT, bgi::rstar<16>> BoxRtree;
 
 
 namespace OABusRouter
@@ -117,6 +133,10 @@ namespace OABusRouter
         int x1, x2;
         int y1, y2;
         int l;
+    
+        bool assign;
+
+
         Segment(int _id = INT_MAX,
                 int x_1 = INT_MAX, 
                 int y_1 = INT_MAX,
@@ -177,13 +197,20 @@ namespace OABusRouter
         int id;                     // index
         int x, y, l;                // index for x,y,z axis
         int cap;                    // edge capacitance
+        int direction;
+       
+        set<int> resources;
+
+        //IntervalSetT available;
+
         
         Gcell() :
             id(INT_MAX),
             x(INT_MAX),
             y(INT_MAX),
             l(INT_MAX),
-            cap(INT_MIN)
+            cap(INT_MIN),
+            direction(INT_MAX)
         {     
         }
 
@@ -299,13 +326,48 @@ namespace OABusRouter
         int GetRow(int crd);
         int Capacity(int col, int row, int layer);
 
+
+        void print();
+
         Gcell* operator [] (int index)
         {
             return &gcells[index];   
         }
 
     };
-    
+   
+    struct Rtree
+    {
+        SegRtree track;
+        //
+        dense_hash_map<int,int> trackNuml;
+        dense_hash_map<int,int> trackID;
+        dense_hash_map<int,int> trackDir;
+
+        Rtree()
+        {
+            trackNuml.set_empty_key(0);
+            trackID.set_empty_key(0);
+            trackDir.set_empty_key(0);
+        }
+    };
+
+
+    struct Wire
+    {
+        int id;
+        int x1, y1;
+        int x2, y2;
+        int l;
+        int seq;        // sequence
+        int width;
+        int busid;
+        int bitid;
+        int trackid;
+
+        Wire() {}
+    };
+
     class Router
     {
       private:
@@ -316,6 +378,8 @@ namespace OABusRouter
 
         RSMT    rsmt;
         Grid3D  grid;
+        Rtree   rtree;
+
 
         // Created Segments
         vector<Segment> segs;
@@ -330,7 +394,10 @@ namespace OABusRouter
 
         // Initialize Grid3D
         void InitGrid3D();
-    
+        void CreateTrackRtree();
+        
+        SegRtree* GetTrackRtree();
+
         // Generate Initial Topology for each bus
         void GenBackbone();
         void GenStTree(int id, DTYPE x[], DTYPE y[], int l[]);
@@ -339,7 +406,7 @@ namespace OABusRouter
         void TopologyMapping3D();
         void CreateClips();
         void SolveILP();
-
+        void TrackAssign();
 
         // Make Plot
         void Plot();

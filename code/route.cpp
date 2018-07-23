@@ -111,38 +111,48 @@ void OABusRouter::Router::TopologyMapping3D()
     // Variables
     int numTrees, numEdges, numNodes, numLayers, numNeighbor;
     int numRows, numCols; 
-    int l1, l2, ubl, lbl, avgl, bw;
+    int l1, l2, ubl, lbl, avgl, bw, idx;
     int x1, y1, x2, y2;
     int llx, lly, urx, ury;
     int verl, horl, curl;
     int col, row, lidx, curid;
     int segx1, segx2, segy1, segy2, segl, segid, busid;
-    bool st1, st2, verline, horline, via;
+    int numVerticals, numHorizontals;
+    bool st1, st2, verline, horline, via, isVertical;
     
     TreeNode *n1, *n2, *curNode, *tarNode;
     TreeEdge *e;
     //Layer *verl, *horl, *curl;
     vector<int> verticals;
     vector<int> horizontals;
-
+    dense_hash_map<int,int> vid;
+    dense_hash_map<int,int> hid;
+    dense_hash_map<int,int> direction;
 
     //numLayers = ckt->layers.size();
     numTrees = this->rsmt.trees.size();
     numCols = this->grid.numCols;
     numRows = this->grid.numRows;
     numLayers = this->grid.numLayers;
-
-
+    vid.set_empty_key(0);
+    hid.set_empty_key(0);
+    direction.set_empty_key(0);
 
     for(int i=0; i < numLayers; i++)
     {
+        direction[i] = ckt->layers[i].direction;
+
         if(ckt->layers[i].is_vertical()){
+            vid[ckt->layers[i].id] = verticals.size();
             verticals.push_back(ckt->layers[i].id);
         }else{
+            hid[ckt->layers[i].id] = horizontals.size();
             horizontals.push_back(ckt->layers[i].id);
         }
     }
 
+    numVerticals = verticals.size();
+    numHorizontals = horizontals.size();
 
     
     // Print all
@@ -191,8 +201,8 @@ void OABusRouter::Router::TopologyMapping3D()
         //vector<Line> verlines[numLayers][numCols];
         //vector<Line> horlines[numLayers][numRows];
         
-        vector<IntervalSetT> verIntervalSet(numLayers*numCols);//[numLayers][numCols];
-        vector<IntervalSetT> horIntervalSet(numLayers*numRows);//[numLayers][numRows];
+        vector<IntervalSetT> verIntervalSet(numVerticals*numCols);//[numLayers][numCols];
+        vector<IntervalSetT> horIntervalSet(numHorizontals*numRows);//[numLayers][numRows];
 
 
         //
@@ -270,7 +280,7 @@ void OABusRouter::Router::TopologyMapping3D()
 
 
                 row = ury;
-                curid = segl*numRows + row;                
+                curid = hid[segl]*numRows + row;                
                 horIntervalSet[curid] += IntervalT::closed(llx, urx);
                 
                 // Create segment
@@ -326,7 +336,7 @@ void OABusRouter::Router::TopologyMapping3D()
                 }
 
                 col = urx; // llx == urx
-                curid = segl*numCols + col;
+                curid = vid[segl]*numCols + col;
                 verIntervalSet[curid] += IntervalT::closed(lly, ury);
 
                 //printf("Create segment V (%2d %2d) (%2d %2d) m%d\n", segx1, segy1, segx2, segy2, segl);
@@ -338,73 +348,78 @@ void OABusRouter::Router::TopologyMapping3D()
         }
         //
   
-        // vertical lines
-        for(int idx = 0; idx < numLayers*numCols; idx++)
+        for(lidx = 0; lidx < numLayers; lidx++)
         {
-            lidx = (int)(1.0*idx / numCols + 0.5);
-            col = idx % numCols;
+             
+            isVertical = (direction[lidx] == VERTICAL)?true:false;
 
-            // Start iterating
-            IntervalSetT &curSet = verIntervalSet[idx];
-            IntervalSetT::iterator it = curSet.begin();
-            DiscreteIntervalT intv;
-            while(it != curSet.end())
+            if(isVertical)
             {
-                intv = (*it++);
-                segid = this->segs.size();
-                segx1 = col;
-                segy1 = intv.lower();
-                segx2 = col;
-                segy2 = intv.upper();
-                segl = lidx;
+                // vertical lines
+                for(col = 0; col < numCols; col++)
+                {
+
+                    idx = vid[lidx]*numCols + col;
+                    // Start iterating
+                    IntervalSetT &curSet = verIntervalSet[idx];
+                    IntervalSetT::iterator it = curSet.begin();
+                    DiscreteIntervalT intv;
+                    while(it != curSet.end())
+                    {
+                        intv = (*it++);
+                        segid = this->segs.size();
+                        segx1 = col;
+                        segy1 = intv.lower();
+                        segx2 = col;
+                        segy2 = intv.upper();
+                        segl = lidx;
 
 
-                Segment seg(segid, segx1, segy1, segx2, segy2, segl);
-                this->segs.push_back(seg);
-                tree->segs.push_back(segid);
-            
-                // Mapping the bitwith for each segment
-                busid = this->rsmt.GetBusID(tree->id);
-                bw = ckt->buses[busid].numBits;
-                this->bitwidth[segid] = bw;
-                this->seg2bus[segid] = busid;
+                        Segment seg(segid, segx1, segy1, segx2, segy2, segl);
+                        this->segs.push_back(seg);
+                        tree->segs.push_back(segid);
+
+                        // Mapping the bitwith for each segment
+                        busid = this->rsmt.GetBusID(tree->id);
+                        bw = ckt->buses[busid].numBits;
+                        this->bitwidth[segid] = bw;
+                        this->seg2bus[segid] = busid;
+                    }
+
+                }
+            }else{
+                // horizontal lines
+                for(row = 0; row < numRows; row++)
+                {
+                    idx = hid[lidx]*numRows + row;
+                    // Start iterating
+                    IntervalSetT &curSet = horIntervalSet[idx];
+                    IntervalSetT::iterator it = curSet.begin();
+                    DiscreteIntervalT intv;
+                    while(it != curSet.end())
+                    {
+                        intv = (*it++);
+                        segid = this->segs.size();
+                        segx1 = intv.lower();
+                        segy1 = row;
+                        segx2 = intv.upper();
+                        segy2 = row;
+                        segl = lidx;
+
+                        Segment seg(segid, segx1, segy1, segx2, segy2, segl);
+                        this->segs.push_back(seg);
+                        tree->segs.push_back(segid);
+
+                        // Mapping the bitwith for each segment
+                        busid = this->rsmt.GetBusID(tree->id);
+                        bw = ckt->buses[busid].numBits;
+                        this->bitwidth[segid] = bw;
+                        this->seg2bus[segid] = busid;
+                    }
+
+                }
             }
         }
-
-        // horizontal lines
-        for(int idx = 0; idx < numLayers*numRows; idx++)
-        {
-            lidx = (int)(1.0*idx / numRows + 0.5);
-            row = idx % numRows;
-
-            // Start iterating
-            IntervalSetT &curSet = horIntervalSet[idx];
-            IntervalSetT::iterator it = curSet.begin();
-            DiscreteIntervalT intv;
-            while(it != curSet.end())
-            {
-                intv = (*it++);
-                segid = this->segs.size();
-                segx1 = intv.lower();
-                segy1 = row;
-                segx2 = intv.upper();
-                segy2 = row;
-                segl = lidx;
-
-                Segment seg(segid, segx1, segy1, segx2, segy2, segl);
-                this->segs.push_back(seg);
-                tree->segs.push_back(segid);
-            
-                // Mapping the bitwith for each segment
-                busid = this->rsmt.GetBusID(tree->id);
-                bw = ckt->buses[busid].numBits;
-                this->bitwidth[segid] = bw;
-                this->seg2bus[segid] = busid;
-            }
-        }
-
-
-
 
 
         //printf("\n\n");
@@ -558,6 +573,7 @@ void OABusRouter::Router::InitGrid3D()
     // Create Gcells
     //this->grid.CreateGCs();
 
+    CreateTrackRtree();
     // Initialize Gcell Capacitance
     for(int l=0; l < numLayers; l++)
     {
@@ -568,6 +584,24 @@ void OABusRouter::Router::InitGrid3D()
 
 void OABusRouter::Grid3D::InitGcellCap(int layer, int dir, vector<int> &offsets)
 {
+
+    int GCllx, GClly, GCurx, GCury;
+    int lowerIndex, upperIndex;
+    int cap, tid, curl, idx;
+    int x1, x2, y1, y2;
+    bool adj;
+    vector<SegmentValT> queries;
+    vector<int> resources;
+    SegRtree* trackrtree;
+    BoxBG queryBox;
+    SegmentBG tmpseg;
+    Rtree* rtree;
+    rtree = &rou->rtree;
+    trackrtree = &rtree->track;
+    //dense_hash_map<int,int> &trackNuml= rou->rtree.trackNuml;
+    //dense_hash_map<int,int> &trackID = rou->rtree.trackID;
+    curl = layer;
+
     // HashMap preffered direction
     this->direction[layer] = dir;
 
@@ -575,33 +609,91 @@ void OABusRouter::Grid3D::InitGcellCap(int layer, int dir, vector<int> &offsets)
     {
         for(int row=0; row < numRows; row++)
         {
-            int GCllx, GClly, GCurx, GCury;
-            int lowerIndex, upperIndex;
-            int cap;
+
+            cap = 0;
+            queries.clear();
+            resources.clear();
+
             GCllx = GetOffset_x(col);
             GClly = GetOffset_y(row);
             GCurx = GetOffset_x(col) + GCELL_WIDTH;
             GCury = GetOffset_y(row) + GCELL_HEIGHT;
 
-            if(dir == VERTICAL)
+
+            queryBox = BoxBG(PointBG(GCllx, GClly), PointBG(GCurx, GCury));
+            trackrtree->query(
+                    bgi::intersects(queryBox) && // && !bgi::overlaps(queryBox), 
+                    bgi::satisfies([&, curl, queryBox, rtree](const SegmentValT& val){
+                        int llx, lly, urx, ury;
+                        int tarl;
+                        int idx;
+                        bool fallLL, fallUR, targetL;
+                        idx = val.second;
+                        SegmentBG curSeg = val.first;
+                        tarl = rtree->trackNuml[idx];
+                        llx = bg::get<0,0>(curSeg);
+                        lly = bg::get<0,1>(curSeg);
+                        urx = bg::get<1,0>(curSeg);
+                        ury = bg::get<1,1>(curSeg);
+                        fallLL = (bg::within(PointBG(llx,lly),queryBox))?true:false;
+                        fallUR = (bg::within(PointBG(urx,ury),queryBox))?true:false;
+                        targetL = (curl == tarl)?true:false;
+                        return (!fallLL && !fallUR && targetL);
+                    }), back_inserter(queries));
+
+            cout << "Queries size : " << queries.size() << endl;
+            cap = queries.size();
+                /*
+            for(int i=0; i < queries.size(); i++)
             {
-                lowerIndex = GetLowerBound(offsets, GCllx);
-                upperIndex = GetUpperBound(offsets, GCurx);
+             
+                tmpseg = queries[i].first;
+                idx = queries[i].second;
+                curl = trackNuml[idx];
+                tid = trackID[idx];
+                adj = (layer == curl)? true:false;
+
+                x1 = (int)(bg::get<0,0>(tmpseg) + 0.5);
+                y1 = (int)(bg::get<0,1>(tmpseg) + 0.5);
+                x2 = (int)(bg::get<1,0>(tmpseg) + 0.5);
+                y2 = (int)(bg::get<1,1>(tmpseg) + 0.5);
+
+                PointBG pt1(x1,y1);
+                PointBG pt2(x2,y2);
+
+                if(bg::within(pt1,queryBox) || bg::within(pt2,queryBox))
+                {
+                    continue;
+                }
+
+                if(adj)
+                {
+                    resources.push_back(tid);
+                    cap++;
+                }
+                
             }
-            else
-            {
-                lowerIndex = GetLowerBound(offsets, GClly);
-                upperIndex = GetUpperBound(offsets, GCury);
-            }
+                */
             
-            // Edge capacitance
-            cap = upperIndex - lowerIndex;
+            //sort(resources.begin(), resources.end());
+
             Gcell* curGC = &gcells[GetIndex(col,row,layer)];
+            for(int i=0; i < cap; i++)
+            {
+                int idx = queries[i].second;
+                tid = rtree->trackID[idx];
+                curGC->resources.insert(idx);   
+            }
+            //sort(curGC->resources.begin(), curGC->resources.end());
+
             curGC->id = GetIndex(col,row,layer);
             curGC->x = col;
             curGC->y = row;
             curGC->l = layer;
             curGC->cap = cap;
+            curGC->direction = dir;
+            //curGC->resources = resources;
+            
         }
     }
 }
