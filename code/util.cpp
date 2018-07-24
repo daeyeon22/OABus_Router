@@ -14,7 +14,6 @@ OABusRouter::Point OABusRouter::Rect::center()
     return OABusRouter::Point(cx,cy);
 }
 
-
 void OABusRouter::Circuit::GenPlot()
 {
     for(int i=0; i < this->buses.size() ; i++)

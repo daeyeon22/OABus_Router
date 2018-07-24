@@ -55,7 +55,8 @@ void OABusRouter::Router::SolveILP()
 
         vector<IloNumVar> varXs;
         vector<IloExpr> exprCs;
-        vector<IloExpr> exprGs;
+        vector<IloExpr> exprG1s;
+        vector<IloExpr> exprG2s;
         
         
         dense_hash_map<int,int> expr2seg;
@@ -74,8 +75,13 @@ void OABusRouter::Router::SolveILP()
         {
             
             
-            IloExpr exprG(env);
-            exprID = exprGs.size();
+            IloExpr exprG1(env);
+            IloExpr exprG2(env);
+           
+            //exprG1 = 0;
+            //exprG2 += 1;
+            
+            exprID = exprG1s.size();
             
             curS = &this->segs[i];
             segID = curS->id;
@@ -100,7 +106,8 @@ void OABusRouter::Router::SolveILP()
                     varID = varXs.size();
                     varXs.push_back(varX);
                     
-                    exprG += varX;
+                    exprG1 += varX;
+                    //exprG2 = exprG2*varX;
                     var2seg[varID] = curS->id;
                 }
                 iMaps[l][x1] +=
@@ -117,7 +124,8 @@ void OABusRouter::Router::SolveILP()
                     varID = varXs.size();
                     varXs.push_back(varX);
 
-                    exprG += varX;
+                    exprG1 += varX;
+                    //exprG2 = exprG2*varX;
                     var2seg[varID] = curS->id;
                 }
 
@@ -128,12 +136,15 @@ void OABusRouter::Router::SolveILP()
             
        
 
-            exprG -= numVars;
-            objective += exprG;
-            cplexConsts.add(exprG >= -1);
+            exprG1 -= numVars;
+            objective += exprG1;
+            exprG2 = (exprG1 == 0);
+            
+            cplexConsts.add(exprG1 >= -1);
        
 
-            exprGs.push_back(exprG);
+            exprG1s.push_back(exprG1);
+            exprG2s.push_back(exprG2);
             expr2seg[exprID] = segID;
         }
 
@@ -170,7 +181,10 @@ void OABusRouter::Router::SolveILP()
                     segID = expr2seg[eid];
                     busID = this->seg2bus[segID];
                     bw = this->bitwidth[busID];
-                    tmpExpr += exprGs[eid]*bw;
+
+                    //IloExpr tmpExpr2(env);
+                    //tmpExpr2 = (exprG1s[eid]==0);
+                    tmpExpr += exprG2s[eid]*bw;
                 }
 
                 while(start <= end)
@@ -203,15 +217,31 @@ void OABusRouter::Router::SolveILP()
         model.add(IloMaximize(env, objective));
         model.add(cplexConsts);
 
+
+        cplex.exportModel("./ilp/formulation.lp");
         if(cplex.solve())
         {
             printf("ILP(%3d) solved!\n", ILP_ITER_COUNT++);
+
+             
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        }else{
+            printf("????\n");
         }
 
     }catch(IloException& ex){
-
+        cerr << "Error: " << ex << endl;
     }catch(...){
-
+        cerr << "Error" << endl;
     }
 }
 
