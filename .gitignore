@@ -12,7 +12,7 @@ code/*.log
 code/*.o
 code/iccad18obr
 
-       
+*.def       
 *.o   
 *.swp
 iccad18obr
