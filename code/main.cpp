@@ -82,9 +82,6 @@ int main(int argc, char** argv){
     //<< endl;
     //ckt->InitRoutingDirection();
 
-    cout << "Write def file" << endl;
-    ckt->def_write();
-
     cout << "TrackAssign" << endl;
     rou->TrackAssign();
 
@@ -94,6 +91,10 @@ int main(int argc, char** argv){
 
     cout << "Create Plot" << endl;
     rou->Plot();
+
+    cout << "Write def & lef file" << endl;
+    ckt->def_write();
+    ckt->lef_write();
 
     cout << "End program" << endl;
     return 0;
