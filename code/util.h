@@ -39,8 +39,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <fstream>
 #include <iostream>
 
-extern void GenBusPlot(int busid, const char* fileName);
-extern void GenBusPlot_v2(int busid, const char* fileName);
+
+//extern void CreateBusPlotAll();
+extern void CreateBusPlot(bool all, int busid, const char* filename);
+//int busid);
+//extern void GenBusPlot(int busid, const char* fileName);
+//extern void GenBusPlot_v2(int busid, const char* fileName);
 
 namespace svg
 {
@@ -234,17 +238,19 @@ namespace svg
     class Fill : public Serializeable
     {
     public:
-        Fill(Color::Defaults color) : color(color) { }
-        Fill(Color color = Color::Transparent)
-            : color(color) { }
+        Fill(Color::Defaults color) : color(color), opacity(1.0) { }
+        Fill(Color color = Color::Transparent, double opacity = 1.0)
+            : color(color), opacity(opacity) { }
         std::string toString(Layout const & layout) const
         {
             std::stringstream ss;
             ss << attribute("fill", color.toString(layout));
+            ss << attribute("opacity", opacity); 
             return ss.str();
         }
     private:
         Color color;
+        double opacity;
     };
 
     class Stroke : public Serializeable

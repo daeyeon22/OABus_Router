@@ -28,14 +28,13 @@
 #include "func.h"
 //#include "flute.h"
 
-
 // Dense hash map
 #include <sparsehash/dense_hash_map>
 
+#define INIT_STR "INITSTR"
 // Pre-define
 #ifndef PREDEF
 #define PREDEF 
-#define INIT_STR "INITSTR"
 #define VERTICAL 111
 #define HORIZONTAL 222
 #endif
@@ -177,7 +176,7 @@ namespace OABusRouter
         int offset;
         int llx, lly;
         int urx, ury;
-        string layer;
+        int l; // layer id
         Point ll;
         Point ur;
         
@@ -191,20 +190,22 @@ namespace OABusRouter
         Track() : 
             id(INT_MAX), 
             width(INT_MAX), 
+            offset(INT_MAX),
             llx(INT_MAX),
             lly(INT_MAX),
             urx(INT_MIN),
             ury(INT_MIN),
-            layer(INIT_STR) {}
+            l(INT_MAX) {}
 
         Track(const Track& tr) :
             id(tr.id),
             width(tr.width),
+            offset(tr.offset),
             llx(tr.llx),
             lly(tr.lly),
             urx(tr.urx),
             ury(tr.ury),
-            layer(tr.layer) {}
+            l(tr.l) {}
 
         void print();
     };
@@ -216,8 +217,9 @@ namespace OABusRouter
         int id;
         int llx, lly;
         int urx, ury;
+        int l; // layer id
         string bitName;
-        string layer;
+        //string layer;
         //Rect boundary;
 
         Pin() : 
@@ -226,8 +228,8 @@ namespace OABusRouter
             lly(INT_MAX),
             urx(INT_MIN),
             ury(INT_MIN),
-            bitName(INIT_STR), 
-            layer(INIT_STR) {}
+            l(INT_MAX),
+            bitName(INIT_STR) {}
 
         Pin(const Pin& p) :
             id(p.id),
@@ -235,10 +237,8 @@ namespace OABusRouter
             lly(p.lly),
             urx(p.urx),
             ury(p.ury),
-            bitName(p.bitName),
-            layer(p.layer)
-        {
-        }
+            l(p.l),
+            bitName(p.bitName) {}
 
         void print();
     };
@@ -279,7 +279,8 @@ namespace OABusRouter
         string name;
 
         vector<int> bits;
-        dense_hash_map<string,int> width;
+        dense_hash_map<int,int> width;
+        
         //HashMap;
 
         Bus() : 
@@ -292,7 +293,7 @@ namespace OABusRouter
             ury(INT_MIN),
             name(INIT_STR)
         {
-            width.set_empty_key(INIT_STR);
+            width.set_empty_key(0); // INIT_STR);
         }
 
         Bus(const Bus& b) :
@@ -317,7 +318,9 @@ namespace OABusRouter
         int id;
         int llx, lly;
         int urx, ury;
-        string layer;
+        int l; // layer id
+
+        //string layer;
         //Rect boundary;
 
         Obstacle() : 
@@ -326,7 +329,7 @@ namespace OABusRouter
             lly(INT_MAX),
             urx(INT_MIN),
             ury(INT_MIN),
-            layer(INIT_STR) {}
+            l(INT_MAX) {} 
 
         Obstacle(const Obstacle& obs) :
             id(obs.id),
@@ -334,14 +337,12 @@ namespace OABusRouter
             lly(obs.lly),
             urx(obs.urx),
             ury(obs.ury),
-            layer(obs.layer) {}
+            l(obs.l) {}
 
         void print();
 
     };
     
-
-
     class Circuit
     {
       private:

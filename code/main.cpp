@@ -1,6 +1,7 @@
 
 #include "circuit.h"
 #include "route.h"
+//#include "util.h"
 
 using namespace std;
 
@@ -83,6 +84,16 @@ int main(int argc, char** argv){
 
     cout << "Write def file" << endl;
     ckt->def_write();
+
+    cout << "TrackAssign" << endl;
+    rou->TrackAssign();
+
+
+    cout << "Create Via" << endl;
+    rou->CreateVia();
+
+    cout << "Create Plot" << endl;
+    rou->Plot();
 
     cout << "End program" << endl;
     return 0;

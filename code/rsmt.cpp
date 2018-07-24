@@ -63,7 +63,7 @@ void OABusRouter::Router::GenBackbone()
         for(int p=0; p < numPinShapes; p++)
         {
             curPin = &ckt->pins[curBit->pins[p]];
-            curLayer = &ckt->layers[ckt->layerHashMap[curPin->layer]];
+            curLayer = &ckt->layers[curPin->l];
             int pinllx = curPin->llx;
             int pinlly = curPin->lly;
             int pinurx = curPin->urx;

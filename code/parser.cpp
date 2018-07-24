@@ -79,7 +79,6 @@ bool OABusRouter::Circuit::getParam(char* fileName){
             }
 
             if(*iter == "DESIGN_BOUNDARY"){
-
                 int llx, lly, urx, ury;
                 string llxStr = *(++iter);
                 string llyStr = *(++iter);
@@ -173,6 +172,7 @@ bool OABusRouter::Circuit::getLayerInfo(char* fileName){
     inputFile.close();
     return false;
 }
+
 bool OABusRouter::Circuit::getTrackInfo(char* fileName){
 
     ifstream inputFile(fileName);
@@ -211,7 +211,7 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
                     
 
 
-                    printf("Track coord %s %s %s %s\n", llxStr.c_str(), llyStr.c_str(), urxStr.c_str(), uryStr.c_str());
+                    //printf("Track coord %s %s %s %s\n", llxStr.c_str(), llyStr.c_str(), urxStr.c_str(), uryStr.c_str());
 
                     Track track;
                     track.id = this->tracks.size();
@@ -220,15 +220,15 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
                     track.lly = atoi(llyStr.c_str());
                     track.urx = atoi(urxStr.c_str());
                     track.ury = atoi(uryStr.c_str());
-                    track.layer = layerName;
+                    track.l = this->layerHashMap[layerName];
                     Layer* layer = &this->layers[this->layerHashMap[layerName]];
                     //lyr->tracks.push_back(track.id);
                     track.offset = (layer->is_vertical())?track.llx:track.lly;
                     layer->trackOffsets.push_back(track.offset);
-                    printf("Track Offset %d\n", track.offset);
+                    //printf("Track Offset %d\n", track.offset);
                     this->tracks.push_back(track);
-                    pair<string,int> info(track.layer,track.offset);
-                    this->trackHashMap[GetHashKey(info)] = track.id; 
+                    //pair<string,int> info(track.layer,track.offset);
+                    //this->trackHashMap[GetHashKey(info)] = track.id; 
                 }
             }
         }
@@ -291,6 +291,7 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                         string numBitStr = *iter++;
                         bus.numBits = atoi(numBitStr.c_str());
                         //cout << "numBits : " << numBitStr << endl;
+                        
                         // Number of Pin Shapes
                         if(!getline(inputFile,line)) throw READ_FAILED;
                         tokens = boost::tokenizer<boost::char_separator<char>>(line, sep);
@@ -298,6 +299,7 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                         string numPinShapeStr = *iter++;
                         bus.numPinShapes = atoi(numPinShapeStr.c_str());
                         //cout << "numPinShape : " << numPinShapeStr << endl;
+                        
                         // Width Information
                         if(!getline(inputFile,line)) throw READ_FAILED;
                         tokens = boost::tokenizer<boost::char_separator<char>>(line, sep);
@@ -312,7 +314,7 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                                 iter = tokens.begin();
                                 string widthStr = *iter;
                                 Layer* targetLayer = &this->layers[i];
-                                bus.width[targetLayer->name] = atoi(widthStr.c_str());
+                                bus.width[targetLayer->id] = atoi(widthStr.c_str());
                             }
                         }else{
                             throw INVALID_FILE_FORMAT;
@@ -360,12 +362,12 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                                 Pin pin;
                                 pin.id = this->pins.size();
                                 pin.bitName = targetBit->name;
-                                pin.layer = layerStr;
+                                pin.l = this->layerHashMap[layerStr];
                                 int llx = atoi(llxStr.c_str());
                                 int lly = atoi(llyStr.c_str());
                                 int urx = atoi(urxStr.c_str());
                                 int ury = atoi(uryStr.c_str());
-                                printf("Pin (%d %d) (%d %d)\n", llx, lly, urx, ury);
+                                //printf("Pin (%d %d) (%d %d)\n", llx, lly, urx, ury);
                                 
                                 pin.llx = llx;
                                 pin.lly = lly;
@@ -437,7 +439,7 @@ bool OABusRouter::Circuit::getObstacleInfo(char* fileName){
                     string uryStr = *iter++;
                     Obstacle obs;
                     obs.id = this->obstacles.size();
-                    obs.layer = layerStr;
+                    obs.l = this->layerHashMap[layerStr];
                     obs.llx = atoi(llxStr.c_str());
                     obs.lly = atoi(llyStr.c_str());
                     obs.urx = atoi(urxStr.c_str());
