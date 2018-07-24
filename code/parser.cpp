@@ -226,6 +226,7 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
                     //lyr->tracks.push_back(track.id);
                     track.offset = (layer->is_vertical())?track.llx:track.lly;
                     layer->trackOffsets.push_back(track.offset);
+                    layer->track_min_width = min(layer->track_min_width,atoi(widthStr.c_str()));
                     //printf("Track Offset %d\n", track.offset);
                     this->tracks.push_back(track);
                     //pair<string,int> info(track.layer,track.offset);

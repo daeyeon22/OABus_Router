@@ -119,6 +119,7 @@ namespace OABusRouter
         int spacing;
         int llx, lly;
         int urx, ury;
+        int track_min_width;
         string name;
         //Rect boundary;
         //vector<int> tracks;
@@ -147,6 +148,7 @@ namespace OABusRouter
             lly(INT_MAX),
             urx(INT_MIN),
             ury(INT_MIN),
+            track_min_width(INT_MAX),
             name(INIT_STR) 
         {
 
@@ -249,7 +251,7 @@ namespace OABusRouter
         string name;
         string busName;
         vector<int> pins;
-
+        vector<int> wires;
 
         //Rect boundary();
 
