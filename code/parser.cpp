@@ -20,9 +20,9 @@ bool OABusRouter::Circuit::getParam(char* fileName){
     string line = "";
     string delim = " ()";
 
-    string input_file = to_string(fileName);
+    string input_file(fileName);
 
-    size_t dot_point = input_file.find(0,"input");
+    size_t dot_point = input_file.find("input",0);
 
     design = input_file.substr(0,dot_point-1);
 

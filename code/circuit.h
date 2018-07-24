@@ -422,8 +422,8 @@ namespace OABusRouter
         bool getObstacleInfo(char* fileName);
 
         // def_writer
-        void def_writer(string filename);
-
+        void def_write();
+        void def_write(string filename);
 
     };
 
