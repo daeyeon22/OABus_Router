@@ -23,8 +23,9 @@ bool OABusRouter::Circuit::getParam(char* fileName){
     string input_file(fileName);
 
     size_t dot_point = input_file.find("input",0);
+    size_t dot_slash = input_file.find_last_of("/\\");
 
-    design = input_file.substr(0,dot_point-1);
+    design = input_file.substr(dot_slash+1,dot_point-dot_slash-2);
 
     try{
         while(!inputFile.eof()){

@@ -422,9 +422,11 @@ namespace OABusRouter
         bool getBusInfo(char* fileName);
         bool getObstacleInfo(char* fileName);
 
-        // def_writer
+        // def_writer.cpp
         void def_write();
         void def_write(string filename);
+        void lef_write();
+        void lef_write(string filename);
 
     };
 
