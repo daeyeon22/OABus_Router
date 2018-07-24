@@ -351,6 +351,7 @@ namespace OABusRouter
       public:
         static Circuit* shared();
 
+        string design;
 
         // Parameters
         int runtime;
@@ -363,7 +364,7 @@ namespace OABusRouter
         int originY;
         int width;
         int height;
-        
+       
         // Objects
         vector<Layer> layers;
         vector<Track> tracks;
@@ -382,6 +383,7 @@ namespace OABusRouter
 
         // Initializer
         Circuit() :
+            design(""),
             runtime(INT_MAX), 
             alpha(INT_MAX),
             beta(INT_MAX),
@@ -418,6 +420,9 @@ namespace OABusRouter
         bool getTrackInfo(char* fileName);
         bool getBusInfo(char* fileName);
         bool getObstacleInfo(char* fileName);
+
+        // def_writer
+        void def_writer(string filename);
 
 
     };
