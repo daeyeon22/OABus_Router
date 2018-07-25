@@ -210,8 +210,6 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
                     string uryStr = *iter++;
                     string widthStr = *iter++;
                     
-
-
                     //printf("Track coord %s %s %s %s\n", llxStr.c_str(), llyStr.c_str(), urxStr.c_str(), uryStr.c_str());
 
                     Track track;
@@ -223,10 +221,10 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
                     track.ury = atoi(uryStr.c_str());
                     track.l = this->layerHashMap[layerName];
                     Layer* layer = &this->layers[this->layerHashMap[layerName]];
+                    layer->min_width = min(layer->min_width,track.width);
                     //lyr->tracks.push_back(track.id);
                     track.offset = (layer->is_vertical())?track.llx:track.lly;
                     layer->trackOffsets.push_back(track.offset);
-                    layer->track_min_width = min(layer->track_min_width,atoi(widthStr.c_str()));
                     //printf("Track Offset %d\n", track.offset);
                     this->tracks.push_back(track);
                     //pair<string,int> info(track.layer,track.offset);

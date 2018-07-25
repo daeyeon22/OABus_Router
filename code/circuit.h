@@ -119,7 +119,7 @@ namespace OABusRouter
         int spacing;
         int llx, lly;
         int urx, ury;
-        int track_min_width;
+        int min_width;
         string name;
         //Rect boundary;
         //vector<int> tracks;
@@ -148,7 +148,7 @@ namespace OABusRouter
             lly(INT_MAX),
             urx(INT_MIN),
             ury(INT_MIN),
-            track_min_width(INT_MAX),
+            min_width(INT_MAX),
             name(INIT_STR) 
         {
 
@@ -162,6 +162,7 @@ namespace OABusRouter
             lly(lr.lly),
             urx(lr.urx),
             ury(lr.ury),
+            min_width(lr.min_width),
             name(lr.name)
         {
 
@@ -223,6 +224,7 @@ namespace OABusRouter
         string bitName;
         //string layer;
         //Rect boundary;
+        string direction;
 
         Pin() : 
             id(INT_MAX), 
@@ -231,7 +233,8 @@ namespace OABusRouter
             urx(INT_MIN),
             ury(INT_MIN),
             l(INT_MAX),
-            bitName(INIT_STR) {}
+            bitName(INIT_STR),
+            direction("OUTPUT") {}
 
         Pin(const Pin& p) :
             id(p.id),
@@ -240,7 +243,8 @@ namespace OABusRouter
             urx(p.urx),
             ury(p.ury),
             l(p.l),
-            bitName(p.bitName) {}
+            bitName(p.bitName),
+            direction(p.direction) {}
 
         void print();
     };
