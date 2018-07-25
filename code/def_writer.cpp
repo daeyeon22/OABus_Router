@@ -38,7 +38,7 @@ void Circuit::def_write(string file_name) {
         Pin* thePin = &pins[i];
         int x_orig = ( thePin->llx + thePin->urx )/2;
         int y_orig = ( thePin->lly + thePin->ury )/2;
-        dot_def << "- pin_" << thePin->id << " + " << "net_" << thePin->bitName << endl;
+        dot_def << "- pin_" << thePin->id << " + NET " << thePin->bitName << endl;
         dot_def << "  + LAYER " << layers[thePin->l].name << " ( " << thePin->llx - x_orig << " " << thePin->lly - y_orig << " )";
         dot_def << " ( " << thePin->urx - x_orig << " " << thePin->ury - y_orig << " )" << endl;
         dot_def << "  + PLACED ( " << x_orig << " " << y_orig << " ) N ;" << endl;
@@ -59,7 +59,7 @@ void Circuit::def_write(string file_name) {
     dot_def << "NETS " << bits.size() << " ;" << endl;
     for(int i=0; i < bits.size(); i++) {
         Bit* theBit = &bits[i];
-        dot_def << "- net_" << theBit->name << endl;
+        dot_def << "- " << theBit->name << endl;
         dot_def << " ";
         for(int j=0; j < theBit->pins.size(); j++) {
             Pin* thePin = &pins[theBit->pins[j]];
