@@ -11,6 +11,8 @@ code/*.swp
 code/*.log
 code/*.o
 code/iccad18obr
+code/ilp/**
+code/ilp/*.lp
 
 *.lp
 *.lef
