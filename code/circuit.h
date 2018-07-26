@@ -119,6 +119,7 @@ namespace OABusRouter
         int spacing;
         int llx, lly;
         int urx, ury;
+        int min_width;
         string name;
         //Rect boundary;
         //vector<int> tracks;
@@ -147,6 +148,7 @@ namespace OABusRouter
             lly(INT_MAX),
             urx(INT_MIN),
             ury(INT_MIN),
+            min_width(INT_MAX),
             name(INIT_STR) 
         {
 
@@ -160,6 +162,7 @@ namespace OABusRouter
             lly(lr.lly),
             urx(lr.urx),
             ury(lr.ury),
+            min_width(lr.min_width),
             name(lr.name)
         {
 
@@ -222,6 +225,7 @@ namespace OABusRouter
         string bitName;
         //string layer;
         //Rect boundary;
+        string direction;
 
         Pin() : 
             id(INT_MAX), 
@@ -230,7 +234,8 @@ namespace OABusRouter
             urx(INT_MIN),
             ury(INT_MIN),
             l(INT_MAX),
-            bitName(INIT_STR) {}
+            bitName(INIT_STR),
+            direction("OUTPUT") {}
 
         Pin(const Pin& p) :
             id(p.id),
@@ -239,7 +244,8 @@ namespace OABusRouter
             urx(p.urx),
             ury(p.ury),
             l(p.l),
-            bitName(p.bitName) {}
+            bitName(p.bitName),
+            direction(p.direction) {}
 
         void print();
     };
@@ -250,7 +256,7 @@ namespace OABusRouter
         string name;
         string busName;
         vector<int> pins;
-
+        vector<int> wires;
 
         //Rect boundary();
 
@@ -353,6 +359,7 @@ namespace OABusRouter
       public:
         static Circuit* shared();
 
+        string design;
 
         // Parameters
         int runtime;
@@ -365,7 +372,7 @@ namespace OABusRouter
         int originY;
         int width;
         int height;
-        
+       
         // Objects
         vector<Layer> layers;
         vector<Track> tracks;
@@ -384,6 +391,7 @@ namespace OABusRouter
 
         // Initializer
         Circuit() :
+            design(""),
             runtime(INT_MAX), 
             alpha(INT_MAX),
             beta(INT_MAX),
@@ -421,6 +429,11 @@ namespace OABusRouter
         bool getBusInfo(char* fileName);
         bool getObstacleInfo(char* fileName);
 
+        // def_writer.cpp
+        void def_write();
+        void def_write(string filename);
+        void lef_write();
+        void lef_write(string filename);
 
     };
 

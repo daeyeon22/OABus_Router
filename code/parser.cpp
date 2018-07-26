@@ -20,6 +20,12 @@ bool OABusRouter::Circuit::getParam(char* fileName){
     string line = "";
     string delim = " ()";
 
+    string input_file(fileName);
+
+    size_t dot_point = input_file.find("input",0);
+    size_t dot_slash = input_file.find_last_of("/\\");
+
+    design = input_file.substr(dot_slash+1,dot_point-dot_slash-2);
 
     try{
         while(!inputFile.eof()){
@@ -204,8 +210,6 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
                     string uryStr = *iter++;
                     string widthStr = *iter++;
                     
-
-
                     //printf("Track coord %s %s %s %s\n", llxStr.c_str(), llyStr.c_str(), urxStr.c_str(), uryStr.c_str());
 
                     Track track;
@@ -217,6 +221,7 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
                     track.ury = atoi(uryStr.c_str());
                     track.l = this->layerHashMap[layerName];
                     Layer* layer = &this->layers[this->layerHashMap[layerName]];
+                    layer->min_width = min(layer->min_width,track.width);
                     //lyr->tracks.push_back(track.id);
                     track.offset = (layer->is_vertical())?track.llx:track.lly;
                     layer->trackOffsets.push_back(track.offset);
@@ -244,7 +249,7 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
 bool OABusRouter::Circuit::getBusInfo(char* fileName){
     ifstream inputFile(fileName);
     string line = "";
-    string delim = " ()";
+    string delim = " ()<>";
     bool flag = false;
 
     typedef boost::tokenizer<boost::char_separator<char>>::iterator tokenIter;
@@ -330,6 +335,7 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                                 bit.id = this->bits.size();
                                 bit.busName = bus.name;
                                 bit.name = *++iter;
+                                bit.name = bit.name + "_" + *++iter;
                                 this->bits.push_back(bit);
                                 this->bitHashMap[bit.name] = bit.id;
                                 bitFlag = true;
