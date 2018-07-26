@@ -45,7 +45,8 @@ curTime = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
 
 #print curTime
 
-
+rmlogStr = "rm %s/*" % (logpos)
+ExecuteCommand(rmlogStr)
 exeStr = "%s -input %s/%s -threads %d -output %s/%s | tee %s/%s_%s_out.log" % (binaryName, dirpos, benchName, numThreads, outpos, benchName, logpos, benchName, curTime)
 ExecuteCommand(exeStr)
 

@@ -6,6 +6,7 @@
 #include "func.h"
 
 
+#define DEBUG
 
 // ILP formulation
 void OABusRouter::Router::CreateClips()
@@ -222,8 +223,7 @@ void OABusRouter::Router::TopologyMapping3D()
             };
 
 
-            // If horizontal line, Add interval into the horizontal interval set
-            if(horline)
+            if(horline && !verline)
             {
                 sort(horizontals.begin(), horizontals.end(), lamb);
 
@@ -261,11 +261,9 @@ void OABusRouter::Router::TopologyMapping3D()
                 row = ury;
                 curid = hid[segl]*numRows + row;                
                 horIntervalSet[curid] += IntervalT::closed(llx, urx);
+
             }
-
-
-            // If vertical line, Add interval into the vertical interval set
-            if(verline)
+            else if(!horline && verline)
             {
                 sort(verticals.begin(), verticals.end(), lamb);
 
@@ -306,7 +304,99 @@ void OABusRouter::Router::TopologyMapping3D()
                 curid = vid[segl]*numCols + col;
                 verIntervalSet[curid] += IntervalT::closed(lly, ury);
 
+
             }
+            else if(horline && verline)
+            {
+               sort(horizontals.begin(), horizontals.end(), lamb);
+
+                bool n1first;
+                //= true;
+                curl = horizontals[0];
+                if(curl == l1){
+                    segx1 = x1;
+                    segy1 = y1;
+                    segx2 = x2;
+                    segy2 = y1;
+                    segl = curl;
+                    n1first = true;
+                }else if(curl == l2){
+                    segx1 = x2;
+                    segy1 = y2;
+                    segx2 = x1;
+                    segy2 = y2;
+                    segl = curl;
+                    n1first = false;
+                }else{
+                    segx1 = x2;
+                    segy1 = y2;
+                    segx2 = x1;
+                    segy2 = y2;
+                    segl = curl;
+                    n1first = false;
+                }
+                
+                llx = min(segx1, segx2);
+                urx = max(segx1, segx2);
+                lly = min(segy1, segy2);
+                ury = max(segy1, segy2);
+                if(lly != ury)
+                {
+                    cout << "Invalid line type.." << endl;
+                    exit(0);
+                }
+
+                row = ury;
+                curid = hid[segl]*numRows + row;                
+                horIntervalSet[curid] += IntervalT::closed(llx, urx);
+
+                sort(verticals.begin(), verticals.end(), [segl, l1, l2, n1first] (int left, int right){
+                        if(n1first)
+                            return (abs(segl - left) + abs(segl - right)) < (abs(l2 - left) + abs(l2 - right));
+                        else
+                            return (abs(segl - left) + abs(segl - right)) < (abs(l1 - left) + abs(l1 - right));
+                        });
+
+
+                curl = verticals[0];
+                if(n1first)
+                {
+                    segx1 = x2;
+                    segy1 = y1;
+                    segx2 = x2;
+                    segy2 = y2;
+                    segl = curl;
+                }
+                else
+                {
+                    segx1 = x1;
+                    segy1 = y2;
+                    segx2 = x1;
+                    segy2 = y1;
+                    segl = curl;
+                }
+
+                llx = min(segx1, segx2);
+                urx = max(segx1, segx2);
+                lly = min(segy1, segy2);
+                ury = max(segy1, segy2);
+                if(llx != urx)
+                {
+                    cout << "Invalid line type.." << endl;
+                    exit(0);
+                }
+
+                col = urx; // llx == urx
+                curid = vid[segl]*numCols + col;
+                verIntervalSet[curid] += IntervalT::closed(lly, ury);
+            }
+            else
+            {
+                cout << "no horizontal, vertical line" << endl;
+
+            }
+
+
         }
         //
 
@@ -314,18 +404,21 @@ void OABusRouter::Router::TopologyMapping3D()
         
         int numQ, segindex;
         int jid, x, y, l1, l2, s1, s2, bw;
+        bool vertical_s1, vertical_s2;
         SegmentBG seg1, seg2;
         PointBG pt;
         vector<PointBG> intersection;
         SegRtree sRtree;
         Segment* curS, *tarS;
         vector<SegmentValT> queries;
-        dense_hash_map<int,int> segNuml;
+        dense_hash_map<int,int>     segNuml;
         segNuml.set_empty_key(0);
         bw = bitwidth[busid];
 
         //
+        //
         // Create segment
+        
         for(lidx = 0; lidx < numLayers; lidx++)
         {
              
@@ -353,7 +446,7 @@ void OABusRouter::Router::TopologyMapping3D()
                         segl = lidx;
 
 
-                        Segment seg(segid, segx1, segy1, segx2, segy2, segl);
+                        Segment seg(segid, segx1, segy1, segx2, segy2, segl, false, isVertical);
                         this->segs.push_back(seg);
                         tree->segs.push_back(segid);
 
@@ -365,9 +458,9 @@ void OABusRouter::Router::TopologyMapping3D()
                         this->assign[segid] = false;
 
                         // Rtree
-                        SegmentBG segbg(PointBG(segx1, segy1), PointBG(segy1, segy2));
+                        SegmentBG segbg(PointBG(segx1, segy1), PointBG(segx2, segy2));
                         segNuml[segid] = segl;
-                        sRtree.insert(SegmentValT(segbg, segl));
+                        sRtree.insert(SegmentValT(segbg, segid));
                     }
 
                 }
@@ -390,7 +483,7 @@ void OABusRouter::Router::TopologyMapping3D()
                         segy2 = row;
                         segl = lidx;
 
-                        Segment seg(segid, segx1, segy1, segx2, segy2, segl);
+                        Segment seg(segid, segx1, segy1, segx2, segy2, segl, false, isVertical);
                         this->segs.push_back(seg);
                         tree->segs.push_back(segid);
 
@@ -403,7 +496,7 @@ void OABusRouter::Router::TopologyMapping3D()
                     
                     
                         // Rtree
-                        SegmentBG segbg(PointBG(segx1, segy1), PointBG(segy1, segy2));
+                        SegmentBG segbg(PointBG(segx1, segy1), PointBG(segx2, segy2));
                         segNuml[segid] = segl;
                         sRtree.insert(SegmentValT(segbg, segid));
                     }
@@ -411,11 +504,27 @@ void OABusRouter::Router::TopologyMapping3D()
                 }
             }
 
+        //
 
 
         }
         //
 
+#ifdef DEBUG
+        if(tree->segs.size() != sRtree.size())
+        {
+            cout << "differenct size..." << endl;
+            exit(0);
+        }
+
+        cout << "Segment list = ";
+        for(auto& it : tree->segs)
+        {
+            cout << it << " ";   
+        }
+
+        cout << endl << endl;
+#endif
 
         // Create junction
         for(segindex=0; segindex < tree->segs.size(); segindex++)
@@ -433,7 +542,9 @@ void OABusRouter::Router::TopologyMapping3D()
             seg1 = SegmentBG(PointBG(segx1, segy1), PointBG(segx2, segy2));
             
             //
+            sRtree.remove(SegmentValT(seg1, s1));
             sRtree.query(bgi::intersects(seg1), back_inserter(queries));
+            
             numQ = queries.size();
 
             // 
@@ -445,9 +556,9 @@ void OABusRouter::Router::TopologyMapping3D()
                 l2 = segNuml[s2];
                 tarS = &segs[s2];
 
-                bool adj = ( (l1+1 == l2) || (l1 == l2+1) )? true : false;
-                if(!adj) continue;
-
+                //bool adj = ( (l1+1 == l2) || (l1 == l2+1) )? true : false;
+                //if(!adj) continue;
+                if(s2 == s1) continue;
                 //if(l1+1 == l2) continue;
 
                 intersection.clear();
@@ -484,18 +595,20 @@ void OABusRouter::Router::TopologyMapping3D()
                 tree->junctions.push_back(junc.id);
                 junc2bus[jid] = busid;
                 
-                sRtree.remove(queries[k]);
-                
                 // Add neighbor 
                 curS->neighbor.push_back(s2);
                 tarS->neighbor.push_back(s1);
+                curS->junctions.push_back(jid);
+                tarS->junctions.push_back(jid);
             }
+            //sRtree.remove(SegmentValT(seg1, s1));
         }
 
 
+        sRtree.clear();
         //printf("\n\n");
         tree->print();
-
+        //
     }
 
 
@@ -506,7 +619,9 @@ void OABusRouter::StTree::print()
 {
 
     int i;
-    
+   
+
+    printf("Current tree(%d) -> %s\n\n", id, ckt->buses[rou->rsmt.busID[id]].name.c_str());
     for (i=0; i<deg; i++)
         printf("(p)%-2d:  x=%4g  y=%4g  z=%4g  e=%d\n",
                 i, (float) nodes[i].x, (float) nodes[i].y, (float) nodes[i].l, nodes[i].n);
@@ -519,9 +634,9 @@ void OABusRouter::StTree::print()
         Segment* curS = &rou->segs[segs[i]];
         if(curS->x1 == curS->x2)
         {
-            printf("(%d) V-Line (%2d %2d) (%2d %2d) m%d\n", i,curS->x1, curS->y1, curS->x2, curS->y2, curS->l);
+            printf("(%d) s %d V-Line (%2d %2d) (%2d %2d) m%d\n", i, curS->id, curS->x1, curS->y1, curS->x2, curS->y2, curS->l);
         }else{
-            printf("(%d) H-Line (%2d %2d) (%2d %2d) m%d\n", i,curS->x1, curS->y1, curS->x2, curS->y2, curS->l);
+            printf("(%d) s %d H-Line (%2d %2d) (%2d %2d) m%d\n", i, curS->id, curS->x1, curS->y1, curS->x2, curS->y2, curS->l);
         }
     }
     
@@ -533,7 +648,7 @@ void OABusRouter::StTree::print()
 
     }
 
-    printf("\n\n");
+    printf("\n\n\n");
 
 
 }
@@ -547,22 +662,22 @@ int OABusRouter::Grid3D::GetIndex(int col, int row, int layer)
 
 int OABusRouter::Grid3D::GetOffset_x(int col)
 {
-    return offsetxs[col] - GCELL_WIDTH; //*col + xoffset;
+    return offsetxs[col]; // - GCELL_WIDTH; //*col + xoffset;
 }
 
 int OABusRouter::Grid3D::GetOffset_y(int row)
 {
-    return offsetys[row] - GCELL_HEIGHT; //*row + yoffset;
+    return offsetys[row]; // - GCELL_HEIGHT; //*row + yoffset;
 }
 
 int OABusRouter::Grid3D::GetColum(int xcrd)
 {
-    return GetLowerBound(offsetxs, xcrd);
+    return max(GetLowerBound(offsetxs, xcrd) - 1, 0);
 }
 
 int OABusRouter::Grid3D::GetRow(int ycrd)
 {
-    return GetLowerBound(offsetys, ycrd);
+    return max(GetLowerBound(offsetys, ycrd) - 1, 0);
 }
 
 int OABusRouter::Grid3D::Capacity(int col, int row, int layer)
@@ -615,8 +730,8 @@ void OABusRouter::Router::InitGrid3D()
     int GCELL_HEIGHT = minpitchV * tmpmax * 2;
     int offset_x = ckt->originX;
     int offset_y = ckt->originY;
-    int sizeH = ckt->height;
-    int sizeV = ckt->width;
+    int sizeV = ckt->height;
+    int sizeH = ckt->width;
     int numCols = ceil(1.0*sizeH/GCELL_WIDTH);
     int numRows = ceil(1.0*sizeV/GCELL_HEIGHT);
 
@@ -633,20 +748,21 @@ void OABusRouter::Router::InitGrid3D()
             sizeV);
 
 
+#ifdef DEBUG
     ////////////////////////////////////
-    //printf("GCell (%4d %4d) col: %3d row: %3d\n", GCELL_WIDTH, GCELL_HEIGHT, numCols, numRows);
-    //for(auto& os : this->grid.offsetxs)
-    //{
-    //    printf("OffsetX %4d\n", os);
-    //}
+    printf("GCell (%4d %4d) col: %3d row: %3d\n", GCELL_WIDTH, GCELL_HEIGHT, numCols, numRows);
+    for(auto& os : this->grid.offsetxs)
+    {
+        printf("OffsetX %4d\n", os);
+    }
 
-    //for(auto& os : this->grid.offsetys)
-    //{
-    //    printf("OffsetY %4d\n", os);
-    //}
-    //printf("\n\n");
+    for(auto& os : this->grid.offsetys)
+    {
+        printf("OffsetY %4d\n", os);
+    }
+    printf("\n\n");
     
-    ///////////////////////////////////
+#endif
 
     // Create Gcells
     //this->grid.CreateGCs();
@@ -664,7 +780,7 @@ void OABusRouter::Grid3D::InitGcellCap(int layer, int dir, vector<int> &offsets)
 {
 
     int GCllx, GClly, GCurx, GCury;
-    int lowerIndex, upperIndex;
+    //int originX, originY, width, height; //, lower;
     int cap, tid, curl, idx;
     int x1, x2, y1, y2;
     bool adj;
@@ -680,6 +796,8 @@ void OABusRouter::Grid3D::InitGcellCap(int layer, int dir, vector<int> &offsets)
     //dense_hash_map<int,int> &trackID = rou->rtree.trackID;
     curl = layer;
 
+
+
     // HashMap preffered direction
     this->direction[layer] = dir;
 
@@ -694,8 +812,8 @@ void OABusRouter::Grid3D::InitGcellCap(int layer, int dir, vector<int> &offsets)
 
             GCllx = GetOffset_x(col);
             GClly = GetOffset_y(row);
-            GCurx = GetOffset_x(col) + GCELL_WIDTH;
-            GCury = GetOffset_y(row) + GCELL_HEIGHT;
+            GCurx = min(GetOffset_x(col) + GCELL_WIDTH, xoffset + width) ;
+            GCury = min(GetOffset_y(row) + GCELL_HEIGHT, yoffset + height);
 
 
             queryBox = BoxBG(PointBG(GCllx, GClly), PointBG(GCurx, GCury));
@@ -715,6 +833,15 @@ void OABusRouter::Grid3D::InitGcellCap(int layer, int dir, vector<int> &offsets)
                         ury = bg::get<1,1>(curSeg);
                         fallLL = (bg::within(PointBG(llx,lly),queryBox))?true:false;
                         fallUR = (bg::within(PointBG(urx,ury),queryBox))?true:false;
+#ifdef DEBUG
+                        if(fallLL || fallUR)
+                        {
+                            cout << "Box -> " << bg::dsv(queryBox) << endl;
+                            cout << "LL  -> " << bg::dsv(PointBG(llx,lly)) << endl;
+                            cout << "UR  -> " << bg::dsv(PointBG(urx,ury)) << endl;
+                        }
+#endif
+                        
                         targetL = (curl == tarl)?true:false;
                         return (!fallLL && !fallUR && targetL);
                     }), back_inserter(queries));

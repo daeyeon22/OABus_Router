@@ -173,7 +173,7 @@ namespace OABusRouter
         int cap;                    // edge capacitance
         int direction;
        
-        set<int> resources;
+        set<int> resources;         // 
 
         //IntervalSetT available;
 
@@ -258,14 +258,14 @@ namespace OABusRouter
             // Offsets initialize
             for(int c=0; c < numCols; c++)
             {
-                int urx = (c+1)*GCELL_WIDTH;
-                offsetxs.push_back(urx);
+                int llx = c*GCELL_WIDTH;
+                offsetxs.push_back(llx);
             }
        
             for(int r=0; r < numRows; r++)
             {
-                int ury = (r+1)*GCELL_HEIGHT;
-                offsetys.push_back(ury);
+                int lly = r*GCELL_HEIGHT;
+                offsetys.push_back(lly);
             }
        
             // initialize gcells
@@ -333,26 +333,46 @@ namespace OABusRouter
         int x1, x2;
         int y1, y2;
         int l;
-   
+  
+
+        vector<int> junctions;  // junction id
         vector<int> neighbor;   // segment id
         vector<int> wires;      // segment id 
                                 // sorted increasing sequence
 
         bool assign;
-
+        bool vertical;
 
         Segment(int _id = INT_MAX,
                 int x_1 = INT_MAX, 
                 int y_1 = INT_MAX,
                 int x_2 = INT_MAX,
                 int y_2 = INT_MAX,
-                int _l = INT_MAX) :
+                int _l = INT_MAX, 
+                bool assign = false, 
+                bool vertical = false) :
             id(_id),
             x1(x_1),
             y1(y_1),
             x2(x_2),
             y2(y_2),
-            l(_l) {}
+            l(_l),
+            assign(assign),
+            vertical(vertical) {}
+
+        Segment(const Segment& s) :
+            id(s.id),
+            x1(s.x1),
+            y1(s.y1),
+            x2(s.x2),
+            y2(s.y2),
+            l(s.l),
+            junctions(s.junctions),
+            neighbor(s.neighbor),
+            wires(s.wires), 
+            assign(s.assign),
+            vertical(s.vertical) {}
+
 
     };
 
