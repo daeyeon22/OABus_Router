@@ -12,6 +12,7 @@
 #include <assert.h>
 #include <cstdlib>
 #include <cstring>
+#include <cassert>
 
 // BOOST Library
 #include <boost/foreach.hpp>
@@ -250,6 +251,27 @@ namespace OABusRouter
         void print();
     };
 
+    struct MultiPin
+    {
+        int id;
+        int busid;
+        int l;
+        vector<int> pins;
+        MultiPin() :
+            id(INT_MAX),
+            busid(INT_MAX),
+            l(INT_MAX) {}
+
+        MultiPin(const MultiPin& mp) :
+            id(mp.id),
+            busid(mp.busid),
+            l(mp.l) 
+            {
+                pins.insert(pins.end(), mp.pins.begin(), mp.pins.end());
+            }
+        void print();
+    };
+
     struct Bit
     {
         int id;
@@ -380,6 +402,7 @@ namespace OABusRouter
         vector<Obstacle> obstacles;
         vector<Bit> bits;
         vector<Pin> pins;
+        vector<MultiPin> multipins;
         
         
         // Hash Map

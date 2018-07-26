@@ -300,6 +300,12 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                         bus.numPinShapes = atoi(numPinShapeStr.c_str());
                         //cout << "numPinShape : " << numPinShapeStr << endl;
                         
+
+                        // MultiPin vector initialize
+                        vector<MultiPin> mps(bus.numPinShapes);
+                        for(int i=0; i < bus.numPinShapes; i++)
+                            mps[i].busid = bus.id;
+
                         // Width Information
                         if(!getline(inputFile,line)) throw READ_FAILED;
                         tokens = boost::tokenizer<boost::char_separator<char>>(line, sep);
@@ -324,6 +330,8 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
 
                         // Bits Information
                         bool bitFlag = false;
+                        int pin_count = 0;
+                        MultiPin* theMultiPin;
                         Bit* targetBit;
                         while(true){
                             if(!getline(inputFile,line)) throw READ_FAILED;
@@ -341,8 +349,10 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                                 bitFlag = true;
                                 targetBit = &this->bits[bit.id];//bit;
                                 bus.bits.push_back(bit.id);
-                                
-                                
+                               
+                                // pin_count initialize 
+                                pin_count = 0;
+
                                 continue;
                             }else if(*iter == "ENDBIT"){
                                 bitFlag = false;
@@ -383,9 +393,21 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                                 bus.ury = max(ury, bus.ury);
                                 
                                 this->pins.push_back(pin);
+
+                                mps[pin_count].pins.push_back(pin.id);
+                                if( mps[pin_count].l == INT_MAX )
+                                    mps[pin_count].l = pin.l;
+                                else
+                                    assert(mps[pin_count].l == pin.l);
+
+                                pin_count++;
                             }
                         }
 
+                        for(int i=0; i < bus.numPinShapes; i++) {
+                            mps[i].id = this->multipins.size();
+                            this->multipins.push_back(mps[i]);
+                        }
                         this->buses.push_back(bus);
                         this->busHashMap[bus.name] = bus.id;
                     

@@ -1,0 +1,85 @@
+VERSION 5.8 ;
+DIVIDERCHAR "/" ;
+BUSBITCHARS "[]" ;
+DESIGN example_1 ;
+UNITS DISTANCE MICRONS 1000 ;
+
+DIEAREA ( 0 0 ) ( 1000 1000 ) ;
+
+COMPONENTS 0 ;
+END COMPONENTS
+
+PINS 6 ;
+- pin_0 + NET 0_0
+  + LAYER L2 ( -10 -5 ) ( 10 5 )
+  + PLACED ( 10 800 ) N ;
+- pin_1 + NET 0_0
+  + LAYER L2 ( -10 -5 ) ( 10 5 )
+  + PLACED ( 990 600 ) N ;
+- pin_2 + NET 1_1
+  + LAYER L2 ( -10 -5 ) ( 10 5 )
+  + PLACED ( 10 750 ) N ;
+- pin_3 + NET 1_1
+  + LAYER L2 ( -10 -5 ) ( 10 5 )
+  + PLACED ( 990 700 ) N ;
+- pin_4 + NET 2_2
+  + LAYER L2 ( -10 -5 ) ( 10 5 )
+  + PLACED ( 10 650 ) N ;
+- pin_5 + NET 2_2
+  + LAYER L2 ( -10 -5 ) ( 10 5 )
+  + PLACED ( 990 750 ) N ;
+END PINS
+
+NETS 3 ;
+- 0_0
+  ( PIN pin_0 ) ( PIN pin_1 )
+  + ROUTED L2 ( 500 600 ) RECT ( -500 -5 500 5 )
+;
+- 1_1
+  ( PIN pin_2 ) ( PIN pin_3 )
+  + ROUTED L2 ( 500 650 ) RECT ( -500 -5 500 5 )
+;
+- 2_2
+  ( PIN pin_4 ) ( PIN pin_5 )
+  + ROUTED L2 ( 500 750 ) RECT ( -500 -5 500 5 )
+;
+END NETS
+
+BLOCKAGES 17 ;
+    - LAYER L1
+         RECT ( 175 245 ) ( 185 255 ) ;
+    - LAYER L1
+         RECT ( 175 395 ) ( 185 405 ) ;
+    - LAYER L1
+         RECT ( 355 145 ) ( 365 155 ) ;
+    - LAYER L1
+         RECT ( 355 295 ) ( 365 305 ) ;
+    - LAYER L1
+         RECT ( 355 445 ) ( 365 455 ) ;
+    - LAYER L1
+         RECT ( 515 245 ) ( 515 255 ) ;
+    - LAYER L1
+         RECT ( 525 395 ) ( 525 405 ) ;
+    - LAYER L1
+         RECT ( 735 195 ) ( 925 505 ) ;
+    - LAYER L2
+         RECT ( 175 245 ) ( 185 255 ) ;
+    - LAYER L2
+         RECT ( 175 395 ) ( 185 405 ) ;
+    - LAYER L2
+         RECT ( 355 145 ) ( 365 155 ) ;
+    - LAYER L2
+         RECT ( 355 295 ) ( 365 305 ) ;
+    - LAYER L2
+         RECT ( 355 445 ) ( 365 455 ) ;
+    - LAYER L2
+         RECT ( 515 245 ) ( 515 255 ) ;
+    - LAYER L2
+         RECT ( 525 395 ) ( 525 405 ) ;
+    - LAYER L2
+         RECT ( 255 595 ) ( 450 900 ) ;
+    - LAYER L2
+         RECT ( 735 195 ) ( 925 505 ) ;
+END BLOCKAGES
+
+END DESIGN

@@ -2,6 +2,7 @@
 #include "route.h"
 
 #define DEBUG
+#define BLOCK_ENABLE
 
 using namespace std;
 using namespace OABusRouter;
