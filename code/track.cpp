@@ -6,14 +6,14 @@
 
 //#define GCELL_WIDTH rou->grid.GCELL_WIDTH
 //#define GCELL_HEIGHT rou->grid.GCELL_HEIGHT
-#define DEBUG_TRACK
+//#define DEBUG_TRACK
 
 void OABusRouter::Router::CreateVia()
 {
 
     int numJuncs, numBW, busid;
     int i, c, s1, s2, l1, l2, x, y;
-    bool assign1, assign2;
+    bool assign1, assign2, ver1, ver2, isLL1, isUR1, isLL2, isUR2;
     Junction *curJ;
     Segment *seg1, *seg2;
     Wire *wire1, *wire2;
@@ -42,11 +42,22 @@ void OABusRouter::Router::CreateVia()
         assign1 = assign[s1];
         assign2 = assign[s2];
         numBW = curJ->bw;
+        ver1 = seg1->vertical;
+        ver2 = seg2->vertical;
+
+
+
 #ifdef DEBUG_TRACK
-    printf("Segment(1) (%d %d) (%d %d) M%d\n", seg1->x1, seg1->y1, seg1->x2, seg1->y2, seg1->l);
-    printf("Segment(2) (%d %d) (%d %d) M%d\n", seg2->x1, seg2->y1, seg2->x2, seg2->y2, seg2->l);
+    printf("Segment(1) id %d (%d %d) (%d %d) M%d\n",s1,  seg1->x1, seg1->y1, seg1->x2, seg1->y2, seg1->l);
+    printf("Segment(2) id %d (%d %d) (%d %d) M%d\n",s2,  seg2->x1, seg2->y1, seg2->x2, seg2->y2, seg2->l);
 
 #endif
+
+        isLL1 = ((seg1->x1 == curJ->x) && (seg1->y1 == curJ->y))? true : false;
+        isUR1 = ((seg1->x2 == curJ->x) && (seg1->y2 == curJ->y))? true : false;
+        isLL2 = ((seg2->x1 == curJ->x) && (seg2->y1 == curJ->y))? true : false;
+        isUR2 = ((seg2->x2 == curJ->x) && (seg2->y2 == curJ->y))? true : false;
+
 
 
 
@@ -59,23 +70,40 @@ void OABusRouter::Router::CreateVia()
                 wire2 = &wires[seg2->wires[c]];
 
 
-                if(wire1->vertical && !wire2->vertical)
+
+
+                // via coordinate
+                if(ver1 && !ver2)
                 {
+
                     x = wire1->x1;
                     y = wire2->y1;
                 }
-                else if(!wire1->vertical && wire2->vertical)
+                else if(!ver1 && ver2)
                 {
                     x = wire2->x1;
                     y = wire1->y1;
                 }
-                else
+                else if(ver1 && ver2)
                 {
-                    cout << "Invalid type..." << endl;
-                    exit(0);
+
+                    DiscreteIntervalT i1 = DiscreteIntervalT::closed(wire1->y1, wire1->y2);
+                    DiscreteIntervalT i2 = DiscreteIntervalT::closed(wire2->y1, wire2->y2);
+                    DiscreteIntervalT overlap = i1 & i2;
+                    cout << i1 << endl;
+                    cout << i2 << endl;
+                    cout << overlap << endl;
                 }
-
-
+                else if(!ver1 && !ver2)
+                {
+                    DiscreteIntervalT i1 = DiscreteIntervalT::closed(wire1->x1, wire1->x2);
+                    DiscreteIntervalT i2 = DiscreteIntervalT::closed(wire2->x1, wire2->x2);
+                    DiscreteIntervalT overlap = i1 & i2;
+                    cout << i1 << endl;
+                    cout << i2 << endl;
+                    cout << overlap << endl;
+                }
+                
                 tmp1 = SegmentBG(PointBG(wire1->x1, wire1->y1), PointBG(wire1->x2, wire1->y2));
                 tmp2 = SegmentBG(PointBG(wire2->x1, wire2->y1), PointBG(wire2->x2, wire2->y2));
 #ifdef DEBUG_TRACK
@@ -86,7 +114,7 @@ void OABusRouter::Router::CreateVia()
                 if(!bg::intersects(tmp1, tmp2))
                 {
                     cout << "No Intersection point..." << endl;
-                    exit(0);
+                    //exit(0);
                 }
 
                 
@@ -112,6 +140,38 @@ void OABusRouter::Router::CreateVia()
 
                 vias.push_back(via);
                 via2bus[via.id] = busid;
+
+
+                // cut
+                if(isLL1)
+                {
+                    wire1->x1 = x;
+                    wire1->y1 = y;
+                }
+
+                if(isUR1)
+                {
+                    wire1->x2 = x;
+                    wire1->y2 = y;
+
+                }
+
+                if(isLL2)
+                {
+                    wire2->x1 = x;
+                    wire2->y1 = y;
+
+                }
+
+                if(isUR2)
+                {
+                    wire2->x2 = x;
+                    wire2->y2 = y;
+
+                }
+            
+            
+            
             }
         }else{
             cout << "Invalid .." << endl;
@@ -312,14 +372,14 @@ void OABusRouter::Router::TrackAssign()
                     curWire.x1 = ckt->tracks[trackid].offset;
                     curWire.x2 = ckt->tracks[trackid].offset;
                     curWire.y1 = grid.GetOffset_y(y1);
-                    curWire.y2 = grid.GetOffset_y(y2) + GCELL_HEIGHT;
+                    curWire.y2 = min(grid.GetOffset_y(y2) + GCELL_HEIGHT, grid.yoffset + grid.height);
                 }
                 else
                 {
                     curWire.y1 = ckt->tracks[trackid].offset;
                     curWire.y2 = ckt->tracks[trackid].offset;
                     curWire.x1 = grid.GetOffset_x(x1);
-                    curWire.x2 = grid.GetOffset_x(x2) + GCELL_WIDTH;
+                    curWire.x2 = min(grid.GetOffset_x(x2) + GCELL_WIDTH, grid.xoffset + grid.width);
                 }
 
 #ifdef DEBUG_TRACK

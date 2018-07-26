@@ -42,7 +42,7 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
     int layoutOffsetX, layoutOffsetY, layoutWidth, layoutHeight;
     int numGCs, numRows, numCols, numLayers, GW, GH;
     int xoffset, yoffset;
-    int llx, lly, urx, ury, curl;
+    int llx, lly, urx, ury, curl, l1, l2;
     int col, row; 
     int wireid;
 
@@ -69,9 +69,11 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
     Document doc(fileName, Layout(dimensions, Layout::BottomLeft, 1));
 
     Color colors[]
-        = { Color::Aqua, Color::Black, Color::Blue, Color::Brown, Color::Cyan, Color::Fuchsia,
-            Color::Green, Color::Lime, Color::Magenta, Color::Orange, Color::Purple, Color::Red,
-            Color::Silver, Color::White, Color::Yellow };
+        = { Color::Red, Color::Orange, Color::Yellow, Color::Green, Color::Blue, Color::Purple, Color::Black };
+        
+        //= { Color::Aqua, Color::Black, Color::Blue, Color::Brown, Color::Cyan, Color::Fuchsia,
+        //    Color::Green, Color::Lime, Color::Magenta, Color::Orange, Color::Purple, Color::Red,
+        //    Color::Silver, Color::White, Color::Yellow };
 
     // White space    
     llx = layoutOffsetX;
@@ -261,9 +263,15 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         centerX = curV->x;
         centerY = curV->y;
         curl = curV->l1;
-        double diameter = 1000;
-
-        doc << Circle(Point(centerX, centerY), diameter, Fill(colors[curl], 1.0), Stroke(10, Color::Black));
+        double diameter = 100;
+        l1 = curV->l1;
+        l2 = curV->l2;
+        while(l1 < l2)
+        {
+            doc << Circle(Point(centerX, centerY), diameter, Fill(colors[l1], 1.0), Stroke(10, Color::Black));
+            l1++;
+        }
+        
 #ifdef DEBUG_VIA
         printf("Circle (%8d %8d) Diameter %d\n", centerX, centerY, (int)diameter);
 #endif
