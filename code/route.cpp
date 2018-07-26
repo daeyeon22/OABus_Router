@@ -6,6 +6,7 @@
 #include "func.h"
 
 
+#define DEBUG
 
 // ILP formulation
 void OABusRouter::Router::CreateClips()
@@ -506,7 +507,9 @@ void OABusRouter::StTree::print()
 {
 
     int i;
-    
+   
+
+    printf("Current tree(%d) -> %s\n\n", id, ckt->buses[rou->rsmt.busID[id]].name.c_str());
     for (i=0; i<deg; i++)
         printf("(p)%-2d:  x=%4g  y=%4g  z=%4g  e=%d\n",
                 i, (float) nodes[i].x, (float) nodes[i].y, (float) nodes[i].l, nodes[i].n);
@@ -533,7 +536,7 @@ void OABusRouter::StTree::print()
 
     }
 
-    printf("\n\n");
+    printf("\n\n\n");
 
 
 }
@@ -547,22 +550,22 @@ int OABusRouter::Grid3D::GetIndex(int col, int row, int layer)
 
 int OABusRouter::Grid3D::GetOffset_x(int col)
 {
-    return offsetxs[col] - GCELL_WIDTH; //*col + xoffset;
+    return offsetxs[col]; // - GCELL_WIDTH; //*col + xoffset;
 }
 
 int OABusRouter::Grid3D::GetOffset_y(int row)
 {
-    return offsetys[row] - GCELL_HEIGHT; //*row + yoffset;
+    return offsetys[row]; // - GCELL_HEIGHT; //*row + yoffset;
 }
 
 int OABusRouter::Grid3D::GetColum(int xcrd)
 {
-    return GetLowerBound(offsetxs, xcrd);
+    return max(GetLowerBound(offsetxs, xcrd) - 1, 0);
 }
 
 int OABusRouter::Grid3D::GetRow(int ycrd)
 {
-    return GetLowerBound(offsetys, ycrd);
+    return max(GetLowerBound(offsetys, ycrd) - 1, 0);
 }
 
 int OABusRouter::Grid3D::Capacity(int col, int row, int layer)
@@ -615,8 +618,8 @@ void OABusRouter::Router::InitGrid3D()
     int GCELL_HEIGHT = minpitchV * tmpmax * 2;
     int offset_x = ckt->originX;
     int offset_y = ckt->originY;
-    int sizeH = ckt->height;
-    int sizeV = ckt->width;
+    int sizeV = ckt->height;
+    int sizeH = ckt->width;
     int numCols = ceil(1.0*sizeH/GCELL_WIDTH);
     int numRows = ceil(1.0*sizeV/GCELL_HEIGHT);
 
@@ -633,20 +636,21 @@ void OABusRouter::Router::InitGrid3D()
             sizeV);
 
 
+#ifdef DEBUG
     ////////////////////////////////////
-    //printf("GCell (%4d %4d) col: %3d row: %3d\n", GCELL_WIDTH, GCELL_HEIGHT, numCols, numRows);
-    //for(auto& os : this->grid.offsetxs)
-    //{
-    //    printf("OffsetX %4d\n", os);
-    //}
+    printf("GCell (%4d %4d) col: %3d row: %3d\n", GCELL_WIDTH, GCELL_HEIGHT, numCols, numRows);
+    for(auto& os : this->grid.offsetxs)
+    {
+        printf("OffsetX %4d\n", os);
+    }
 
-    //for(auto& os : this->grid.offsetys)
-    //{
-    //    printf("OffsetY %4d\n", os);
-    //}
-    //printf("\n\n");
+    for(auto& os : this->grid.offsetys)
+    {
+        printf("OffsetY %4d\n", os);
+    }
+    printf("\n\n");
     
-    ///////////////////////////////////
+#endif
 
     // Create Gcells
     //this->grid.CreateGCs();

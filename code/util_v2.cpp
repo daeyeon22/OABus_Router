@@ -3,6 +3,8 @@
 #include "func.h"
 #include "route.h"
 
+#define DEBUG
+
 
 using namespace svg;
 namespace br = OABusRouter;
@@ -46,6 +48,11 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
 
     //char* fileName = plotall.c_str();
 
+#ifdef DEBUG
+    printf("Current Bus %d\n\n", busid);
+#endif
+
+
 
     layoutOffsetX = ckt->originX;
     layoutOffsetY = ckt->originY;
@@ -54,7 +61,8 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
 
 
 #ifdef DEBUG
-    printf("Layout (%8d %8d) (%8d %8d)\n", layoutOffsetX, layoutOffsetY, layoutWidth, layoutHeight);
+    printf("Layout (%8d %8d) (%8d %8d)\n", layoutOffsetX, layoutOffsetY, layoutOffsetX + layoutWidth, layoutOffsetY + layoutHeight);
+    
 #endif
 
     Dimensions dimensions(layoutWidth, layoutHeight);
@@ -96,7 +104,7 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         ury = layoutOffsetY + layoutHeight;
 
         doc << Line(Point(llx,lly), Point(urx,ury), Stroke(5, Color::Black));
-#ifdef DEBUG
+#ifdef DEBUG_GLOBAL
         printf("Line (%8d %8d) (%8d %8d)\n", llx, lly, urx, ury);
 #endif
     
@@ -111,7 +119,7 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         ury = yoffset;
 
         doc << Line(Point(llx,lly), Point(urx,ury), Stroke(5, Color::Black));
-#ifdef DEBUG
+#ifdef DEBUG_GLOBAL
         printf("Line (%8d %8d) (%8d %8d)\n", llx, lly, urx, ury);
 #endif
     }
@@ -165,7 +173,7 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
 
         //doc << Rectangle(Point(llx,lly), (urx-llx), (ury-lly), colors[curl]);
 #ifdef DEBUG
-        printf("Rect (%8d %8d) (%8d %8d)\n", llx, lly, urx, ury);
+        printf("Rect (%8d %8d) (%8d %8d) -> Segment (%d %d) (%d %d)\n", llx, lly, urx, ury, GCllx, GClly, GCurx, GCury);
 #endif
         //doc << Text(Point(textOffsetX, textOffsetY), content, Fill(), Font(300));
 
@@ -200,7 +208,7 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         poly << Point(llx,lly) << Point(llx,ury) << Point(urx, ury) << Point(urx, lly);
         doc << poly;
         //doc << Rectangle(Point(llx,lly), (urx-llx), (ury-lly), colors[curl]);
-#ifdef DEBUG
+#ifdef DEBUG_PIN
         printf("Rect (%8d %8d) (%8d %8d)\n", llx, lly, urx, ury);
 #endif
         //doc << Text(Point(textOffsetX, textOffsetY), content, Fill(), Font(300));
@@ -236,7 +244,7 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         poly << Point(llx,lly) << Point(llx,ury) << Point(urx, ury) << Point(urx, lly);
         doc << poly;
         //doc << Rectangle(Point(llx,lly), (urx-llx), (ury-lly), colors[curl]);
-#ifdef DEBUG
+#ifdef DEBUG_WIRE
         printf("Rect (%8d %8d) (%8d %8d)\n", llx, lly, urx, ury);
 #endif
     }
@@ -256,13 +264,19 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         double diameter = 1000;
 
         doc << Circle(Point(centerX, centerY), diameter, Fill(colors[curl], 1.0), Stroke(10, Color::Black));
-//#ifdef DEBUG
+#ifdef DEBUG_VIA
         printf("Circle (%8d %8d) Diameter %d\n", centerX, centerY, (int)diameter);
-//#endif
+#endif
 
     }
     // Category
     //int coffsetx, coffsety;
     //int cwidth, cheight;
+
+#ifdef DEBUG
+    printf("\n\n\n");
+#endif
+
+    
     doc.save();
 }

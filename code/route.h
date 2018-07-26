@@ -258,14 +258,14 @@ namespace OABusRouter
             // Offsets initialize
             for(int c=0; c < numCols; c++)
             {
-                int urx = (c+1)*GCELL_WIDTH;
-                offsetxs.push_back(urx);
+                int llx = c*GCELL_WIDTH;
+                offsetxs.push_back(llx);
             }
        
             for(int r=0; r < numRows; r++)
             {
-                int ury = (r+1)*GCELL_HEIGHT;
-                offsetys.push_back(ury);
+                int lly = r*GCELL_HEIGHT;
+                offsetys.push_back(lly);
             }
        
             // initialize gcells
