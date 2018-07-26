@@ -88,6 +88,10 @@ int main(int argc, char** argv){
     cout << "Create Via" << endl;
     rou->CreateVia();
 
+    cout << "Mapping multipin to segment, pin to wire" << endl;
+    rou->MappingMultipin2Seg();
+    rou->MappingPin2Wire();
+
     cout << "Create Plot" << endl;
     rou->Plot();
 

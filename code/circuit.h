@@ -308,6 +308,7 @@ namespace OABusRouter
         string name;
 
         vector<int> bits;
+        vector<int> multipins;
         dense_hash_map<int,int> width;
         
         //HashMap;
@@ -333,11 +334,10 @@ namespace OABusRouter
             lly(b.lly),
             urx(b.urx),
             ury(b.ury),
-            name(b.name)
-        {
-            bits = b.bits;
-            width = b.width;
-        }
+            name(b.name),
+            bits(b.bits),
+            multipins(b.multipins),
+            width(b.width) {} 
 
         void print();
     };

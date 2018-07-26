@@ -36,10 +36,11 @@ void OABusRouter::Router::GenBackbone()
         Bit* curBit;
         Pin* curPin;
         Layer* curLayer;
+        MultiPin* curMultipin;
 
-
-        int numPinShapes;
-        int *x, *y, *l;
+        int numMultipins;
+        //int numPinShapes;
+        int *x, *y, *l, *ids;
         int treellx, treelly;
         int treeurx, treeury;
         Tree tree;
@@ -48,22 +49,24 @@ void OABusRouter::Router::GenBackbone()
         // make a topology only first bit
         curBus = &ckt->buses[i];
         curBit = &ckt->bits[curBus->bits[0]];
-        numPinShapes = curBus->numPinShapes;
+        //numPinShapes = curBus->numPinShapes;
+        numMultipins = curBus->multipins.size();
         treellx = curBus->llx;
         treeurx = curBus->urx;
         treelly = curBus->lly;
         treeury = curBus->ury;
 
         // mapped index of gcells
-        x = new int[numPinShapes];  // colum
-        y = new int[numPinShapes];  // row
-        l = new int[numPinShapes];  // layer
+        x = new int[numMultipins];
+        y = new int[numMultipins];
+        l = new int[numMultipins]; 
+        ids = new int[numMultipins];
 
-
-        for(int p=0; p < numPinShapes; p++)
+        for(int p=0; p < numMultipins;  p++)
         {
-            curPin = &ckt->pins[curBit->pins[p]];
-            curLayer = &ckt->layers[curPin->l];
+            curMultipin = &ckt->multipins[curBus->multipins[p]];
+            curPin = &ckt->pins[curMultipin->pins[0]];
+            curLayer = &ckt->layers[curMultipin->l];
             int pinllx = curPin->llx;
             int pinlly = curPin->lly;
             int pinurx = curPin->urx;
@@ -71,13 +74,15 @@ void OABusRouter::Router::GenBackbone()
 
             int col = grid.GetColum(pinllx);
             int row = grid.GetRow(pinlly);
-
+            
+            
+            ids[p] = curMultipin->id;
             x[p] = col;
             y[p] = row;
             l[p] = curLayer->id;
         }
 
-        rsmt.CreateTree(curBus->id, numPinShapes, x, y, l, ACCURACY, 1.2);
+        rsmt.CreateTree(curBus->id, numMultipins, ids, x, y, l, ACCURACY, 1.2);
 
         
         delete x;
@@ -87,7 +92,7 @@ void OABusRouter::Router::GenBackbone()
 }
 
 
-void OABusRouter::RSMT::CreateTree(int id, int d, DTYPE x[], DTYPE y[], DTYPE l[], int acc, float coeffV)
+void OABusRouter::RSMT::CreateTree(int id, int d, int mps[], DTYPE x[], DTYPE y[], DTYPE l[], int acc, float coeffV)
 {
 
     Tree tree;
@@ -113,6 +118,7 @@ void OABusRouter::RSMT::CreateTree(int id, int d, DTYPE x[], DTYPE y[], DTYPE l[
 
     for(int i=0; i< numNodes; i++)
     {   
+
         int x1 = tree.branch[i].x;
         int y1 = tree.branch[i].y;
         int n = tree.branch[i].n;
@@ -130,11 +136,13 @@ void OABusRouter::RSMT::CreateTree(int id, int d, DTYPE x[], DTYPE y[], DTYPE l[
         {
             n1->l = l[i];
             n1->steiner = false;
+            sttree.node2multipin[i] = mps[i];       
         }
         else
         {
             n1->l = INT_MAX;
             n1->steiner = true;
+            sttree.node2multipin[i] = INT_MAX;
         }
 
 

@@ -8,6 +8,101 @@
 //#define GCELL_HEIGHT rou->grid.GCELL_HEIGHT
 //#define DEBUG_TRACK
 
+void OABusRouter::Router::MappingMultipin2Seg()
+{
+    int i, j, x, y;
+    int x1, y1, x2, y2;
+    int treeid, busid, mpid, segid;
+    int numSegs, numTrees, deg;
+    SegRtree segrtree;
+    StTree* sttree;
+    Segment* seg;
+    TreeNode* n;
+    numTrees = rsmt.trees.size();
+    vector<SegmentValT> queries;
+    PointBG pt;
+
+    for(i=0;  i < numTrees; i++)
+    {
+        segrtree.clear();
+        
+        sttree = rsmt[i];
+        treeid = sttree->id;
+        busid = rsmt.busID[treeid];
+        deg = sttree->deg;
+        numSegs = sttree->segs.size();
+        for(j=0; j < numSegs; j++)
+        {
+            segid = sttree->segs[j];
+            seg = &segs[segid];
+            x1 = seg->x1;
+            y1 = seg->y1;
+            x2 = seg->x2;
+            y2 = seg->y2;
+            segrtree.insert(SegmentValT(SegmentBG(PointBG(x1,y1), PointBG(x2,y2)), segid));
+        }
+
+
+        for(j=0; j < deg; j++)
+        {
+            queries.clear();
+            n = &sttree->nodes[j];          
+            mpid = sttree->node2multipin[n->id];
+            x = n->x;
+            y = n->y;
+            pt = PointBG(x,y);
+            segrtree.query(bgi::intersects(pt), back_inserter(queries));
+
+            segid = queries[0].second;
+            multipin2seg[mpid] = segid;
+        }
+    }
+}
+
+void OABusRouter::Router::MappingPin2Wire()
+{
+    int i, j, mpid, segid, wireid, pinid;
+    int numMultipins, numPins, numWires;
+    numMultipins = ckt->multipins.size();
+    MultiPin* curMP;
+    Segment* curS;
+
+    for(i=0; i < numMultipins; i++)
+    {
+        curMP = &ckt->multipins[i];
+        mpid = curMP->id;
+        segid = multipin2seg[mpid];
+
+        curS = &segs[segid];
+        numPins = curMP->pins.size();
+        numWires = curS->wires.size();
+      
+        if(!assign[segid]) continue;
+
+        if(numWires != numPins)
+        {
+            if(assign[segid])
+            {
+                cout << "Assigned ..?" << endl;
+            }
+            cout << "different #wires #pins..." << endl;
+            cout << "#wires : " << numWires << endl;
+            cout << "#pins  : " << numPins << endl;
+            exit(0);
+        }
+
+        for(j=0; j < numWires; j++)
+        {
+            wireid = curS->wires[j];
+            pinid = curMP->pins[j];
+            pin2wire[pinid] = wireid;
+        }
+    }
+
+}
+
+
+
 void OABusRouter::Router::CreateVia()
 {
 

@@ -406,6 +406,7 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
 
                         for(int i=0; i < bus.numPinShapes; i++) {
                             mps[i].id = this->multipins.size();
+                            bus.multipins.push_back(mps[i].id);
                             this->multipins.push_back(mps[i]);
                         }
                         this->buses.push_back(bus);

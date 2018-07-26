@@ -127,13 +127,17 @@ namespace OABusRouter
         vector<int> segs;
         vector<int> junctions;
 
+        dense_hash_map<int,int> node2multipin;
+
         StTree() :
             id(INT_MAX),
             deg(INT_MAX),
             numNodes(INT_MAX),
             numEdges(INT_MAX),
             length(INT_MAX)
-        {}
+        {
+            node2multipin.set_empty_key(0);
+        }
 
         StTree(const StTree& tree) :
             id(tree.id),
@@ -142,7 +146,10 @@ namespace OABusRouter
             numEdges(tree.numEdges),
             length(tree.length),
             nodes(tree.nodes),
-            edges(tree.edges)
+            edges(tree.edges),
+            segs(tree.segs),
+            junctions(tree.junctions),
+            node2multipin(tree.node2multipin)
         {}
 
         void print();
@@ -199,7 +206,7 @@ namespace OABusRouter
         }
         
         // Create RSMT and Push into vector
-        void CreateTree(int id, int d, DTYPE x[], DTYPE y[], DTYPE l[], int acc, float coeffV);
+        void CreateTree(int id, int d, int ids[], DTYPE x[], DTYPE y[], DTYPE l[], int acc, float coeffV);
         int GetBusID(int treeid);
         int GetTreeID(int busid);
     
@@ -296,6 +303,9 @@ namespace OABusRouter
     struct Rtree
     {
         SegRtree track;
+        
+
+
         //
         dense_hash_map<int,int> trackNuml;
         dense_hash_map<int,int> trackID;
@@ -479,22 +489,26 @@ namespace OABusRouter
 
 
         // Hash map
-        dense_hash_map<int,int> seg2multipin;
+        //dense_hash_map<int,int> seg2multipin;   // ??
         dense_hash_map<int,int> seg2bus;
-        dense_hash_map<int,int> wire2pin;
+        //dense_hash_map<int,int> wire2pin;       // ??
         dense_hash_map<int,int> junc2bus;
         dense_hash_map<int,int> via2bus;
+        dense_hash_map<int,int> multipin2seg;
+        dense_hash_map<int,int> pin2wire;
 
         dense_hash_map<int,int> bitwidth;
         dense_hash_map<int,bool> assign;
 
         Router()
         {
-            seg2multipin.set_empty_key(0);
+            //seg2multipin.set_empty_key(0);
+            multipin2seg.set_empty_key(0);
+            pin2wire.set_empty_key(0);
             seg2bus.set_empty_key(0);
             junc2bus.set_empty_key(0);
             via2bus.set_empty_key(0);
-            wire2pin.set_empty_key(0);
+            //wire2pin.set_empty_key(0);
             bitwidth.set_empty_key(0);
             assign.set_empty_key(0);
         }
@@ -511,10 +525,16 @@ namespace OABusRouter
     
         // Mapping 3D
         void TopologyMapping3D();
+
+        // ILP
         void CreateClips();
         void SolveILP();
+        
+        // Detailed
         void TrackAssign();
         void CreateVia();
+        void MappingPin2Wire();
+        void MappingMultipin2Seg();
 
         // Make Plot
         void Plot();
