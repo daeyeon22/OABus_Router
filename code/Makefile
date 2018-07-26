@@ -55,7 +55,7 @@ route.o: route.cpp route.h circuit.h
 rsmt.o: rsmt.cpp route.h circuit.h
 	$(CXX) $(CFLAGS) -c -o $@ $<  
 
-ilp.o: ilp.cpp circuit.h route.h
+ilp.o: ilp.cpp ilp.h circuit.h route.h
 	$(CXX) $(CFLAGS) -c -o $@ $<  
 
 def_writer.o: def_writer.cpp circuit.h route.h

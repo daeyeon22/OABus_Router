@@ -1,6 +1,6 @@
 #include <ilcplex/ilocplex.h>
 #include <google/dense_hash_set>
-#include <google/dense_hash_map>
+#include "ilp.h"
 #include "circuit.h"
 #include "route.h"
 
@@ -15,6 +15,101 @@ static int TiLimit = 600;
 static int NumThread = 1;
 static double EpGap = 0.05;
 static double EpAGap = 0.05;
+
+// ILP formulation
+void OABusRouter::Router::CreateClips()
+{
+    int numClips, numLayers, numCols, numRows;
+    int numTrees, numSegs, numCandi;
+    int numVerSegs, numHorSegs;
+    int numVerLs, numHorLs;
+    int clipid, busid, treeid, deg;
+    int i, j, k;
+    int indexdivider, indexl;
+    int *vars, *vals;   
+    bool isVertical;
+    vector<int> verls;  // vertical layer id
+    vector<int> horls;  // horizontal layer id
+    vector<Clip> clips;    
+    numTrees = rsmt.trees.size(); //numTrees;
+    numClips = numTrees;
+    numLayers = grid.numLayers;
+    numCols = grid.numCols;
+    numRows = grid.numRows;
+
+    StTree* curtree;
+
+
+    // 
+    for(i=0; i < numLayers; i++)
+    {
+        isVertical = (ckt->layers[i].direction == VERTICAL)?true:false;
+        if(isVertical)
+            verls.push_back(ckt->layers[i].id);
+        else
+            horls.push_back(ckt->layers[i].id);
+    }
+
+    numHorLs = horls.size();
+    numVerLs = verls.size();
+
+
+
+    // Create clip for each bus/tree
+    for(i=0; i < numTrees; i++)
+    {
+        
+        
+        curtree = rsmt[i];
+        clipid = clips.size();
+        treeid = curtree->id;
+        busid = rsmt.GetBusID(treeid);
+        numSegs = curtree->segs.size();
+        numVerSegs = 0;
+        numHorSegs = 0;
+        deg = numSegs;
+
+        vars = new int[numSegs];
+        for(j=0; j < numSegs; j++)
+        {
+            if(segs[j].vertical) 
+                numVerSegs++;
+            else
+                numHorSegs++;
+
+            vars[j] = segs[j].id;
+        }
+
+        numCandi = pow(numHorLs, numHorSegs) * pow(numVerLs, numVerSegs);
+        for(j=0; j < numSegs; j++)
+        {
+            isVertical = segs[curtree->segs[j]].vertical;
+            indexdivider = pow(deg,j);
+            for(k=0; k < numCandi; k++)
+            {
+                indexl = (isVertical)? (int)(1.0*k / indexdivider) % numVerLs : (int)(1.0*k / indexdivider) % numHorLs;           
+                vals[k] = (isVertical)? verls[indexl] : horls[indexl];
+            }
+        }
+
+        Clip curClip;
+        curClip.id = clipid;
+        curClip.busid = busid;
+        curClip.treeid = treeid;
+        curClip.numSegs = numSegs;
+        curClip.numCandi = numCandi;
+        curClip.segs = curtree->segs;
+        
+
+
+        for(j=0; j < numCandi; j++)
+        {
+            vals = vals + j*deg;
+            Candidate candi(deg, vars, vals);
+            curClip.candi.push_back(candi);
+        }
+    }
+}
 
 
 void OABusRouter::Router::SolveILP()

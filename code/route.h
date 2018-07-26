@@ -60,24 +60,7 @@ typedef bgi::rtree<BoxValT, bgi::rstar<16>> BoxRtree;
 namespace OABusRouter
 {
 
-
-    struct Clip
-    {
-        int numPanel;
-        int curLayer;
-        int direction;
-        vector<IntervalMapT> intervalMaps;
-        
-        
-        
-        Clip() {}
-    };
-
-
-    
-
-    
-    
+   
 
 
 
@@ -494,7 +477,11 @@ namespace OABusRouter
         vector<Wire>            wires;
         vector<Via>             vias;
 
+
+        // Hash map
+        dense_hash_map<int,int> seg2multipin;
         dense_hash_map<int,int> seg2bus;
+        dense_hash_map<int,int> wire2pin;
         dense_hash_map<int,int> junc2bus;
         dense_hash_map<int,int> via2bus;
 
@@ -503,9 +490,11 @@ namespace OABusRouter
 
         Router()
         {
+            seg2multipin.set_empty_key(0);
             seg2bus.set_empty_key(0);
             junc2bus.set_empty_key(0);
             via2bus.set_empty_key(0);
+            wire2pin.set_empty_key(0);
             bitwidth.set_empty_key(0);
             assign.set_empty_key(0);
         }
