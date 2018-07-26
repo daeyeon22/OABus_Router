@@ -103,6 +103,17 @@ void Circuit::def_write(string file_name) {
     dot_def << "END NETS" << endl;
     // END NETS
     dot_def << endl;
+
+    // BLOCKAGES
+    dot_def << "BLOCKAGES " << obstacles.size() << " ;" << endl;
+    for(int i=0; i < obstacles.size(); i++) {
+        Obstacle* theBlock = &obstacles[i];
+        dot_def << "    - LAYER " << layers[theBlock->l].name << endl;
+        dot_def << "         RECT ( " << theBlock->llx << " " << theBlock->lly << " ) ( " << theBlock->urx << " " << theBlock->ury << " ) ;" << endl;
+    }
+    dot_def << "END BLOCKAGES" << endl;
+    // END BLOCKAGES
+    dot_def << endl;
     dot_def << "END DESIGN" << endl;
     // END DESIGN
 
