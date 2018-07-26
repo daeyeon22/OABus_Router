@@ -91,8 +91,8 @@ void Circuit::def_write(string file_name) {
             }
             else {
                 int length = theWire->x2 - theWire->x1;
-                dot_def << "RECT ( " << 0 - length/2 << " " << 0 + length/2 << " ";
-                dot_def << 0 + theWire->width/2 << " " << 0 + theWire->width/2 << " )" << endl;
+                dot_def << "RECT ( " << 0 - length/2 << " " << 0 - theWire->width/2 << " ";
+                dot_def << 0 + length/2 << " " << 0 + theWire->width/2 << " )" << endl;
             }
             //dot_def << layers[theWire->l].name << " ( " << theWire->x1 << " " << theWire->y1 << " ) ( ";
             //dot_def  << theWire->x2 << " " << theWire->y2 << " )" << endl;
