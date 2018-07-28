@@ -32,6 +32,7 @@ namespace OABusRouter
 
     struct Clip
     {   
+        
         int id;
         int busid;
         int treeid;
@@ -39,6 +40,7 @@ namespace OABusRouter
         int numCandi;
 
         vector<int> segs; 
+        vector<int> juncs;
         vector<Candidate> candi;
 
         Clip():

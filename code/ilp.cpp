@@ -58,8 +58,6 @@ void OABusRouter::Router::CreateClips()
     // Create clip for each bus/tree
     for(i=0; i < numTrees; i++)
     {
-        
-        
         curtree = rsmt[i];
         clipid = clips.size();
         treeid = curtree->id;
@@ -102,7 +100,7 @@ void OABusRouter::Router::CreateClips()
         curClip.numSegs = numSegs;
         curClip.numCandi = numCandi;
         curClip.segs = curtree->segs;
-        
+        curClip.juncs = curtree->junctions; 
 
 
         for(j=0; j < numCandi; j++)
@@ -193,34 +191,44 @@ void OABusRouter::Router::SolveILP_v2()
         cplex.setOut(logFile);
 
         // Variables
-        int numLayers, numCols, numRows, numClips, numSegs, numCandi;
-        int x1, y1, x2, y2, l, bw, cap;
-        int i, j, k, segid, clipid, busid, varid;
+        int numLayers, numCols, numRows;
+        int numClips, numSegs, numJuncs,  numCandi;
+        int x1, y1, x2, y2, l, bw, cap, cindex;
+        int x, y, i, j, k;
+        int treeid, segid, clipid, busid, juncid, varid;
+        int s1, s2, l1, l2, diff;
         int varSid, varCid;
         int MAXP;
         bool isVertical;
         double alpha, beta;
         int wirelength, numsegments;
-
+        int VIA_COST = 3;
         // 
         alpha = 1.0;
         beta = 1.0;
 
 
+        Junction* curJ;
         Segment* curS;
         //vector<IloNumVar> varCs;
         vector<IloNumVar> sVars;
         vector<IloExpr> cVars;
         //vector<IloExpr> const1; // Assignment Constraint
         //vector<IloExpr> const2; // Edge Capacitance Constraint
+        dense_hash_map<int,bool> isSegment;            // if varS is point, junction
+        dense_hash_map<int,int> varS2junc;          // varS to junction
         dense_hash_map<int,int> varS2seg;           // segment variable to segment
         dense_hash_map<int,int> varC2bus;           // candidate variable to bus
         dense_hash_map<int,int> varC2clip;          // candidate variable to clip
+        dense_hash_map<int,int> varC2candi;         // candidate index
 
 
+        isSegment.set_empty_key(0);
+        varS2junc.set_empty_key(0);
         varS2seg.set_empty_key(0);
         varC2bus.set_empty_key(0);
         varC2clip.set_empty_key(0);
+        varC2candi.set_empty_key(0);
 
         numLayers = grid.numLayers;
         numCols = grid.numCols;
@@ -243,6 +251,8 @@ void OABusRouter::Router::SolveILP_v2()
             busid = curClip.busid;
             numSegs = curClip.numSegs;
             numCandi = curClip.numCandi;
+            numJuncs = curClip.juncs.size();
+
 
             for(j=0; j < numCandi; j++)
             {
@@ -250,6 +260,7 @@ void OABusRouter::Router::SolveILP_v2()
                 // Variable C
                 IloExpr varC(env);
                 varCid = cVars.size();
+                
                 wirelength = 0;
                 numsegments = 0;
 
@@ -260,8 +271,14 @@ void OABusRouter::Router::SolveILP_v2()
                     // Variable S
                     IloNumVar varS(env, 0, 1, IloNumVar::Bool);
 
+                    // add segment variable into the vector / map
                     varSid = sVars.size();
                     segid = curClip.segs[k];
+                    sVars.push_back(varS);
+                    varS2seg[varSid] = segid;
+                    isSegment[varSid] = true;
+                    
+                    //
                     curS = &segs[segid];
                     x1 = curS->x1;
                     y1 = curS->y1;
@@ -284,25 +301,83 @@ void OABusRouter::Router::SolveILP_v2()
                     else
                     {
                         imap[l][y1] +=
-                            make_pair(IntervalT::closed(min(x1,x2), max(x1,x2)), set<int>({varCid}));
+                            make_pair(IntervalT::closed(min(x1,x2), max(x1,x2)), set<int>({varSid}));
+                    }
+
+                    // add variable into the expression
+                    tmp += varS;   
+                }
+
+
+                // Junction
+                for(k=0; k < numJuncs; k++)
+                {
+                    // Variable S
+                    IloNumVar varS(env, 0, 1, IloNumVar::Bool);
+
+                    
+                    juncid = curClip.juncs[k];
+                    curJ = &junctions[juncid];
+
+                    varSid = sVars.size();
+                    varS2junc[varSid] = juncid;
+                    isSegment[varSid] = false;
+                    sVars.push_back(varS);
+
+                    // cost
+                    wirelength += VIA_COST;
+                    numsegments += 1;
+                    
+                    s1 = curJ->s1;
+                    s2 = curJ->s2;
+                    l1 = curClip[j][s1];
+                    l2 = curClip[j][s2];
+                    x = curJ->x;
+                    y = curJ->y;
+                    
+
+                    diff = abs(l2 - l1);
+                    if(diff < 2) continue;
+
+
+                    if(l1 > l2)
+                    {
+                        swap(l1,l2);
+                        swap(s1,s2);
+                    }   
+
+                    for(l= l1+1; l < l2; l++)
+                    {
+
+                        isVertical = (grid.direction[l] == VERTICAL)? true : false;  
+                        if(isVertical)
+                        {
+                            imap[l][x] +=
+                                make_pair(IntervalT::closed(y,y), set<int>({varSid}));
+                        }
+                        else
+                        {
+                            imap[l][y] +=
+                                make_pair(IntervalT::closed(x,x), set<int>({varSid}));
+                        }
+
                     }
 
 
-                    // add segment variable into the vector / map
-                    sVars.push_back(varS);
-                    varS2seg[varSid] = segid;
-
+                    // add variable into the expression
                     tmp += varS;   
                 }
+
 
                 // Conditianal variable C
                 varC = (tmp == numsegments); // ? 1 : 0;
                 assignConst += varC;
 
                 // add candidate variable into the vector / map
+                cVars.push_back(varC);
                 varC2clip[varCid] = clipid;
                 varC2bus[varCid] = busid;
-
+                varC2candi[varCid] = j;
                 // updated objective function
                 objective +=
                     1.0 / (alpha * wirelength + beta * numsegments) * varC;
@@ -339,13 +414,21 @@ void OABusRouter::Router::SolveILP_v2()
                     end = curi.upper();
                     IloExpr tmp(env);
 
-                    for(auto& sid : curset)
+                    for(auto& id : curset)
                     {
-                        segid = varS2seg[sid];
-                        busid = seg2bus[segid];
-                        bw = bitwidth[busid];
-
-                        tmp += bw*sVars[sid];
+                        if(isSegment[id])
+                        {
+                            segid = varS2seg[id];
+                            busid = seg2bus[segid];
+                            bw = bitwidth[busid];
+                        }
+                        else
+                        {
+                            juncid = varS2junc[id];
+                            bw = junctions[juncid].bw;
+                        }
+                        
+                        tmp += bw*sVars[id];
                     }
 
                     while(start <= end)
@@ -366,15 +449,49 @@ void OABusRouter::Router::SolveILP_v2()
         model.add(cplexConsts);
         cplex.exportModel("./lp/form.lp");
 
-        if(cplex.solve())
-        {
-            printf("Cplex successfully solved!\n", ILP_ITER_COUNT++);
+        cplex.solve();
+        int numSolution=0;
 
-        }else{
+        if(cplex.getStatus() == IloAlgorithm::Optimal)
+        {
+            printf("Cplex successfully solved!\n\n[Results]\n", ILP_ITER_COUNT++);
+            for(i=0; i < cVars.size(); i++)
+            {
+                int valC = cplex.getValue(cVars[i]);
+
+                if(valC == 1)
+                {
+                    
+                    clipid = varC2clip[i];
+                    cindex = varC2candi[i]; 
+                    Clip& curClip = clips[varC2clip[i]];
+                    busid = curClip.busid;
+                    treeid = curClip.treeid;
+                    numSegs = curClip.numSegs;
+                    
+                    printf("%s -> {", ckt->buses[busid].name.c_str());
+                    for(j=0; j < numSegs; j++)
+                    {   
+                        segid = curClip.segs[j];
+                        l = curClip[cindex][segid];
+
+                        curS = &segs[segid];
+                        curS->l = l;
+                        curS->assign = true;
+                        assign[segid] = true;
+                        
+                        printf(" s%d:m%d", segid, l);
+                    }
+                    printf(" }\n");
+                }
+    
+            }
+            printf("\n\n");
+
 
         }
 
-
+    
     }catch(IloException& ex){
         cerr << "Error: " << ex << endl;
     }catch(...){
