@@ -11,7 +11,7 @@ namespace br = OABusRouter;
 
 static string plotdir = "./plot/";
 static string plotall = "./plot/bus_all.svg";
-
+static bool show_track = true;
 
 void OABusRouter::Router::Plot()
 {
@@ -126,11 +126,12 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
 #endif
     }
 
-    int pinid, bitid, segid, viaid;
-    int numBuses, numPins, numBits, numSegs, numWires, numVias;
+    int pinid, bitid, segid, viaid, trackid;
+    int numBuses, numPins, numBits, numSegs, numWires, numVias, numTracks;
     int centerX, centerY;
     int textOffsetX, textOffsetY;
     int GCllx, GClly, GCurx, GCury;
+    int x1, x2, y1, y2, l;
     bool target;
     string content;
 
@@ -140,6 +141,25 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
     numSegs = rou->segs.size();
     numWires = rou->wires.size();
     numVias = rou->vias.size();
+    numTracks = ckt->tracks.size();
+
+    if(show_track)
+    {
+        for(trackid=0; trackid < numTracks; trackid++)
+        {
+            br::Track* curT = &ckt->tracks[trackid];
+            llx = curT->llx + layoutOffsetX;
+            lly = curT->lly + layoutOffsetY;
+            urx = curT->urx + layoutOffsetX;
+            ury = curT->ury + layoutOffsetY;
+            l = curT->l;
+
+            doc << Line(Point(llx, lly), Point(urx, ury), Stroke(10,colors[l]));
+
+        }
+
+    }
+
 
     //
     for(segid=0; segid < numSegs; segid++)
@@ -153,10 +173,10 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         GCurx = max(curS->x1, curS->x2);
         GCury = max(curS->y1, curS->y2);
 
-        llx = grid->GetOffset_x(GCllx) + layoutOffsetX;
-        lly = grid->GetOffset_y(GClly) + layoutOffsetY;
-        urx = grid->GetOffset_x(GCurx) + GW + layoutOffsetX;
-        ury = grid->GetOffset_y(GCury) + GH + layoutOffsetY;
+        llx = grid->GetOffset_x(GCllx); // + layoutOffsetX;
+        lly = grid->GetOffset_y(GClly); // + layoutOffsetY;
+        urx = grid->GetOffset_x(GCurx) + GW; // + layoutOffsetX;
+        ury = grid->GetOffset_y(GCury) + GH; // + layoutOffsetY;
         llx = max(llx, layoutOffsetX);
         lly = max(lly, layoutOffsetY);
         urx = min(urx, layoutOffsetX + layoutWidth);
@@ -191,10 +211,10 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         target = (curB->id == busid)?true:false;
         if(!target && !all) continue;   
         
-        llx = curPin->llx + layoutOffsetX;
-        lly = curPin->lly + layoutOffsetY;
-        urx = curPin->urx + layoutOffsetX;
-        ury = curPin->ury + layoutOffsetY;
+        llx = curPin->llx;// + layoutOffsetX;
+        lly = curPin->lly;// + layoutOffsetY;
+        urx = curPin->urx;// + layoutOffsetX;
+        ury = curPin->ury;// + layoutOffsetY;
         llx = max(llx, layoutOffsetX);
         lly = max(lly, layoutOffsetY);
         urx = min(urx, layoutOffsetX + layoutWidth);
@@ -224,10 +244,10 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         target = (curWire->busid == busid)? true : false;
         if(!target && !all) continue;
 
-        llx = curWire->x1 + layoutOffsetX;
-        lly = curWire->y1 + layoutOffsetY;
-        urx = curWire->x2 + layoutOffsetX;
-        ury = curWire->y2 + layoutOffsetY;
+        llx = curWire->x1;// + layoutOffsetX;
+        lly = curWire->y1;// + layoutOffsetY;
+        urx = curWire->x2;// + layoutOffsetX;
+        ury = curWire->y2;// + layoutOffsetY;
         curl = curWire->l; //ckt->layerHashMap[curPin->layer];   
 
         if(llx == urx)

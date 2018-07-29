@@ -7,6 +7,8 @@
 //#define GCELL_WIDTH rou->grid.GCELL_WIDTH
 //#define GCELL_HEIGHT rou->grid.GCELL_HEIGHT
 //#define DEBUG_TRACK
+//#define DEBUG_VIA
+
 
 void OABusRouter::Router::MappingMultipin2Seg()
 {
@@ -14,7 +16,6 @@ void OABusRouter::Router::MappingMultipin2Seg()
     int x1, y1, x2, y2;
     int treeid, busid, mpid, segid;
     int numSegs, numTrees, deg;
-    SegRtree segrtree;
     StTree* sttree;
     Segment* seg;
     TreeNode* n;
@@ -24,13 +25,15 @@ void OABusRouter::Router::MappingMultipin2Seg()
 
     for(i=0;  i < numTrees; i++)
     {
-        segrtree.clear();
-        
+        SegRtree segrtree;
+        //segrtree.clear();
+
         sttree = rsmt[i];
         treeid = sttree->id;
         busid = rsmt.busID[treeid];
         deg = sttree->deg;
         numSegs = sttree->segs.size();
+
         for(j=0; j < numSegs; j++)
         {
             segid = sttree->segs[j];
@@ -40,8 +43,21 @@ void OABusRouter::Router::MappingMultipin2Seg()
             x2 = seg->x2;
             y2 = seg->y2;
             segrtree.insert(SegmentValT(SegmentBG(PointBG(x1,y1), PointBG(x2,y2)), segid));
+
+            if(seg2bus[segid] != busid)
+            {
+                cout << "Invalid id mapping..." << endl;
+                exit(0);
+            }
         }
 
+        ///////
+        printf("%s -> {", ckt->buses[busid].name.c_str());
+        for(j=0; j < deg; j++)
+        {
+            printf(" %d", sttree->node2multipin[j]);
+        }
+        printf(" }\n");
 
         for(j=0; j < deg; j++)
         {
@@ -55,6 +71,15 @@ void OABusRouter::Router::MappingMultipin2Seg()
 
             segid = queries[0].second;
             multipin2seg[mpid] = segid;
+            
+            
+            if(seg2bus[segid] != ckt->multipins[mpid].busid)
+            {
+                printf("s%d -> b%d\n", segid, seg2bus[segid]);
+                printf("mp%d -> %s != %s\n", mpid, ckt->buses[ckt->multipins[mpid].busid].name.c_str(), ckt->buses[busid].name.c_str());
+                cout << "Invalid id mapping2..." << endl;
+                exit(0);
+            }
         }
     }
 }
@@ -76,16 +101,17 @@ void OABusRouter::Router::MappingPin2Wire()
         curS = &segs[segid];
         numPins = curMP->pins.size();
         numWires = curS->wires.size();
-      
-        if(!assign[segid]) continue;
+     
+        if(!curS->assign) continue;
 
         if(numWires != numPins)
         {
-            if(assign[segid])
-            {
-                cout << "Assigned ..?" << endl;
-            }
             cout << "different #wires #pins..." << endl;
+            cout << "seg2bus: " << seg2bus[curS->id] << endl;
+            cout << "mp2bus : " << curMP->busid << endl;
+            cout << "numBits: " << ckt->buses[curMP->busid].numBits << endl;
+            cout << "#bits  : " << ckt->buses[curMP->busid].bits.size() << endl;
+            cout << "#Bw    : " << curS->bw << endl;
             cout << "#wires : " << numWires << endl;
             cout << "#pins  : " << numPins << endl;
             exit(0);
@@ -120,7 +146,7 @@ void OABusRouter::Router::CreateVia()
 
     
     numJuncs = junctions.size();
-#ifdef DEBUG_TRACK
+#ifdef DEBUG_VIA
     cout << "# Junctions : " << numJuncs << endl;
 #endif
     
@@ -134,17 +160,20 @@ void OABusRouter::Router::CreateVia()
         l2 = curJ->l2;
         seg1 = &segs[s1];
         seg2 = &segs[s2];
-        assign1 = assign[s1];
-        assign2 = assign[s2];
+        assign1 = seg1->assign; //assign[s1];
+        assign2 = seg2->assign; // assign[s2];
         numBW = curJ->bw;
         ver1 = seg1->vertical;
         ver2 = seg2->vertical;
 
 
 
-#ifdef DEBUG_TRACK
-    printf("Segment(1) id %d (%d %d) (%d %d) M%d\n",s1,  seg1->x1, seg1->y1, seg1->x2, seg1->y2, seg1->l);
-    printf("Segment(2) id %d (%d %d) (%d %d) M%d\n",s2,  seg2->x1, seg2->y1, seg2->x2, seg2->y2, seg2->l);
+#ifdef DEBUG_VIA
+        if(seg1->assign) printf("s%d is assigned\n", s1);
+        if(seg2->assign) printf("s%d is assigned\n", s2);
+
+        printf("Segment(1) id %d (%d %d) (%d %d) M%d\n",s1,  seg1->x1, seg1->y1, seg1->x2, seg1->y2, seg1->l);
+        printf("Segment(2) id %d (%d %d) (%d %d) M%d\n",s2,  seg2->x1, seg2->y1, seg2->x2, seg2->y2, seg2->l);
 
 #endif
 
@@ -201,10 +230,6 @@ void OABusRouter::Router::CreateVia()
                 
                 tmp1 = SegmentBG(PointBG(wire1->x1, wire1->y1), PointBG(wire1->x2, wire1->y2));
                 tmp2 = SegmentBG(PointBG(wire2->x1, wire2->y1), PointBG(wire2->x2, wire2->y2));
-#ifdef DEBUG_TRACK
-                cout << "(1) " << bg::dsv(tmp1) << endl;
-                cout << "(2) " << bg::dsv(tmp2) << endl;
-#endif
 
                 if(!bg::intersects(tmp1, tmp2))
                 {
@@ -219,7 +244,9 @@ void OABusRouter::Router::CreateVia()
                 //x = (int)(bg::get<0>(pt) + 0.5);
                 //y = (int)(bg::get<1>(intersection[0]) + 0.5);
                 //y = (int)(bg::get<1>(pt) + 0.5);
-#ifdef DEBUG_TRACK
+#ifdef DEBUG_VIA
+                cout << "(1) " << bg::dsv(tmp1) << endl;
+                cout << "(2) " << bg::dsv(tmp2) << endl;
                 printf("x = %4d\ny = %4d\n", x, y);
 #endif
 
@@ -269,7 +296,8 @@ void OABusRouter::Router::CreateVia()
             
             }
         }else{
-            cout << "Invalid .." << endl;
+            printf("[Invalid] s%d and s%d not assigned....\n", s1, s2);
+            
 
 
         }
@@ -335,7 +363,9 @@ void OABusRouter::Router::TrackAssign()
         y1 = min(curS->y1, curS->y2);
         x2 = max(curS->x1, curS->x2);
         y2 = max(curS->y1, curS->y2);
-        tarBW = this->bitwidth[curS->id];
+        tarBW = curS->bw;
+        //this->bitwidth[curS->id];
+
 
         dir = this->grid.direction[curl];
         isVertical = (dir == VERTICAL)?true:false;
@@ -374,11 +404,11 @@ void OABusRouter::Router::TrackAssign()
 #ifdef DEBUG_TRACK
             if(isVertical) printf("Current Gcell (%d %d) M%d Cap %d\n", col, start, curl, set2.size());
             else           printf("Current Gcell (%d %d) M%d Cap %d\n", start, row, curl, set2.size());
-            for(auto& iter : set2)
-            {
-                Track* curT = &ckt->tracks[iter];
-                printf("Track %d (%d %d) (%d %d) M%d\n", iter, curT->llx, curT->lly, curT->urx, curT->ury, curT->l);
-            }
+            //for(auto& iter : set2)
+            //{
+            //    Track* curT = &ckt->tracks[iter];
+            //    printf("Track %d (%d %d) (%d %d) M%d\n", iter, curT->llx, curT->lly, curT->urx, curT->ury, curT->l);
+            //}
             printf("\n\nSet1 -> ");
             for(auto& iter : set1) cout << iter << " ";
             printf("\n\nSet2 -> ");
@@ -415,10 +445,11 @@ void OABusRouter::Router::TrackAssign()
             
             
             // Assign track for all bits
-            assign[segid] = true;
+            //assign[segid] = true;
             curBus = &ckt->buses[busid];
             it = set1.begin();
-            tarBW = bitwidth[segid];
+            tarBW = curS->bw;
+            //bitwidth[segid];
 #ifdef DEBUG_TRACK
             printf("Segment(%2d) (%3d %3d) (%3d %3d) m%d Bitwidth %d\n", curS->id, x1, y1, x2, y2, curl, tarBW);
             //for(auto& iter : set1) printf("Available resource index(%d)\n", iter);

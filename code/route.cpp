@@ -6,9 +6,9 @@
 #include "func.h"
 
 
-#define DEBUG
+//#define DEBUG
 
-
+//#define DEBUG_ROUTE
 
 
 // 3D mapping
@@ -41,10 +41,9 @@ void OABusRouter::Router::TopologyMapping3D()
     numCols = this->grid.numCols;
     numRows = this->grid.numRows;
     numLayers = this->grid.numLayers;
-    vid.set_empty_key(0);
-    hid.set_empty_key(0);
-    direction.set_empty_key(0);
-
+    vid.set_empty_key(INT_MAX);
+    hid.set_empty_key(INT_MAX);
+    direction.set_empty_key(INT_MAX);
 
 
     // Divide vertical, horizontal layer separately
@@ -68,7 +67,8 @@ void OABusRouter::Router::TopologyMapping3D()
     for(int i=0; i < numTrees; i++)
     {
         StTree* tree = this->rsmt[i];
-        
+        busid = rsmt.GetBusID(tree->id); 
+        bw = ckt->buses[busid].numBits;
         //
         // Assign layer for steiners
         numNodes = tree->numNodes;
@@ -106,9 +106,12 @@ void OABusRouter::Router::TopologyMapping3D()
        
         // Interval Sets
         // Remove overlapped Segment 
+        cout << numVerticals << " " << numCols << endl;
+        cout << numHorizontals << " " << numRows << endl;
         vector<IntervalSetT> verIntervalSet(numVerticals*numCols);//[numLayers][numCols];
         vector<IntervalSetT> horIntervalSet(numHorizontals*numRows);//[numLayers][numRows];
 
+        //
         numEdges = tree->numEdges;
         for(int j=0; j < numEdges ; j++)
         {
@@ -315,21 +318,23 @@ void OABusRouter::Router::TopologyMapping3D()
 
         }
         //
+        //
 
        
         
         int numQ, segindex;
-        int jid, x, y, l1, l2, s1, s2, bw;
+        int jid, x, y, l1, l2, s1, s2;
         bool vertical_s1, vertical_s2;
         SegmentBG seg1, seg2;
         PointBG pt;
         vector<PointBG> intersection;
         SegRtree sRtree;
         Segment* curS, *tarS;
+        //Bus* curBus;
         vector<SegmentValT> queries;
         dense_hash_map<int,int>     segNuml;
-        segNuml.set_empty_key(0);
-        bw = bitwidth[busid];
+        segNuml.set_empty_key(INT_MAX);
+        //bw = bitwidth[busid];
 
         //
         //
@@ -361,17 +366,18 @@ void OABusRouter::Router::TopologyMapping3D()
                         segy2 = intv.upper();
                         segl = lidx;
 
+                        // Mapping the bitwith for each segment
+                        busid = this->rsmt.GetBusID(tree->id);
+                        //curBus = &ckt->buses[busid];
+                        //bw = curBus->numBits;
 
-                        Segment seg(segid, segx1, segy1, segx2, segy2, segl, false, isVertical);
+                        Segment seg(segid, segx1, segy1, segx2, segy2, segl, bw, false, isVertical);
                         this->segs.push_back(seg);
                         tree->segs.push_back(segid);
 
-                        // Mapping the bitwith for each segment
-                        busid = this->rsmt.GetBusID(tree->id);
-                        bw = ckt->buses[busid].numBits;
-                        this->bitwidth[segid] = bw;
+                        //this->bitwidth[segid] = bw;
                         this->seg2bus[segid] = busid;
-                        this->assign[segid] = false;
+                        //this->assign[segid] = false;
 
                         // Rtree
                         SegmentBG segbg(PointBG(segx1, segy1), PointBG(segx2, segy2));
@@ -399,16 +405,18 @@ void OABusRouter::Router::TopologyMapping3D()
                         segy2 = row;
                         segl = lidx;
 
-                        Segment seg(segid, segx1, segy1, segx2, segy2, segl, false, isVertical);
+                        // Mapping the bitwith for each segment
+                        busid = this->rsmt.GetBusID(tree->id);
+                        //curBus = &ckt->buses[busid];
+                        //bw = curBus->numBits;
+                        
+                        Segment seg(segid, segx1, segy1, segx2, segy2, segl,bw, false, isVertical);
                         this->segs.push_back(seg);
                         tree->segs.push_back(segid);
 
-                        // Mapping the bitwith for each segment
-                        busid = this->rsmt.GetBusID(tree->id);
-                        bw = ckt->buses[busid].numBits;
-                        this->bitwidth[segid] = bw;
+                        //this->bitwidth[segid] = bw;
                         this->seg2bus[segid] = busid;
-                        this->assign[segid] = false;
+                        //this->assign[segid] = false;
                     
                     
                         // Rtree
@@ -523,7 +531,9 @@ void OABusRouter::Router::TopologyMapping3D()
 
         sRtree.clear();
         //printf("\n\n");
+#ifdef DEBUG_ROUTE
         tree->print();
+#endif
         //
     }
 
@@ -550,9 +560,9 @@ void OABusRouter::StTree::print()
         Segment* curS = &rou->segs[segs[i]];
         if(curS->x1 == curS->x2)
         {
-            printf("(%d) s %d V-Line (%2d %2d) (%2d %2d) m%d\n", i, curS->id, curS->x1, curS->y1, curS->x2, curS->y2, curS->l);
+            printf("(%d) s %d V-Line (%2d %2d) (%2d %2d) m%d -> b%d\n", i, curS->id, curS->x1, curS->y1, curS->x2, curS->y2, curS->l, rou->seg2bus[curS->id]);
         }else{
-            printf("(%d) s %d H-Line (%2d %2d) (%2d %2d) m%d\n", i, curS->id, curS->x1, curS->y1, curS->x2, curS->y2, curS->l);
+            printf("(%d) s %d H-Line (%2d %2d) (%2d %2d) m%d -> b%d\n", i, curS->id, curS->x1, curS->y1, curS->x2, curS->y2, curS->l, rou->seg2bus[curS->id]);
         }
     }
     
@@ -605,6 +615,8 @@ int OABusRouter::Grid3D::Capacity(int col, int row, int layer)
 void OABusRouter::Router::InitGrid3D()
 {
 
+
+
     int tmpmax = INT_MIN;
     int tmpmin = INT_MAX;
     int minpitchV = INT_MAX;
@@ -614,6 +626,9 @@ void OABusRouter::Router::InitGrid3D()
     int numBuses = ckt->buses.size();
     int numLayers = ckt->layers.size();
     int dir[numLayers];
+
+    
+
     // Get maximum, minimum bitwidth
     for(int i=0; i < numBuses; i++)
     {
@@ -622,34 +637,42 @@ void OABusRouter::Router::InitGrid3D()
         tmpmin = min(curB->numBits, tmpmin);
     }
 
-
+    int a,b;
     // Get maximum, minimum wire pitch
     for(int i=0; i < numLayers; i++)
     {
         Layer* curL = &ckt->layers[i];
-        //cout << "#tracks : " << curL->trackOffsets.size() << endl;
-        int wirepitch = abs(curL->trackOffsets[0] - curL->trackOffsets[1]);
-        dir[i] = curL->direction;
         if(curL->is_vertical())
         {
-            maxpitchH = max(wirepitch, maxpitchH);
-            minpitchH = min(wirepitch, minpitchH);   
+            minpitchH = min(curL->minpitch, minpitchH);   
+            printf("pitch1 %d\npitch2 %d\n", minpitchH, curL->minpitch);
         }
         else
         {
-            maxpitchV = max(wirepitch, maxpitchV);
-            minpitchV = min(wirepitch, minpitchV);
+            minpitchV = min(curL->minpitch, minpitchV);
+            printf("pitch1 %d\npitch2 %d\n", minpitchV, curL->minpitch);
         }
     }
 
-    int GCELL_WIDTH = minpitchH * tmpmax * 2;
-    int GCELL_HEIGHT = minpitchV * tmpmax * 2;
+
+    printf("min pitch (%d %d) max bitwidth %d\n", minpitchH, minpitchV, tmpmax);
+    int GCELL_WIDTH = (int)(minpitchH * 16);
+    int GCELL_HEIGHT = (int)(minpitchV * 16);
     int offset_x = ckt->originX;
     int offset_y = ckt->originY;
     int sizeV = ckt->height;
     int sizeH = ckt->width;
     int numCols = ceil(1.0*sizeH/GCELL_WIDTH);
     int numRows = ceil(1.0*sizeV/GCELL_HEIGHT);
+
+    //int numCols = 
+
+
+
+    printf("gcell width %d height %d\n", GCELL_WIDTH, GCELL_HEIGHT);
+    printf("offset %d %d\n", offset_x, offset_y);
+    printf("size %d %d\n", sizeV, sizeH);
+    printf("#col %d #row %d\n", numCols, numRows);
 
 
     this->grid = 

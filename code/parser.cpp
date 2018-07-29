@@ -8,6 +8,16 @@
 #define INVALID_FILE_FORMAT 200
 
 
+#define DEBUG_PARSER
+
+
+void OABusRouter::Circuit::Printall()
+{
+    printf("DESIGN BOUNDAY (%d %d) (%d %d)\n", originX, originY, originX + width, originY + height);
+    
+    
+}
+
 bool OABusRouter::Circuit::getParam(char* fileName){
     ifstream inputFile(fileName);
     bool runtimeFlag = false;
@@ -513,6 +523,10 @@ bool OABusRouter::Circuit::read_iccad2018(char* fileName)
         return false;
     }
     
+#ifdef DEBUG_PARSER
+    for(auto& bus : buses) bus.print();
+#endif
+
 
     for(int i=0; i<this->layers.size(); i++)
     {
@@ -575,12 +589,13 @@ void OABusRouter::Bit::print()
 {
     printf("(%d) Bit %s [%s] # of Pins %d\n", this->id, this->name.c_str(), this->busName.c_str(), this->pins.size());
 }
+*/
 
 void OABusRouter::Bus::print()
 {
     printf("(%d) Bus %s [# of bits %d] [# of pin shapes %d]\n", this->id, this->name.c_str(), this->numBits, this->numPinShapes);
 }
-
+/*
 void OABusRouter::Obstacle::print()
 {
     printf("(%d) Obstacle %s (%d %d) (%d %d)\n", this->id, this->layer.c_str(), this->boundary.ll.x, this->boundary.ll.y,

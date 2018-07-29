@@ -172,6 +172,7 @@ void OABusRouter::Router::SolveILP_v2()
 {
 
 
+    cout << "1" << endl;
     try{
         
         // Cplex environment setting
@@ -208,6 +209,7 @@ void OABusRouter::Router::SolveILP_v2()
         beta = 1.0;
 
 
+    cout << "2" << endl;
         Junction* curJ;
         Segment* curS;
         //vector<IloNumVar> varCs;
@@ -223,12 +225,12 @@ void OABusRouter::Router::SolveILP_v2()
         dense_hash_map<int,int> varC2candi;         // candidate index
 
 
-        isSegment.set_empty_key(0);
-        varS2junc.set_empty_key(0);
-        varS2seg.set_empty_key(0);
-        varC2bus.set_empty_key(0);
-        varC2clip.set_empty_key(0);
-        varC2candi.set_empty_key(0);
+        isSegment.set_empty_key(INT_MAX);
+        varS2junc.set_empty_key(INT_MAX);
+        varS2seg.set_empty_key(INT_MAX);
+        varC2bus.set_empty_key(INT_MAX);
+        varC2clip.set_empty_key(INT_MAX);
+        varC2candi.set_empty_key(INT_MAX);
 
         numLayers = grid.numLayers;
         numCols = grid.numCols;
@@ -239,6 +241,7 @@ void OABusRouter::Router::SolveILP_v2()
 
         IntervalMapT imap[numLayers][MAXP];
 
+    cout << "3" << endl;
 
         // for every clips, declare variables for lp formula
         for(i=0; i < numClips; i++)
@@ -251,8 +254,11 @@ void OABusRouter::Router::SolveILP_v2()
             busid = curClip.busid;
             numSegs = curClip.numSegs;
             numCandi = curClip.numCandi;
+cout << "Num candi : " << numCandi << endl;
+            
             numJuncs = curClip.juncs.size();
 
+    cout << "4" << endl;
 
             for(j=0; j < numCandi; j++)
             {
@@ -286,11 +292,10 @@ void OABusRouter::Router::SolveILP_v2()
                     y2 = curS->y2;
                     isVertical = curS->vertical;
 
-                    l = curClip[k][segid];
+                    l = curClip[j][segid];
                     // cost
                     wirelength = abs(x2 - x1) + abs(y2 - y1);
                     numsegments += 1;
-
 
                     // imap for conflict 
                     if(isVertical)
@@ -312,21 +317,8 @@ void OABusRouter::Router::SolveILP_v2()
                 // Junction
                 for(k=0; k < numJuncs; k++)
                 {
-                    // Variable S
-                    IloNumVar varS(env, 0, 1, IloNumVar::Bool);
-
-                    
                     juncid = curClip.juncs[k];
                     curJ = &junctions[juncid];
-
-                    varSid = sVars.size();
-                    varS2junc[varSid] = juncid;
-                    isSegment[varSid] = false;
-                    sVars.push_back(varS);
-
-                    // cost
-                    wirelength += VIA_COST;
-                    numsegments += 1;
                     
                     s1 = curJ->s1;
                     s2 = curJ->s2;
@@ -334,11 +326,18 @@ void OABusRouter::Router::SolveILP_v2()
                     l2 = curClip[j][s2];
                     x = curJ->x;
                     y = curJ->y;
-                    
-
                     diff = abs(l2 - l1);
                     if(diff < 2) continue;
 
+                    // Variable S
+                    IloNumVar varS(env, 0, 1, IloNumVar::Bool);
+                    varSid = sVars.size();
+                    varS2junc[varSid] = juncid;
+                    isSegment[varSid] = false;
+                    sVars.push_back(varS);
+                    // cost
+                    wirelength += VIA_COST;
+                    numsegments += 1;
 
                     if(l1 > l2)
                     {
@@ -420,7 +419,8 @@ void OABusRouter::Router::SolveILP_v2()
                         {
                             segid = varS2seg[id];
                             busid = seg2bus[segid];
-                            bw = bitwidth[busid];
+                            bw = segs[segid].bw;
+                            //bitwidth[busid];
                         }
                         else
                         {
@@ -435,7 +435,7 @@ void OABusRouter::Router::SolveILP_v2()
                     {
                         col = (isVertical) ? j : start;
                         row = (isVertical) ? start : j;
-                        cap = grid[grid.GetIndex(col,row,l)]->cap;
+                        cap = 3*grid[grid.GetIndex(col,row,l)]->cap;
                         cplexConsts.add( tmp <= cap );
                         start++;
                     }
@@ -451,7 +451,7 @@ void OABusRouter::Router::SolveILP_v2()
 
         cplex.solve();
         int numSolution=0;
-
+        
         if(cplex.getStatus() == IloAlgorithm::Optimal)
         {
             printf("Cplex successfully solved!\n\n[Results]\n", ILP_ITER_COUNT++);
@@ -459,16 +459,20 @@ void OABusRouter::Router::SolveILP_v2()
             {
                 int valC = cplex.getValue(cVars[i]);
 
+
+
                 if(valC == 1)
                 {
-                    
+                
+                    numSolution++;
+
                     clipid = varC2clip[i];
                     cindex = varC2candi[i]; 
                     Clip& curClip = clips[varC2clip[i]];
                     busid = curClip.busid;
                     treeid = curClip.treeid;
                     numSegs = curClip.numSegs;
-                    
+                    numJuncs = curClip.juncs.size(); 
                     printf("%s -> {", ckt->buses[busid].name.c_str());
                     for(j=0; j < numSegs; j++)
                     {   
@@ -478,16 +482,33 @@ void OABusRouter::Router::SolveILP_v2()
                         curS = &segs[segid];
                         curS->l = l;
                         curS->assign = true;
-                        assign[segid] = true;
+                        //assign[segid] = true;
                         
                         printf(" s%d:m%d", segid, l);
                     }
                     printf(" }\n");
+                    for(j=0; j < numJuncs; j++)
+                    {
+                        juncid = curClip.juncs[j];
+                        curJ = &junctions[juncid];
+                        s1 = curJ->s1;
+                        s2 = curJ->s2;
+                        curJ->l1 = segs[s1].l;
+                        curJ->l2 = segs[s2].l;
+                        if(l1 > l2)
+                        {
+                            swap(curJ->l1, curJ->l2);
+                            swap(curJ->s1, curJ->s2);
+                        }
+                    }
                 }
     
             }
             printf("\n\n");
-
+            printf("===================\n\n");
+            printf("#Solution   : %5d\n", numSolution);
+            printf("Routability : %3.2f\n\n", (float)(1.0*numSolution / numClips));
+            printf("===================\n\n\n");
 
         }
 
@@ -551,8 +572,8 @@ void OABusRouter::Router::SolveILP()
        
         
 
-        var2seg.set_empty_key(0);
-        expr2seg.set_empty_key(0);
+        var2seg.set_empty_key(INT_MAX);
+        expr2seg.set_empty_key(INT_MAX);
 
 
         
@@ -667,7 +688,7 @@ void OABusRouter::Router::SolveILP()
                 {
                     segID = expr2seg[eid];
                     busID = this->seg2bus[segID];
-                    bw = this->bitwidth[busID];
+                    bw = segs[segID].bw;
 
                     //IloExpr tmpExpr2(env);
                     //tmpExpr2 = (exprG1s[eid]==0);
