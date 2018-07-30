@@ -11,16 +11,16 @@ CFLAGS = -std=c++11 -O3 -fpermissive -g -ggdb -DNDEBUG -DIL_STD $(LIBINCLUDE)
 CCFLAGS = -O3 -I.
 
 # include library settings..
-LIBINCLUDE = -I$(SRCHASH)/include -I$(CPLEXDIR) -I$(CONCERTDIR) -I$(BOOST)
+LIBINCLUDE = -I$(SRCHASH) -I$(CPLEXDIR) -I$(CONCERTDIR) -I$(BOOST)
 
 # linking flag settings
 LINKCFLAGS = $(CFLAGS) -static-libstdc++ $(CPLEXLIBS) $(CONCERTLIBS) 
 
 # source settings.
-SRCHASH 	= /home/tool/sparsehash
-BOOST 		= /home/tool/boost/install/1.63.0/include
-CPLEXDIR 	= /home/tool/IBM/ILOG/127/cplex/include
-CONCERTDIR 	= /home/tool/IBM/ILOG/127/concert/include
+SRCHASH 	= /home/tool/cpplib/sparsehash/install/2.0.3/include
+BOOST 		= /home/tool/cpplib/boost/install/1.63.0/include
+CPLEXDIR 	= /home/tool/ibm/install/12.7.0/cplex/include
+CONCERTDIR 	= /home/tool/ibm/install/12.7.0/concert/include
 
 
 # FLUTE #
