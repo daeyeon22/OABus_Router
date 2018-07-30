@@ -1,4 +1,6 @@
-/bench/**
+bench/**
+bench/*.input
+
 /image/svg/*
 /image/*.swp
 
@@ -15,7 +17,7 @@ code/ilp/**
 code/ilp/*.lp
 code/*.def
 
-
+*.input
 *.lp
 *.lef
 *.def       

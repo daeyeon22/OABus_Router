@@ -121,6 +121,9 @@ namespace OABusRouter
         int llx, lly;
         int urx, ury;
         int min_width;
+        int minpitch;
+        int maxpitch;
+        
         string name;
         //Rect boundary;
         //vector<int> tracks;
@@ -323,7 +326,7 @@ namespace OABusRouter
             ury(INT_MIN),
             name(INIT_STR)
         {
-            width.set_empty_key(0); // INIT_STR);
+            width.set_empty_key(INT_MAX); // INIT_STR);
         }
 
         Bus(const Bus& b) :
@@ -429,7 +432,7 @@ namespace OABusRouter
             bitHashMap.set_empty_key(INIT_STR);
             busHashMap.set_empty_key(INIT_STR);
             layerHashMap.set_empty_key(INIT_STR);
-            trackHashMap.set_empty_key(0);
+            trackHashMap.set_empty_key(INT_MAX);
             
             // should remove // 
             //stTreeHashMap.set_empty_key(0);
@@ -457,6 +460,11 @@ namespace OABusRouter
         void def_write(string filename);
         void lef_write();
         void lef_write(string filename);
+
+        //
+        void Init();
+        void Getpitch();
+        void Printall();
 
     };
 

@@ -4,6 +4,8 @@
 #include "./flute/flute.h"
 #include "./flute/global.h"
 
+#define DEBUG_RSMT
+
 namespace br = OABusRouter;
 int orderx(const void *a, const void *b);
 int ordery(const void *a, const void *b);
@@ -62,6 +64,9 @@ void OABusRouter::Router::GenBackbone()
         l = new int[numMultipins]; 
         ids = new int[numMultipins];
 
+#ifdef DEBUG_RSMT
+        printf("%s multipins -> {", curBus->name.c_str());
+#endif
         for(int p=0; p < numMultipins;  p++)
         {
             curMultipin = &ckt->multipins[curBus->multipins[p]];
@@ -74,20 +79,30 @@ void OABusRouter::Router::GenBackbone()
 
             int col = grid.GetColum(pinllx);
             int row = grid.GetRow(pinlly);
-            
-            
+#ifdef DEBUG_RSMT
+            printf(" %d", curMultipin->id);
+            if(curBus->id != curMultipin->busid)
+            {
+                cout << "???" << endl;
+                exit(0);
+            }
+#endif
+               
             ids[p] = curMultipin->id;
             x[p] = col;
             y[p] = row;
             l[p] = curLayer->id;
         }
-
+#ifdef DEBUG_RSMT
+        printf(" }\n");
+#endif
         rsmt.CreateTree(curBus->id, numMultipins, ids, x, y, l, ACCURACY, 1.2);
 
         
         delete x;
         delete y;
         delete l;
+        delete ids;
     }
 }
 
@@ -103,6 +118,11 @@ void OABusRouter::RSMT::CreateTree(int id, int d, int mps[], DTYPE x[], DTYPE y[
     int nbrcnt[numNodes] = {0};
     int edgecnt = 0;
     int treeid = trees.size();
+
+
+    //printf("treeid%d -> busid%d\n", treeid, id);
+
+
 
     // Flute
     FluteNormal(d, x, y, acc, coeffV, &tree);
@@ -136,13 +156,22 @@ void OABusRouter::RSMT::CreateTree(int id, int d, int mps[], DTYPE x[], DTYPE y[
         {
             n1->l = l[i];
             n1->steiner = false;
-            sttree.node2multipin[i] = mps[i];       
+            sttree.node2multipin[n1->id] = mps[i];       
+#ifdef DEBUG_RSMT
+            if(ckt->multipins[mps[i]].busid != id)
+            {
+                printf("Invalid...\n");
+                printf("mp%d -> b%d != b%d\n",  mps[i], ckt->multipins[mps[i]].busid, id);
+                exit(0);
+            }
+#endif
+        
         }
         else
         {
             n1->l = INT_MAX;
             n1->steiner = true;
-            sttree.node2multipin[i] = INT_MAX;
+            sttree.node2multipin[n1->id] = INT_MAX;
         }
 
 
@@ -175,9 +204,12 @@ void OABusRouter::RSMT::CreateTree(int id, int d, int mps[], DTYPE x[], DTYPE y[
     }
 
     //int treeid = trees.size();
+
     treeID[id] = treeid;
     busID[treeid] = id;
     trees.push_back(sttree);
+    printf("t%d -> b%d\n", treeid, busID[treeid]);
+    printf("b%d -> t%d\n", id, treeID[id]);
 }
 
 

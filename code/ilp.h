@@ -18,7 +18,7 @@ namespace OABusRouter
         Candidate(int deg, int* vars, int* vals) :
             deg(deg)
         {
-            lmapping.set_empty_key(0);
+            lmapping.set_empty_key(INT_MAX);
             for(int i=0; i < deg; i++)
                 lmapping[vars[i]] = vals[i];
         }
@@ -32,6 +32,7 @@ namespace OABusRouter
 
     struct Clip
     {   
+        
         int id;
         int busid;
         int treeid;
@@ -39,6 +40,7 @@ namespace OABusRouter
         int numCandi;
 
         vector<int> segs; 
+        vector<int> juncs;
         vector<Candidate> candi;
 
         Clip():

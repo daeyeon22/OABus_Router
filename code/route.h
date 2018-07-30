@@ -136,7 +136,7 @@ namespace OABusRouter
             numEdges(INT_MAX),
             length(INT_MAX)
         {
-            node2multipin.set_empty_key(0);
+            node2multipin.set_empty_key(INT_MAX);
         }
 
         StTree(const StTree& tree) :
@@ -195,8 +195,8 @@ namespace OABusRouter
         // Default Constructor
         RSMT()
         {
-            treeID.set_empty_key(0);
-            busID.set_empty_key(0);
+            treeID.set_empty_key(INT_MAX);
+            busID.set_empty_key(INT_MAX);
         }
 
         // 
@@ -244,17 +244,17 @@ namespace OABusRouter
             width(wd),
             height(hg)
         {
-            direction.set_empty_key(0);
+            direction.set_empty_key(INT_MAX);
             // Offsets initialize
             for(int c=0; c < numCols; c++)
             {
-                int llx = c*GCELL_WIDTH;
+                int llx = c*GCELL_WIDTH + xoffset;
                 offsetxs.push_back(llx);
             }
        
             for(int r=0; r < numRows; r++)
             {
-                int lly = r*GCELL_HEIGHT;
+                int lly = r*GCELL_HEIGHT + yoffset;
                 offsetys.push_back(lly);
             }
        
@@ -313,9 +313,9 @@ namespace OABusRouter
 
         Rtree()
         {
-            trackNuml.set_empty_key(0);
-            trackID.set_empty_key(0);
-            trackDir.set_empty_key(0);
+            trackNuml.set_empty_key(INT_MAX);
+            trackID.set_empty_key(INT_MAX);
+            trackDir.set_empty_key(INT_MAX);
         }
     };
 
@@ -326,7 +326,7 @@ namespace OABusRouter
         int x1, x2;
         int y1, y2;
         int l;
-  
+        int bw; 
 
         vector<int> junctions;  // junction id
         vector<int> neighbor;   // segment id
@@ -336,20 +336,22 @@ namespace OABusRouter
         bool assign;
         bool vertical;
 
-        Segment(int _id = INT_MAX,
-                int x_1 = INT_MAX, 
-                int y_1 = INT_MAX,
-                int x_2 = INT_MAX,
-                int y_2 = INT_MAX,
-                int _l = INT_MAX, 
+        Segment(int id = INT_MAX,
+                int x1 = INT_MAX, 
+                int y1 = INT_MAX,
+                int x2 = INT_MAX,
+                int y2 = INT_MAX,
+                int l = INT_MAX, 
+                int bw = INT_MAX,
                 bool assign = false, 
                 bool vertical = false) :
-            id(_id),
-            x1(x_1),
-            y1(y_1),
-            x2(x_2),
-            y2(y_2),
-            l(_l),
+            id(id),
+            x1(x1),
+            y1(y1),
+            x2(x2),
+            y2(y2),
+            l(l),
+            bw(bw),
             assign(assign),
             vertical(vertical) {}
 
@@ -360,6 +362,7 @@ namespace OABusRouter
             x2(s.x2),
             y2(s.y2),
             l(s.l),
+            bw(s.bw),
             junctions(s.junctions),
             neighbor(s.neighbor),
             wires(s.wires), 
@@ -497,20 +500,20 @@ namespace OABusRouter
         dense_hash_map<int,int> multipin2seg;
         dense_hash_map<int,int> pin2wire;
 
-        dense_hash_map<int,int> bitwidth;
-        dense_hash_map<int,bool> assign;
+        //dense_hash_map<int,int> bitwidth;
+        //dense_hash_map<int,bool> assign;
 
         Router()
         {
             //seg2multipin.set_empty_key(0);
-            multipin2seg.set_empty_key(0);
-            pin2wire.set_empty_key(0);
-            seg2bus.set_empty_key(0);
-            junc2bus.set_empty_key(0);
-            via2bus.set_empty_key(0);
+            multipin2seg.set_empty_key(INT_MAX);
+            pin2wire.set_empty_key(INT_MAX);
+            seg2bus.set_empty_key(INT_MAX);
+            junc2bus.set_empty_key(INT_MAX);
+            via2bus.set_empty_key(INT_MAX);
             //wire2pin.set_empty_key(0);
-            bitwidth.set_empty_key(0);
-            assign.set_empty_key(0);
+            //bitwidth.set_empty_key(0);
+            //assign.set_empty_key(0);
         }
 
         // Initialize Grid3D
@@ -529,7 +532,8 @@ namespace OABusRouter
         // ILP
         void CreateClips();
         void SolveILP();
-        
+        void SolveILP_v2();
+
         // Detailed
         void TrackAssign();
         void CreateVia();
