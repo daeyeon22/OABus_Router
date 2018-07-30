@@ -2,7 +2,7 @@
 #include "route.h"
 
 #define DEBUG
-#define BLOCK_ENABLE
+#define BLOCK_EN
 
 using namespace std;
 using namespace OABusRouter;
@@ -105,6 +105,8 @@ void Circuit::def_write(string file_name) {
     // END NETS
     dot_def << endl;
 
+
+    #ifdef BLOCK_EN
     // BLOCKAGES
     dot_def << "BLOCKAGES " << obstacles.size() << " ;" << endl;
     for(int i=0; i < obstacles.size(); i++) {
@@ -115,6 +117,7 @@ void Circuit::def_write(string file_name) {
     dot_def << "END BLOCKAGES" << endl;
     // END BLOCKAGES
     dot_def << endl;
+    #endif
     dot_def << "END DESIGN" << endl;
     // END DESIGN
 

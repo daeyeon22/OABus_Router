@@ -99,14 +99,6 @@ int main(int argc, char** argv){
     ckt->def_write();
     ckt->lef_write();
 
-    for(int i=0; i < ckt->multipins.size(); i++) {
-        OABusRouter::MultiPin* mp = &ckt->multipins[i];
-        cout << mp->id << endl;
-        cout << ckt->layers[mp->l].name << endl;
-        cout << mp->pins.size() << endl;
-        cout << " - - - - - - - - " << endl;
-    }
-
     cout << "End program" << endl;
     return 0;
 }
