@@ -222,6 +222,7 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
                     track.l = this->layerHashMap[layerName];
                     Layer* layer = &this->layers[this->layerHashMap[layerName]];
                     layer->min_width = min(layer->min_width,track.width);
+                    layer->tracks.push_back(track.id);
                     //lyr->tracks.push_back(track.id);
                     track.offset = (layer->is_vertical())?track.llx:track.lly;
                     layer->trackOffsets.push_back(track.offset);
@@ -404,8 +405,21 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                             }
                         }
 
+                        // multi pin id mapping & store in ckt->multipins
                         for(int i=0; i < bus.numPinShapes; i++) {
                             mps[i].id = this->multipins.size();
+                            
+                            // determine pin align ( vertical or horizontal )
+                            if( pins[mps[i].pins[0]].lly == pins[mps[i].pins[1]].lly )
+                                mps[i].align = HORIZONTAL;
+                            else if ( pins[mps[i].pins[0]].llx == pins[mps[i].pins[1]].llx )
+                                mps[i].align = VERTICAL;
+
+                            if( mps[i].align == this->layers[mps[i].l].direction )
+                                mps[i].needVia = true;
+
+                            assert ( mps[i].align != INT_MAX );
+
                             bus.multipins.push_back(mps[i].id);
                             this->multipins.push_back(mps[i]);
                         }

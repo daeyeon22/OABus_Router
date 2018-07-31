@@ -98,7 +98,7 @@ int main(int argc, char** argv){
     cout << "Write def & lef file" << endl;
     ckt->def_write();
     ckt->lef_write();
-
+    ckt->debug();
     cout << "End program" << endl;
     return 0;
 }

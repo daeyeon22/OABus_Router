@@ -123,12 +123,14 @@ namespace OABusRouter
         int min_width;
         string name;
         //Rect boundary;
-        //vector<int> tracks;
         vector<int> trackOffsets;
-
         //int lower_bound(int coord);
         //int upper_bound(int coord);
-        
+       
+       
+        // add by SGD 
+        vector<int> tracks;
+
         bool is_vertical()
         { 
             return (this->direction == VERTICAL)? true : false; 
@@ -152,7 +154,7 @@ namespace OABusRouter
             min_width(INT_MAX),
             name(INIT_STR) 
         {
-
+            tracks.reserve(32);
         }
 
         Layer(const Layer& lr) :
@@ -166,7 +168,7 @@ namespace OABusRouter
             min_width(lr.min_width),
             name(lr.name)
         {
-
+            tracks.insert(tracks.end(),lr.tracks.begin(),lr.tracks.end());
         }
 
         void print(bool all);
@@ -187,8 +189,6 @@ namespace OABusRouter
         // Segment tree
         //IntervalMapT assignedIntervals;
         //IntervalSetT emptyIntervals;
-
-
 
 
         Track() : 
@@ -257,15 +257,21 @@ namespace OABusRouter
         int busid;
         int l;
         vector<int> pins;
+        int align;
+        bool needVia;
         MultiPin() :
             id(INT_MAX),
             busid(INT_MAX),
-            l(INT_MAX) {}
+            l(INT_MAX),
+            align(INT_MAX),
+            needVia(false) {}
 
         MultiPin(const MultiPin& mp) :
             id(mp.id),
             busid(mp.busid),
-            l(mp.l) 
+            l(mp.l),
+            align(mp.align),
+            needVia(mp.needVia) 
             {
                 pins.insert(pins.end(), mp.pins.begin(), mp.pins.end());
             }
@@ -371,6 +377,17 @@ namespace OABusRouter
         void print();
 
     };
+   
+    struct Contact
+    {
+        int id;
+        Contact() :
+        id(INT_MAX) {}
+
+        Contact(const Contact &con) :
+            id(con.id) {}
+        void print();
+    };
     
     class Circuit
     {
@@ -452,12 +469,17 @@ namespace OABusRouter
         bool getBusInfo(char* fileName);
         bool getObstacleInfo(char* fileName);
 
-        // def_writer.cpp
+        // writer.cpp
         void def_write();
         void def_write(string filename);
         void lef_write();
         void lef_write(string filename);
+        void out_write();
 
+        // pin_aceess.cpp
+        void pin_access();
+        void pin_access(string busName);
+        void debug();
     };
 
 
