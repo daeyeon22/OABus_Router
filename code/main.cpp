@@ -71,7 +71,7 @@ int main(int argc, char** argv){
 #endif
 
    
-    ckt->Printall();
+    //ckt->Printall();
 
     //exit(0);
 

@@ -45,6 +45,8 @@ void OABusRouter::Router::GenBackbone()
         int *x, *y, *l, *ids;
         int treellx, treelly;
         int treeurx, treeury;
+        int leftCol, rightCol;
+        int topRow, bottomRow;
         Tree tree;
         StTree sttree;
 
@@ -57,6 +59,10 @@ void OABusRouter::Router::GenBackbone()
         treeurx = curBus->urx;
         treelly = curBus->lly;
         treeury = curBus->ury;
+        leftCol = grid.GetColum(treellx);
+        rightCol = grid.GetColum(treeurx);
+        topRow = grid.GetRow(treeury);
+        bottomRow = grid.GetRow(treelly);
 
         // mapped index of gcells
         x = new int[numMultipins];
@@ -77,8 +83,48 @@ void OABusRouter::Router::GenBackbone()
             int pinurx = curPin->urx;
             int pinury = curPin->ury;
 
-            int col = grid.GetColum(pinllx);
-            int row = grid.GetRow(pinlly);
+            int col1 = grid.GetColum(pinllx);
+            int row1 = grid.GetRow(pinlly);
+            int l1 = curLayer->id;
+
+
+            int bw = curMultipin->pins.size();
+
+            int move = 1;
+            int cap = grid[grid.GetIndex(col1,row1,l1)]->cap;
+            int col2, row2;
+            col2 = col1;
+            row2 = row1;
+
+            for(int j=0; cap < bw; j++)
+            {
+                if(j%4 == 0)
+                {
+                    row2 = row1;
+                    col2 = max(0, col1-move);
+                }
+                else if(j%4 == 1)
+                {
+                    row2 = min(grid.numRows-1, row1+move);
+                    col2 = col1;
+                }
+                else if(j%4 == 2)
+                {
+                    row2 = row1;
+                    col2 = min(grid.numCols-1, col1+move);
+                }
+                else if(j%4 == 3)
+                {
+                    row2 = max(0, row1-move);
+                    col2 = col1;
+                }
+                if(j%4 == 3)
+                    move++;
+                
+                cap = grid[grid.GetIndex(col2,row2,l1)]->cap;
+            }
+
+
 #ifdef DEBUG_RSMT
             printf(" %d", curMultipin->id);
             if(curBus->id != curMultipin->busid)
@@ -89,9 +135,11 @@ void OABusRouter::Router::GenBackbone()
 #endif
                
             ids[p] = curMultipin->id;
-            x[p] = col;
-            y[p] = row;
-            l[p] = curLayer->id;
+            x[p] = col2;
+            y[p] = row2;
+            l[p] = l1; // curLayer->id;
+
+        
         }
 #ifdef DEBUG_RSMT
         printf(" }\n");
@@ -144,6 +192,9 @@ void OABusRouter::RSMT::CreateTree(int id, int d, int mps[], DTYPE x[], DTYPE y[
         int n = tree.branch[i].n;
         int x2 = tree.branch[n].x;
         int y2 = tree.branch[n].y;
+
+
+
 
         br::TreeNode* n1 = &sttree.nodes[i];
         n1->id = i;
