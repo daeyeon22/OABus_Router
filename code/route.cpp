@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <set>
 #include "circuit.h"
 #include "route.h"
 #include "func.h"
@@ -9,7 +10,7 @@
 //#define DEBUG
 
 //#define DEBUG_ROUTE
-
+#define DEBUG_GRID
 
 // 3D mapping
 void OABusRouter::Router::TopologyMapping3D()
@@ -606,6 +607,28 @@ int OABusRouter::Grid3D::GetRow(int ycrd)
     return max(GetLowerBound(offsetys, ycrd) - 1, 0);
 }
 
+int OABusRouter::Grid3D::llx(int gcellid)
+{
+    return GetOffset_x(gcells[gcellid].x);
+}
+
+int OABusRouter::Grid3D::lly(int gcellid)
+{
+    return GetOffset_y(gcells[gcellid].y);
+}
+
+int OABusRouter::Grid3D::urx(int gcellid)
+{
+    return GetOffset_x(gcells[gcellid].x + 1);
+}
+
+int OABusRouter::Grid3D::ury(int gcellid)
+{
+    return GetOffset_y(gcells[gcellid].y + 1);
+}
+
+
+
 int OABusRouter::Grid3D::Capacity(int col, int row, int layer)
 {
     return gcells[GetIndex(col, row, layer)].cap;
@@ -614,78 +637,102 @@ int OABusRouter::Grid3D::Capacity(int col, int row, int layer)
 // Initialize Grid3D
 void OABusRouter::Router::InitGrid3D()
 {
+    int minV, minH, minNumBit, maxNumBit;
+    int numlayers, numbuses;
+    int l_ver, l_hor;
+    vector<int> xoffsets;
+    vector<int> yoffsets;
 
+    minV = INT_MAX;
+    minH = INT_MAX;
+    minNumBit = INT_MAX;
+    maxNumBit = INT_MIN;
+    numlayers = ckt->layers.size();
+    numbuses = ckt->buses.size();
 
-
-    int tmpmax = INT_MIN;
-    int tmpmin = INT_MAX;
-    int minpitchV = INT_MAX;
-    int maxpitchV = INT_MIN;
-    int minpitchH = INT_MAX;
-    int maxpitchH = INT_MIN;
-    int numBuses = ckt->buses.size();
-    int numLayers = ckt->layers.size();
-    int dir[numLayers];
-
-    
-
-    // Get maximum, minimum bitwidth
-    for(int i=0; i < numBuses; i++)
+    for(int i=0; i < numlayers; i++)
     {
-        Bus* curB = &ckt->buses[i];
-        tmpmax = max(curB->numBits, tmpmax);
-        tmpmin = min(curB->numBits, tmpmin);
-    }
-
-    int a,b;
-    // Get maximum, minimum wire pitch
-    for(int i=0; i < numLayers; i++)
-    {
-        Layer* curL = &ckt->layers[i];
-        if(curL->is_vertical())
+        Layer* curl = &ckt->layers[i];
+        if(curl->is_vertical())
         {
-            minpitchH = min(curL->minpitch, minpitchH);   
-            printf("pitch1 %d\npitch2 %d\n", minpitchH, curL->minpitch);
+
+            if(minV > curl->offsets.size())
+            {
+                xoffsets.clear();
+                minV = curl->offsets.size();
+                xoffsets.insert(xoffsets.end(), curl->offsets.begin(), curl->offsets.end()); // = curl->offsets;
+                l_ver = curl->id;
+            }
         }
         else
         {
-            minpitchV = min(curL->minpitch, minpitchV);
-            printf("pitch1 %d\npitch2 %d\n", minpitchV, curL->minpitch);
+
+            if(minH > curl->offsets.size())
+            {
+                yoffsets.clear();
+                minH = curl->offsets.size();
+                yoffsets.insert(yoffsets.end(), curl->offsets.begin(), curl->offsets.end());
+                //hoffsets = curl->offsets;
+                l_hor = curl->id;
+            }
         }
     }
 
-
-    printf("min pitch (%d %d) max bitwidth %d\n", minpitchH, minpitchV, tmpmax);
-    int GCELL_WIDTH = (int)(minpitchH * 16);
-    int GCELL_HEIGHT = (int)(minpitchV * 16);
-    int offset_x = ckt->originX;
-    int offset_y = ckt->originY;
-    int sizeV = ckt->height;
-    int sizeH = ckt->width;
-    int numCols = ceil(1.0*sizeH/GCELL_WIDTH);
-    int numRows = ceil(1.0*sizeV/GCELL_HEIGHT);
-
-    //int numCols = 
+    sort(xoffsets.begin(), xoffsets.end());
+    sort(yoffsets.begin(), yoffsets.end());
+    for(int i=0; i < numbuses; i++)
+    {
+        Bus* curB = &ckt->buses[i];
+        minNumBit = min(curB->numBits, minNumBit);
+        maxNumBit = max(curB->numBits, maxNumBit);
+    }
 
 
 
-    printf("gcell width %d height %d\n", GCELL_WIDTH, GCELL_HEIGHT);
-    printf("offset %d %d\n", offset_x, offset_y);
-    printf("size %d %d\n", sizeV, sizeH);
-    printf("#col %d #row %d\n", numCols, numRows);
+
+    int numcols = (int)(1.0* minV / maxNumBit);
+    int numrows = (int)(1.0* minH / maxNumBit);
+    //int numcols = (int)(1.0* minH / maxNumBit);
+    //int numrows = (int)(1.0* minV / maxNumBit);
+    int originX = ckt->originX;
+    int originY = ckt->originY;
+
+#ifdef DEBUG_GRID
+    for(auto& it : xoffsets) printf("x offset %d\n", it);
+    for(auto& it : yoffsets) printf("y offset %d\n", it);
+    printf("max num bits %d\nmin num bits %d\nmin vertical offsets %d\nmin horizontal offsets %d\n",
+            maxNumBit, minNumBit, minV, minH);
+    printf("#cols %d #rows %d\n", numcols, numrows);
+#endif
 
 
-    this->grid = 
-        Grid3D(numCols, 
-            numRows, 
-            numLayers, 
-            GCELL_WIDTH, 
-            GCELL_HEIGHT, 
-            offset_x, 
-            offset_y,
-            sizeH,
-            sizeV);
+    for(int i=0; i < numcols; i++)
+    {
+        int lower = maxNumBit*i;
+        int lx = (lower==0)? originX : (int)(1.0*(xoffsets[lower] + xoffsets[lower-1])/2);
+        grid.offsetxs.push_back(lx);
+        printf("x offset %d\n",lx);
+    }
 
+    for(int i=0; i < numrows; i++)
+    {
+        int lower = maxNumBit*i;
+        int ly = (lower==0)? originY : (int)(1.0*(yoffsets[lower] + yoffsets[lower-1])/2);
+        grid.offsetys.push_back(ly);
+        printf("y offset %d\n", ly);
+    }
+
+    grid.offsetxs.push_back(originX + ckt->width);
+    grid.offsetys.push_back(originY + ckt->height);
+
+    grid.numCols = numcols;
+    grid.numRows = numrows;
+    grid.numLayers = numlayers;
+    grid.xoffset = originX;
+    grid.yoffset = originY;
+    grid.width = ckt->width;
+    grid.height = ckt->height;
+    grid.gcells = vector<Gcell>(numcols*numrows*numlayers, Gcell());
 
 #ifdef DEBUG
     ////////////////////////////////////
@@ -708,11 +755,14 @@ void OABusRouter::Router::InitGrid3D()
 
     CreateTrackRtree();
     // Initialize Gcell Capacitance
-    for(int l=0; l < numLayers; l++)
+    for(int l=0; l < numlayers; l++)
     {
         Layer* curL = &ckt->layers[l];
         this->grid.InitGcellCap(curL->id, curL->direction, curL->trackOffsets);
     }
+
+    //exit(0);
+
 }
 
 void OABusRouter::Grid3D::InitGcellCap(int layer, int dir, vector<int> &offsets)
@@ -751,15 +801,16 @@ void OABusRouter::Grid3D::InitGcellCap(int layer, int dir, vector<int> &offsets)
 
             GCllx = GetOffset_x(col);
             GClly = GetOffset_y(row);
-            GCurx = min(GetOffset_x(col) + GCELL_WIDTH, xoffset + width) ;
-            GCury = min(GetOffset_y(row) + GCELL_HEIGHT, yoffset + height);
+            GCurx = (col == numCols-1) ? xoffset + width : GetOffset_x(col+1);// + GCELL_WIDTH, xoffset + width) ;
+            GCury = (row == numRows-1) ? yoffset + height : GetOffset_y(row+1);// + GCELL_HEIGHT, yoffset + height);
 
+            printf("box (%d %d) (%d %d)\n", GCllx, GClly, GCurx, GCury);
 
             queryBox = BoxBG(PointBG(GCllx, GClly), PointBG(GCurx, GCury));
             trackrtree->query(
                     bgi::intersects(queryBox) && // && !bgi::overlaps(queryBox), 
                     bgi::satisfies([&, curl, queryBox, rtree](const SegmentValT& val){
-                        int llx, lly, urx, ury;
+                        float llx, lly, urx, ury;
                         int tarl;
                         int idx;
                         bool fallLL, fallUR, targetL;
@@ -772,7 +823,7 @@ void OABusRouter::Grid3D::InitGcellCap(int layer, int dir, vector<int> &offsets)
                         ury = bg::get<1,1>(curSeg);
                         fallLL = (bg::within(PointBG(llx,lly),queryBox))?true:false;
                         fallUR = (bg::within(PointBG(urx,ury),queryBox))?true:false;
-#ifdef DEBUG
+#ifdef DEBUG_GRID
                         if(fallLL || fallUR)
                         {
                             cout << "Box -> " << bg::dsv(queryBox) << endl;
@@ -838,8 +889,13 @@ void OABusRouter::Grid3D::InitGcellCap(int layer, int dir, vector<int> &offsets)
             curGC->direction = dir;
             //curGC->resources = resources;
             
+#ifdef DEBUG_GRID
+            printf("g%d (%d %d %d) cap %d\n", curGC->id, curGC->x, curGC->y, curGC->l, curGC->cap);
+#endif
         }
     }
+
+
 }
 
 

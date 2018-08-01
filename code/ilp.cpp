@@ -172,7 +172,6 @@ void OABusRouter::Router::SolveILP_v2()
 {
 
 
-    cout << "1" << endl;
     try{
         
         // Cplex environment setting
@@ -208,8 +207,6 @@ void OABusRouter::Router::SolveILP_v2()
         alpha = 1.0;
         beta = 1.0;
 
-
-    cout << "2" << endl;
         Junction* curJ;
         Segment* curS;
         //vector<IloNumVar> varCs;
@@ -217,6 +214,9 @@ void OABusRouter::Router::SolveILP_v2()
         vector<IloExpr> cVars;
         //vector<IloExpr> const1; // Assignment Constraint
         //vector<IloExpr> const2; // Edge Capacitance Constraint
+        
+        dense_hash_map<int,int> lowerid;
+        dense_hash_map<int,int> upperid;
         dense_hash_map<int,bool> isSegment;            // if varS is point, junction
         dense_hash_map<int,int> varS2junc;          // varS to junction
         dense_hash_map<int,int> varS2seg;           // segment variable to segment
@@ -232,6 +232,10 @@ void OABusRouter::Router::SolveILP_v2()
         varC2clip.set_empty_key(INT_MAX);
         varC2candi.set_empty_key(INT_MAX);
 
+        lowerid.set_empty_key(INT_MAX);
+        upperid.set_empty_key(INT_MAX);
+    
+
         numLayers = grid.numLayers;
         numCols = grid.numCols;
         numRows = grid.numRows;
@@ -241,7 +245,6 @@ void OABusRouter::Router::SolveILP_v2()
 
         IntervalMapT imap[numLayers][MAXP];
 
-    cout << "3" << endl;
 
         // for every clips, declare variables for lp formula
         for(i=0; i < numClips; i++)
@@ -254,11 +257,9 @@ void OABusRouter::Router::SolveILP_v2()
             busid = curClip.busid;
             numSegs = curClip.numSegs;
             numCandi = curClip.numCandi;
-cout << "Num candi : " << numCandi << endl;
             
             numJuncs = curClip.juncs.size();
 
-    cout << "4" << endl;
 
             for(j=0; j < numCandi; j++)
             {
@@ -271,6 +272,11 @@ cout << "Num candi : " << numCandi << endl;
                 numsegments = 0;
 
                 IloExpr tmp(env);
+            
+
+                
+                lowerid[varCid] = sVars.size();
+
                 for(k=0; k < numSegs; k++)
                 {
                     
@@ -313,6 +319,7 @@ cout << "Num candi : " << numCandi << endl;
                     tmp += varS;   
                 }
 
+                upperid[varCid] = sVars.size();
 
                 // Junction
                 for(k=0; k < numJuncs; k++)
@@ -370,6 +377,8 @@ cout << "Num candi : " << numCandi << endl;
 
                 // Conditianal variable C
                 varC = (tmp == numsegments); // ? 1 : 0;
+                //
+
                 assignConst += varC;
 
                 // add candidate variable into the vector / map
@@ -435,7 +444,7 @@ cout << "Num candi : " << numCandi << endl;
                     {
                         col = (isVertical) ? j : start;
                         row = (isVertical) ? start : j;
-                        cap = 3*grid[grid.GetIndex(col,row,l)]->cap;
+                        cap = grid[grid.GetIndex(col,row,l)]->cap;
                         cplexConsts.add( tmp <= cap );
                         start++;
                     }
@@ -459,8 +468,6 @@ cout << "Num candi : " << numCandi << endl;
             {
                 int valC = cplex.getValue(cVars[i]);
 
-
-
                 if(valC == 1)
                 {
                 
@@ -473,7 +480,10 @@ cout << "Num candi : " << numCandi << endl;
                     treeid = curClip.treeid;
                     numSegs = curClip.numSegs;
                     numJuncs = curClip.juncs.size(); 
-                    printf("%s -> {", ckt->buses[busid].name.c_str());
+                    
+                    rsmt[treeid]->assign = true;
+                    
+                    printf("[Done] %s -> {", ckt->buses[busid].name.c_str());
                     for(j=0; j < numSegs; j++)
                     {   
                         segid = curClip.segs[j];
@@ -502,8 +512,36 @@ cout << "Num candi : " << numCandi << endl;
                         }
                     }
                 }
+                else
+                {
+                    int varS;
+                    int lower, upper;
+                    lower = lowerid[i];
+                    upper = upperid[i];
+
+                    Clip& curClip = clips[varC2clip[i]];
+                    busid = curClip.busid;
+                    treeid = curClip.treeid;
+                    //rsmt[treeid]->assign = false;
+
+                    printf("[Fail] %s -> {", ckt->buses[busid].name.c_str());
+
+                    while(lower < upper)
+                    {
+                        varS = cplex.getValue(sVars[lower]);
+                        segid = varS2seg[lower];            
+                        curS = &segs[segid];
+
+                        printf(" s%d:v%d", segid, varS);
+                        lower++;
+                    }
+
+                    printf(" }\n");
+
+                }
     
             }
+            
             printf("\n\n");
             printf("===================\n\n");
             printf("#Solution   : %5d\n", numSolution);

@@ -54,8 +54,8 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
 
 
 
-    layoutOffsetX = ckt->originX;
-    layoutOffsetY = ckt->originY;
+    layoutOffsetX = -1*ckt->originX;
+    layoutOffsetY = -1*ckt->originY;
     layoutWidth = ckt->width;
     layoutHeight = ckt->height;
 
@@ -76,10 +76,14 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         //    Color::Silver, Color::White, Color::Yellow };
 
     // White space    
-    llx = layoutOffsetX;
-    lly = layoutOffsetY;
-    urx = layoutOffsetX + layoutWidth;
-    ury = layoutOffsetY + layoutHeight;
+    //llx = layoutOffsetX;
+    //lly = layoutOffsetY;
+    //urx = layoutOffsetX + layoutWidth;
+    //ury = layoutOffsetY + layoutHeight;
+    llx = 0;
+    lly = 0;
+    urx = layoutWidth;
+    ury = layoutHeight;
 
     Polygon border(Color::White, Stroke(5,Color::Black));
     border << Point(llx,lly) << Point(llx, ury) << Point(urx,ury) << Point(urx, lly);
@@ -100,10 +104,12 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
     for(col=0; col<numCols; col++)
     {
         xoffset = grid->GetOffset_x(col);//offsetxs[col];
-        llx = xoffset;
-        urx = xoffset;
-        lly = layoutOffsetY;
-        ury = layoutOffsetY + layoutHeight;
+        llx = xoffset + layoutOffsetX;
+        urx = xoffset + layoutOffsetX;
+        //lly = layoutOffsetY;
+        //ury = layoutOffsetY + layoutHeight;
+        lly = 0;
+        ury = layoutHeight;
 
         doc << Line(Point(llx,lly), Point(urx,ury), Stroke(5, Color::Black));
 #ifdef DEBUG_GLOBAL
@@ -115,10 +121,12 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
     for(row=0; row<numRows; row++)
     {
         yoffset = grid->GetOffset_y(row);//offsetys[row];
-        llx = layoutOffsetX;
-        urx = layoutOffsetX + layoutWidth;
-        lly = yoffset;
-        ury = yoffset;
+        //llx = layoutOffsetX;
+        //urx = layoutOffsetX + layoutWidth;
+        llx = 0;
+        urx = layoutWidth;
+        lly = yoffset + layoutOffsetY;
+        ury = yoffset + layoutOffsetY;
 
         doc << Line(Point(llx,lly), Point(urx,ury), Stroke(5, Color::Black));
 #ifdef DEBUG_GLOBAL
@@ -172,16 +180,21 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         GClly = min(curS->y1, curS->y2);
         GCurx = max(curS->x1, curS->x2);
         GCury = max(curS->y1, curS->y2);
-
-        llx = grid->GetOffset_x(GCllx); // + layoutOffsetX;
-        lly = grid->GetOffset_y(GClly); // + layoutOffsetY;
-        urx = grid->GetOffset_x(GCurx) + GW; // + layoutOffsetX;
-        ury = grid->GetOffset_y(GCury) + GH; // + layoutOffsetY;
-        llx = max(llx, layoutOffsetX);
-        lly = max(lly, layoutOffsetY);
-        urx = min(urx, layoutOffsetX + layoutWidth);
-        ury = min(ury, layoutOffsetY + layoutHeight);
         curl = curS->l;
+        int g1 = grid->GetIndex(GCllx, GClly, curS->l);
+        int g2 = grid->GetIndex(GCurx, GCury, curS->l);
+        llx = grid->llx(g1) + layoutOffsetX;
+        lly = grid->lly(g1) + layoutOffsetY;
+        urx = grid->urx(g2) + layoutOffsetX;
+        ury = grid->ury(g2) + layoutOffsetY;
+        //llx = max(llx, layoutOffsetX);
+        //lly = max(lly, layoutOffsetY);
+        //urx = min(urx, layoutOffsetX + layoutWidth);
+        //ury = min(ury, layoutOffsetY + layoutHeight);
+        //llx = max(llx, 0); //layoutOffsetX);
+        //lly = max(lly, 0); //layoutOffsetY);
+        //urx = min(urx, layoutWidth);
+        //ury = min(ury, layoutHeight);
         
         content = curB->name + " BW[" + to_string(curB->numBits) + "]";
         textOffsetX = (int)(1.0*(urx-llx)/2 + 0.5);
@@ -211,14 +224,14 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         target = (curB->id == busid)?true:false;
         if(!target && !all) continue;   
         
-        llx = curPin->llx;// + layoutOffsetX;
-        lly = curPin->lly;// + layoutOffsetY;
-        urx = curPin->urx;// + layoutOffsetX;
-        ury = curPin->ury;// + layoutOffsetY;
-        llx = max(llx, layoutOffsetX);
-        lly = max(lly, layoutOffsetY);
-        urx = min(urx, layoutOffsetX + layoutWidth);
-        ury = min(ury, layoutOffsetY + layoutHeight);
+        llx = curPin->llx + layoutOffsetX;
+        lly = curPin->lly + layoutOffsetY;
+        urx = curPin->urx + layoutOffsetX;
+        ury = curPin->ury + layoutOffsetY;
+        llx = max(llx, 0); //layoutOffsetX);
+        lly = max(lly, 0); //layoutOffsetY);
+        urx = min(urx, layoutWidth); //layoutOffsetX + layoutWidth);
+        ury = min(ury, layoutHeight); //layoutOffsetY + layoutHeight);
         
         curl = curPin->l; //ckt->layerHashMap[curPin->layer];   
         content = curPin->bitName;
@@ -244,10 +257,10 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         target = (curWire->busid == busid)? true : false;
         if(!target && !all) continue;
 
-        llx = curWire->x1;// + layoutOffsetX;
-        lly = curWire->y1;// + layoutOffsetY;
-        urx = curWire->x2;// + layoutOffsetX;
-        ury = curWire->y2;// + layoutOffsetY;
+        llx = curWire->x1 + layoutOffsetX;
+        lly = curWire->y1 + layoutOffsetY;
+        urx = curWire->x2 + layoutOffsetX;
+        ury = curWire->y2 + layoutOffsetY;
         curl = curWire->l; //ckt->layerHashMap[curPin->layer];   
 
         if(llx == urx)
@@ -280,8 +293,8 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         target = (rou->via2bus[viaid] == busid)? true : false;
         if(!target && !all) continue;
 
-        centerX = curV->x;
-        centerY = curV->y;
+        centerX = curV->x + layoutOffsetX;
+        centerY = curV->y + layoutOffsetY;
         curl = curV->l1;
         double diameter = 100;
         l1 = curV->l1;

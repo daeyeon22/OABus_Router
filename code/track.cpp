@@ -318,6 +318,7 @@ void OABusRouter::Router::TrackAssign()
     int numLayers, numRows, numCols, numSegs;
     int i, row, col, curl, dir, GCidx, bw;
     int x1,y1, x2, y2, segid, busid, bitid, trackid, width, seq;
+    int g1, g2;
     int GCx1, GCy1, GCx2, GCy2;
     int curBW, tarBW, start, end;
     //int MAXSIZE=100;
@@ -365,6 +366,9 @@ void OABusRouter::Router::TrackAssign()
         y2 = max(curS->y1, curS->y2);
         tarBW = curS->bw;
         //this->bitwidth[curS->id];
+
+        g1 = grid.GetIndex(x1, y1, curl);
+        g2 = grid.GetIndex(x2, y2, curl);
 
 
         dir = this->grid.direction[curl];
@@ -457,6 +461,8 @@ void OABusRouter::Router::TrackAssign()
 #endif
 
 
+
+
             for(int s=0; s < tarBW; s++)
             {
                 seq = s;
@@ -497,15 +503,15 @@ void OABusRouter::Router::TrackAssign()
                 {
                     curWire.x1 = ckt->tracks[trackid].offset;
                     curWire.x2 = ckt->tracks[trackid].offset;
-                    curWire.y1 = grid.GetOffset_y(y1);
-                    curWire.y2 = min(grid.GetOffset_y(y2) + GCELL_HEIGHT, grid.yoffset + grid.height);
+                    curWire.y1 = grid.lly(g1); //grid.GetOffset_y(y1);
+                    curWire.y2 = grid.ury(g2); //min(grid.GetOffset_y(y2) + GCELL_HEIGHT, grid.yoffset + grid.height);
                 }
                 else
                 {
                     curWire.y1 = ckt->tracks[trackid].offset;
                     curWire.y2 = ckt->tracks[trackid].offset;
-                    curWire.x1 = grid.GetOffset_x(x1);
-                    curWire.x2 = min(grid.GetOffset_x(x2) + GCELL_WIDTH, grid.xoffset + grid.width);
+                    curWire.x1 = grid.llx(g1); //GetOffset_x(x1);
+                    curWire.x2 = grid.urx(g2); //min(grid.GetOffset_x(x2) + GCELL_WIDTH, grid.xoffset + grid.width);
                 }
 
 #ifdef DEBUG_TRACK
