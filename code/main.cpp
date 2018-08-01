@@ -73,6 +73,8 @@ int main(int argc, char** argv){
    
     ckt->Printall();
 
+    //exit(0);
+
     cout << "Initialize" << endl;
     ckt->Init();
     rou->InitGrid3D();
@@ -106,7 +108,10 @@ int main(int argc, char** argv){
     rou->SolveILP_v2();
 
 
-    exit(0);
+    cout << "Post Global Routing" << endl;
+    rou->PostGlobalRouting();
+
+    //exit(0);
     cout << "TrackAssign" << endl;
     rou->TrackAssign();
 
@@ -115,8 +120,8 @@ int main(int argc, char** argv){
     rou->CreateVia();
 
     cout << "Mapping multipin to segment, pin to wire" << endl;
-    rou->MappingMultipin2Seg();
-    rou->MappingPin2Wire();
+    //rou->MappingMultipin2Seg();
+    //rou->MappingPin2Wire();
 
     cout << "Create Plot" << endl;
     rou->Plot();

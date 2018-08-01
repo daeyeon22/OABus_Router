@@ -121,7 +121,8 @@ namespace OABusRouter
         int numNodes;
         int numEdges;
         int length;
-        
+        bool assign;
+
         vector<TreeNode> nodes;
         vector<TreeEdge> edges;
         vector<int> segs;
@@ -134,7 +135,8 @@ namespace OABusRouter
             deg(INT_MAX),
             numNodes(INT_MAX),
             numEdges(INT_MAX),
-            length(INT_MAX)
+            length(INT_MAX),
+            assign(false)
         {
             node2multipin.set_empty_key(INT_MAX);
         }
@@ -145,6 +147,7 @@ namespace OABusRouter
             numNodes(tree.numNodes),
             numEdges(tree.numEdges),
             length(tree.length),
+            assign(tree.assign),
             nodes(tree.nodes),
             edges(tree.edges),
             segs(tree.segs),
@@ -245,21 +248,6 @@ namespace OABusRouter
             height(hg)
         {
             direction.set_empty_key(INT_MAX);
-            // Offsets initialize
-            for(int c=0; c < numCols; c++)
-            {
-                int llx = c*GCELL_WIDTH + xoffset;
-                offsetxs.push_back(llx);
-            }
-       
-            for(int r=0; r < numRows; r++)
-            {
-                int lly = r*GCELL_HEIGHT + yoffset;
-                offsetys.push_back(lly);
-            }
-       
-            // initialize gcells
-            gcells = vector<Gcell>(numCols*numRows*numLayers, Gcell());
         }
 
         // Copy constructor
@@ -289,7 +277,10 @@ namespace OABusRouter
         int GetColum(int crd);
         int GetRow(int crd);
         int Capacity(int col, int row, int layer);
-
+        int llx(int gcellid);
+        int lly(int gcellid);
+        int urx(int gcellid);
+        int ury(int gcellid);
 
         void print();
 
@@ -302,8 +293,9 @@ namespace OABusRouter
    
     struct Rtree
     {
+
         SegRtree track;
-        
+        BoxRtree obstacle; 
 
 
         //
@@ -311,11 +303,17 @@ namespace OABusRouter
         dense_hash_map<int,int> trackID;
         dense_hash_map<int,int> trackDir;
 
+        //
+        dense_hash_map<int,int> obsNuml;
+        dense_hash_map<int,int> obsID;
         Rtree()
         {
             trackNuml.set_empty_key(INT_MAX);
             trackID.set_empty_key(INT_MAX);
             trackDir.set_empty_key(INT_MAX);
+        
+        
+        
         }
     };
 
@@ -528,11 +526,15 @@ namespace OABusRouter
     
         // Mapping 3D
         void TopologyMapping3D();
+        void ObstacleAwareRouting(int treeid);
+
 
         // ILP
         void CreateClips();
         void SolveILP();
         void SolveILP_v2();
+        void PostGlobalRouting();
+
 
         // Detailed
         void TrackAssign();

@@ -128,6 +128,9 @@ namespace OABusRouter
         //Rect boundary;
         //vector<int> tracks;
         vector<int> trackOffsets;
+        set<int> offsets;
+    
+
 
         //int lower_bound(int coord);
         //int upper_bound(int coord);
