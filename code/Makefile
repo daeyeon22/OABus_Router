@@ -29,7 +29,7 @@ FLUTESRC 	= $(FLUTEDIR)/neighbors.o $(FLUTEDIR)/mst2.o \
 			$(FLUTEDIR)/dl.o $(FLUTEDIR)/err.o $(FLUTEDIR)/heap.o \
 			$(FLUTEDIR)/dist.o $(FLUTEDIR)/flute.o $(FLUTEDIR)/flute_mst.o 
 
-SRC			= func.o main.o parser.o route.o \
+SRC			= func.o main.o parser.o route.o init.o maze.o\
 			  rsmt.o ilp.o util.o rtree.o track.o writer.o pin_access.o
 
 CPLEXLIBS       = -L$(CPLEXDIR)/../lib/$(SYSTEM)/$(LIBFORMAT) -lilocplex -lcplex
@@ -73,6 +73,11 @@ util.o: util_v2.cpp circuit.h route.h
 track.o: track.cpp circuit.h route.h
 	$(CXX) $(CFLAGS) -c -o $@ $<  
 
+init.o: init.cpp circuit.h
+	$(CXX) $(CFLAGS) -c -o $@ $<  
+
+maze.o: maze.cpp route.h
+	$(CXX) $(CFLAGS) -c -o $@ $<  
 
 #RSMT.o: RSMT.cpp flute.h circuit.h global.h
 #	$(CXX) $(CFLAGS) -c -o $@ $<  

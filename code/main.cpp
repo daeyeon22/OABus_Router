@@ -2,6 +2,7 @@
 #include "circuit.h"
 #include "route.h"
 //#include "util.h"
+//#define DEBUG_MP
 
 using namespace std;
 
@@ -56,8 +57,26 @@ int main(int argc, char** argv){
         cout << "Fail to read " << inputFileName << endl;
     }
 
+#ifdef DEBUG_MP
+    for(int i=0; i < ckt->multipins.size(); i++) {
+        OABusRouter::MultiPin* mp = &ckt->multipins[i];
+        cout << mp->id << endl;
+        cout << ckt->buses[mp->busid].name << endl;
+        
+        cout << ckt->layers[mp->l].name << endl;
+        cout << mp->pins.size() << " " << ckt->buses[mp->busid].numBits << endl;
+        cout << " - - - - - - - - " << endl;
+    }
+    //exit(0);
+#endif
+
+   
+    ckt->Printall();
+
+    //exit(0);
 
     cout << "Initialize" << endl;
+    ckt->Init();
     rou->InitGrid3D();
     
     
@@ -76,11 +95,23 @@ int main(int argc, char** argv){
     rou->TopologyMapping3D();
 
 
-    cout << "Solve ILP" << endl;
-    rou->SolveILP();
+    //cout << "Solve ILP" << endl;
+    //rou->SolveILP();
     //<< endl;
     //ckt->InitRoutingDirection();
 
+    cout << "Create Clips" << endl;
+    rou->CreateClips();
+
+
+    cout << "Solve ILP v2" << endl;
+    rou->SolveILP_v2();
+
+
+    cout << "Post Global Routing" << endl;
+    rou->PostGlobalRouting();
+
+    //exit(0);
     cout << "TrackAssign" << endl;
     rou->TrackAssign();
 
@@ -89,16 +120,18 @@ int main(int argc, char** argv){
     rou->CreateVia();
 
     cout << "Mapping multipin to segment, pin to wire" << endl;
-    rou->MappingMultipin2Seg();
-    rou->MappingPin2Wire();
+    //rou->MappingMultipin2Seg();
+    //rou->MappingPin2Wire();
 
     cout << "Create Plot" << endl;
     rou->Plot();
 
+    
     cout << "Write def & lef file" << endl;
     ckt->def_write();
     ckt->lef_write();
     ckt->debug();
+
     cout << "End program" << endl;
     return 0;
 }

@@ -8,6 +8,77 @@
 #define INVALID_FILE_FORMAT 200
 
 
+#define DEBUG_PARSER
+
+
+void OABusRouter::Circuit::Printall()
+{
+    printf("DESIGN BOUNDAY (%d %d) (%d %d)\n\n", originX, originY, originX + width, originY + height);
+    
+    int i, j, numtracks, numlayers, numoffsets;
+    int minpitch, maxpitch;
+    int prev, cur;
+    set<int> offsets;
+    Layer* curL;
+
+    numlayers = layers.size();
+    printf("vertical ->     {"); 
+    for(i=0; i < numlayers; i++)
+    {
+        curL = &layers[i];
+        if(curL->direction == VERTICAL)
+        {
+            printf(" %s", curL->name.c_str());
+        }
+    }
+    printf(" }\n");
+    printf("horizontal ->   {"); 
+    for(i=0; i < numlayers; i++)
+    {
+        curL = &layers[i];
+        if(curL->direction == HORIZONTAL)
+        {
+            printf("%s ", curL->name.c_str());
+        }
+    }
+    printf(" }\n\n");
+
+
+    for(i=0; i < numlayers; i++)
+    {
+        offsets.clear();
+        curL = &layers[i];
+        numtracks = curL->trackOffsets.size();
+        for(j=0; j < numtracks; j++)
+        {
+            offsets.insert(curL->trackOffsets[j]);
+        }
+
+
+        minpitch = INT_MAX;
+        maxpitch = INT_MIN;
+        numoffsets = offsets.size();
+
+        printf("%s ->   {", curL->name.c_str());
+        set<int>::iterator it = offsets.begin();
+        while(it != offsets.end())
+        {
+            cur = *it;           
+            //printf(" %d", *it);
+            if(it != offsets.begin())
+            {
+                minpitch = min(minpitch, abs(prev - cur));
+                maxpitch = max(maxpitch, abs(prev - cur));
+            }
+            prev = cur;
+            it++;
+        }
+        printf(" #total %d min %d max %d }\n", numoffsets, minpitch, maxpitch );
+    
+    }
+
+}
+
 bool OABusRouter::Circuit::getParam(char* fileName){
     ifstream inputFile(fileName);
     bool runtimeFlag = false;
@@ -226,7 +297,11 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
                     //lyr->tracks.push_back(track.id);
                     track.offset = (layer->is_vertical())?track.llx:track.lly;
                     layer->trackOffsets.push_back(track.offset);
-                    //printf("Track Offset %d\n", track.offset);
+                    
+                    if(layer->offsets.find(track.offset) == layer->offsets.end())
+                        layer->offsets.insert(track.offset); // (layer->is_vertical())?track.llx:track.lly);
+                    
+                    printf("Track Offset %d\n", track.offset);
                     this->tracks.push_back(track);
                     //pair<string,int> info(track.layer,track.offset);
                     //this->trackHashMap[GetHashKey(info)] = track.id; 
@@ -527,6 +602,10 @@ bool OABusRouter::Circuit::read_iccad2018(char* fileName)
         return false;
     }
     
+#ifdef DEBUG_PARSER
+    for(auto& bus : buses) bus.print();
+#endif
+
 
     for(int i=0; i<this->layers.size(); i++)
     {
@@ -589,12 +668,13 @@ void OABusRouter::Bit::print()
 {
     printf("(%d) Bit %s [%s] # of Pins %d\n", this->id, this->name.c_str(), this->busName.c_str(), this->pins.size());
 }
+*/
 
 void OABusRouter::Bus::print()
 {
     printf("(%d) Bus %s [# of bits %d] [# of pin shapes %d]\n", this->id, this->name.c_str(), this->numBits, this->numPinShapes);
 }
-
+/*
 void OABusRouter::Obstacle::print()
 {
     printf("(%d) Obstacle %s (%d %d) (%d %d)\n", this->id, this->layer.c_str(), this->boundary.ll.x, this->boundary.ll.y,
