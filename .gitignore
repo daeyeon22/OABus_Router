@@ -16,7 +16,10 @@ code/iccad18obr
 code/ilp/**
 code/ilp/*.lp
 code/*.def
+code/Makefile
 
+
+Makefile
 *.input
 *.lp
 *.lef
