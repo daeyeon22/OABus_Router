@@ -10,7 +10,7 @@
 //#define DEBUG
 
 //#define DEBUG_ROUTE
-#define _DEBUG_GRID
+//#define DEBUG_GRID
 
 // 3D mapping
 void OABusRouter::Router::TopologyMapping3D()
@@ -804,7 +804,7 @@ void OABusRouter::Grid3D::InitGcellCap(int layer, int dir, vector<int> &offsets)
             GCurx = (col == numCols-1) ? xoffset + width : GetOffset_x(col+1);// + GCELL_WIDTH, xoffset + width) ;
             GCury = (row == numRows-1) ? yoffset + height : GetOffset_y(row+1);// + GCELL_HEIGHT, yoffset + height);
 
-            printf("box (%d %d) (%d %d)\n", GCllx, GClly, GCurx, GCury);
+            //printf("box (%d %d) (%d %d)\n", GCllx, GClly, GCurx, GCury);
 
             queryBox = BoxBG(PointBG(GCllx, GClly), PointBG(GCurx, GCury));
             trackrtree->query(

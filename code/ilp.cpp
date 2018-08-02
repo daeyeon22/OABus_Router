@@ -493,7 +493,14 @@ void OABusRouter::Router::SolveILP_v2()
                         curS->l = l;
                         curS->assign = true;
                         //assign[segid] = true;
-                        
+                                
+                        for(col=curS->x1; col <= curS->x2; col++)
+                        {
+                            for(row = curS->y1; row <= curS->y2; row++)
+                            {
+                                grid[grid.GetIndex(col,row,l)]->cap -= curS->bw;
+                            }
+                        }
                         printf(" s%d:m%d", segid, l);
                     }
                     printf(" }\n");
@@ -505,11 +512,27 @@ void OABusRouter::Router::SolveILP_v2()
                         s2 = curJ->s2;
                         curJ->l1 = segs[s1].l;
                         curJ->l2 = segs[s2].l;
-                        if(l1 > l2)
+                        if(curJ->l1 > curJ->l2)
                         {
                             swap(curJ->l1, curJ->l2);
                             swap(curJ->s1, curJ->s2);
                         }
+
+
+
+                        l1 = curJ->l1+1;
+                        l2 = curJ->l2;
+                        col = curJ->x;
+                        row = curJ->y;
+                        while(l1 < l2)
+                        {
+                            grid[grid.GetIndex(col,row,l1)]->cap -= curJ->bw;
+                            l1++;
+                        }
+                        
+                        
+
+
                     }
                 }
                 else

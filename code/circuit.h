@@ -521,8 +521,12 @@ namespace OABusRouter
 
         // init.cpp 
         void Init();
+        void InitTrack();
         void Getpitch();
+
         void Printall();
+
+        bool is_vertical(int l){ return layers[l].is_vertical(); }
 
     };
 

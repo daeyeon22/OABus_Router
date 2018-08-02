@@ -214,6 +214,14 @@ bool OABusRouter::Circuit::getLayerInfo(char* fileName){
             }else{
                 if(*iter == "ENDLAYERS"){
                     inputFile.close();
+#ifdef DEBUG_PARSER
+                    for(auto& l : layers)
+                    {
+                        printf("%s %d\n", l.name.c_str(), l.id);
+                    }
+#endif
+
+
                     return true;
                 }else{
                     
@@ -272,6 +280,7 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
             }else{
                 if(*iter == "ENDTRACKS"){
                     inputFile.close();
+
                     return true;
                 }else{
                     string layerName = *iter++;
@@ -310,10 +319,10 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
 
                     //lyr->tracks.push_back(track.id);
                     track.offset = (layer->is_vertical())?track.llx:track.lly;
-                    layer->trackOffsets.push_back(track.offset);
+                    //layer->trackOffsets.push_back(track.offset);
                     
-                    if(layer->offsets.find(track.offset) == layer->offsets.end())
-                        layer->offsets.insert(track.offset); // (layer->is_vertical())?track.llx:track.lly);
+                    //if(layer->offsets.find(track.offset) == layer->offsets.end())
+                    //    layer->offsets.insert(track.offset); // (layer->is_vertical())?track.llx:track.lly);
                     
                     printf("Track Offset %d\n", track.offset);
                     this->tracks.push_back(track);
@@ -329,8 +338,6 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
         inputFile.close();
         return false;
     }
-
-
 
 }
 
