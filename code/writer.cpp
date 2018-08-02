@@ -2,7 +2,7 @@
 #include "route.h"
 
 #define DEBUG
-#define BLOCK_ENABLE
+#define BLOCK_EN
 
 using namespace std;
 using namespace OABusRouter;
@@ -42,12 +42,17 @@ void Circuit::def_write(string file_name) {
         Bit* theBit = &bits[i];
         pins[theBit->pins[0]].direction = "INPUT";
     }
+ 
+ 
+    Bus* theBus = &buses[1];
   
    
     // PINS 
     dot_def << "PINS " << pins.size() << " ;" << endl;
     for(int i=0; i < pins.size(); i++) {
         Pin* thePin = &pins[i];
+        if( bits[bitHashMap[thePin->bitName]].busName != theBus->name )
+            continue;
         int x_orig = ( thePin->llx + thePin->urx )/2;
         int y_orig = ( thePin->lly + thePin->ury )/2;
         //dot_def << "- pin_" << thePin->id << " + NET " << thePin->bitName << " + DIRECTION " << thePin->direction << " + USE SIGNAL" << endl;
@@ -70,6 +75,10 @@ void Circuit::def_write(string file_name) {
     dot_def << "NETS " << bits.size() << " ;" << endl;
     for(int i=0; i < bits.size(); i++) {
         Bit* theBit = &bits[i];
+
+        if( theBit->busName != theBus->name )
+            continue;
+
         dot_def << "- " << theBit->name << endl;
         dot_def << " ";
         for(int j=0; j < theBit->pins.size(); j++) {
@@ -105,6 +114,8 @@ void Circuit::def_write(string file_name) {
     // END NETS
     dot_def << endl;
 
+
+    #ifdef BLOCK_EN
     // BLOCKAGES
     dot_def << "BLOCKAGES " << obstacles.size() << " ;" << endl;
     for(int i=0; i < obstacles.size(); i++) {
@@ -115,6 +126,7 @@ void Circuit::def_write(string file_name) {
     dot_def << "END BLOCKAGES" << endl;
     // END BLOCKAGES
     dot_def << endl;
+    #endif
     dot_def << "END DESIGN" << endl;
     // END DESIGN
 
@@ -169,6 +181,11 @@ void Circuit::lef_write(string file_name) {
         dot_lef << endl;
 
     }
+
+    return;
+}
+
+void Circuit::out_write(){ 
 
     return;
 }
