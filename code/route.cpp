@@ -10,7 +10,7 @@
 //#define DEBUG
 
 //#define DEBUG_ROUTE
-#define DEBUG_GRID
+#define _DEBUG_GRID
 
 // 3D mapping
 void OABusRouter::Router::TopologyMapping3D()

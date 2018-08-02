@@ -126,11 +126,12 @@ int main(int argc, char** argv){
     cout << "Create Plot" << endl;
     rou->Plot();
 
+    ckt->debug();
+    //ckt->pin_access();
     
     cout << "Write def & lef file" << endl;
     ckt->def_write();
     ckt->lef_write();
-    ckt->debug();
 
     cout << "End program" << endl;
     return 0;

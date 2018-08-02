@@ -3,7 +3,7 @@
 #include "func.h"
 #include "route.h"
 
-#define DEBUG
+#define _DEBUG
 
 
 using namespace svg;

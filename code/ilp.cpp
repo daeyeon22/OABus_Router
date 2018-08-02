@@ -4,7 +4,7 @@
 #include "circuit.h"
 #include "route.h"
 
-#define DEBUG_CLIP
+#define _DEBUG_CLIP
 
 using google::dense_hash_map;
 using google::dense_hash_set;

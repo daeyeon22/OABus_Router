@@ -8,8 +8,6 @@ using namespace std;
 using namespace OABusRouter;
 
 void Circuit::pin_access() {
-    wire_track_mapping();
-    ContactMapping();
     for(int i=0; i < buses.size(); i++)
         pin_access(buses[i].name);
     return;
@@ -39,7 +37,14 @@ bool Circuit::is_intersect(Point _a, Point _b, Point _c, Point _d) {
     pair<int,int> b(_b.x,_b.y);
     pair<int,int> c(_c.x,_c.y);
     pair<int,int> d(_d.x,_d.y);
-    return is_intersect(make_pair(a,b),make_pair(c,d));
+    int ab = ccw(a,b,c)*ccw(a,b,d);
+    int cd = ccw(c,d,a)*ccw(c,d,b);
+    if( ab == 0 && cd == 0 ) {
+        if( a > b ) swap(a,b);
+        if( c > d ) swap(c,d);
+        return c <= b && a <= d;
+    }
+    return ab <= 0 && cd <= 0;
 }
 
 bool Circuit::is_intersect(Track* tr1, Track* tr2) {
@@ -47,10 +52,18 @@ bool Circuit::is_intersect(Track* tr1, Track* tr2) {
     pair<int,int> b(tr1->urx,tr1->ury);
     pair<int,int> c(tr2->llx,tr2->lly);
     pair<int,int> d(tr2->urx,tr2->ury);
-    return is_intersect(make_pair(a,b),make_pair(c,d));
+    int ab = ccw(a,b,c)*ccw(a,b,d);
+    int cd = ccw(c,d,a)*ccw(c,d,b);
+    if( ab == 0 && cd == 0 ) {
+        if( a > b ) swap(a,b);
+        if( c > d ) swap(c,d);
+        return c <= b && a <= d;
+    }
+    return ab <= 0 && cd <= 0;
 }
 
 bool Circuit::is_intersect(pair<pair<int,int>,pair<int,int> > line1, pair<pair<int,int>,pair<int,int> > line2) {
+
     pair<int,int> a = line1.first;
     pair<int,int> b = line1.second;
     pair<int,int> c = line2.first;
@@ -63,15 +76,6 @@ bool Circuit::is_intersect(pair<pair<int,int>,pair<int,int> > line1, pair<pair<i
         return c <= b && a <= d;
     }
     return ab <= 0 && cd <= 0;
-}
-
-void Circuit::wire_track_mapping() {
-    for(int i=0; i < rou->wires.size(); i++) {
-        Wire* theWire = &rou->wires[i];
-        Track* theTrack = &tracks[theWire->trackid];
-        theTrack->wires.push_back(theWire->trackid);
-    }
-    return;
 }
 
 void Circuit::ContactMapping() {
@@ -122,13 +126,65 @@ void Circuit::ContactMapping() {
 
 void Circuit::debug() {
 
-    for(int i=0; i < multipins.size(); i++) {
-        MultiPin* mp = &multipins[i];
-        Segment* sg = &rou->segs[rou->multipin2seg[i]];
-        cout << " layer distance : " << mp->l - sg->l << endl;
+
+
+    IntervalMapT imap;
+
+    imap += 
+        make_pair(IntervalT::open(10, 20), set<int>({23}));
+
+    
+
+    IntervalMapT::iterator it = imap.begin();
+    while(it != imap.end())
+    {
+        DiscreteIntervalT intv = (*it).first;
+        set<int> curset = (*it).second;
+        cout << intv << endl;
+
+        for(auto& tmp : curset)
+        {
+            cout << tmp << endl;
+        }
     }
 
+
+    IntervalSetT iset;
+
+    iset += IntervalT::open(0,1000);
+
+    iset -= IntervalT::open(200,400);
+
+
+
+
+
+
+    Layer* layer = &layers[1];
+    cout << " layer name : " << layer->name << endl;
+    cout << " layer tarcks size : " << layer->tracks.size() << endl;
+    Track* tr = &tracks[layer->tracks[1]];
+    cout << " point ll : " << tr->start.x << " " << tr->start.y << endl;
+    cout << " point ur : " << tr->end.x << " " << tr->end.y << endl; 
+
+    ContactMapping();
+
     exit(0);
+
+    for(int i=0; i < multipins.size(); i++){
+        MultiPin* mp = &multipins[i];
+        if( mp->busid == 1 ) {
+            Segment* Seg = &rou->segs[rou->multipin2seg[mp->id]];
+
+            cout << " seg layer : " << layers[Seg->l].name << endl;
+            cout << " mp layer : " << layers[mp->l].name << endl;
+            cout << " seg direction : " << layers[Seg->l].direction << endl;
+            cout << " mp align : " << mp->align << endl;
+            cout << " needVia : " << mp->needVia << endl;
+            cout << " - - - - - - - - - - " << endl;
+        }
+    }
+
     return;
 }
 

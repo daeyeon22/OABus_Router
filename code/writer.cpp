@@ -44,15 +44,15 @@ void Circuit::def_write(string file_name) {
     }
  
  
-    Bus* theBus = &buses[1];
+    //Bus* theBus = &buses[1];
   
    
     // PINS 
     dot_def << "PINS " << pins.size() << " ;" << endl;
     for(int i=0; i < pins.size(); i++) {
         Pin* thePin = &pins[i];
-        if( bits[bitHashMap[thePin->bitName]].busName != theBus->name )
-            continue;
+        //if( bits[bitHashMap[thePin->bitName]].busName != theBus->name )
+        //    continue;
         int x_orig = ( thePin->llx + thePin->urx )/2;
         int y_orig = ( thePin->lly + thePin->ury )/2;
         //dot_def << "- pin_" << thePin->id << " + NET " << thePin->bitName << " + DIRECTION " << thePin->direction << " + USE SIGNAL" << endl;
@@ -76,8 +76,8 @@ void Circuit::def_write(string file_name) {
     for(int i=0; i < bits.size(); i++) {
         Bit* theBit = &bits[i];
 
-        if( theBit->busName != theBus->name )
-            continue;
+        //if( theBit->busName != theBus->name )
+        //    continue;
 
         dot_def << "- " << theBit->name << endl;
         dot_def << " ";

@@ -84,7 +84,12 @@ namespace OABusRouter
         Point() : x(INT_MAX), y(INT_MAX) {}
         Point(int ix, int iy) : x(ix), y(iy) {}
         Point(const Point& pt) : x(pt.x), y(pt.y) {}
-
+        bool operator==(Point &b) {
+            return x == b.x && y == b.y;
+        }
+        bool operator!=(Point &b) {
+            return x != b.x || y != b.x;
+        }
         void print();
     };
     
@@ -159,7 +164,7 @@ namespace OABusRouter
             min_width(INT_MAX),
             name(INIT_STR) 
         {
-            tracks.reserve(32);
+            tracks.reserve(64);
         }
 
         Layer(const Layer& lr) :
@@ -179,6 +184,31 @@ namespace OABusRouter
         void print(bool all);
     };
 
+    struct Contact
+    {
+        Point p;
+        int id;
+        int trackid;
+        int l;
+        vector<int> tracks;
+        Contact() :
+            id(INT_MAX),
+            trackid(INT_MAX),
+            l(INT_MAX)
+            {
+                tracks.reserve(2);
+            }
+
+        Contact(const Contact &con) :
+            id(con.id),
+            trackid(con.trackid),
+            l(con.l),
+            p(con.p)
+            {
+                tracks.insert(tracks.end(),con.tracks.begin(),con.tracks.end());
+            }
+        void print();
+    };
 
     struct Track
     {
@@ -188,8 +218,13 @@ namespace OABusRouter
         int llx, lly;
         int urx, ury;
         int l; // layer id
-        Point ll;
-        Point ur;
+
+        Point start;
+        Point end;
+      
+
+        vector<int> wires;  // rou->wires index 
+        vector<int> contacts; // ckt->contacts index
         
         // Segment tree
         //IntervalMapT assignedIntervals;
@@ -214,7 +249,9 @@ namespace OABusRouter
             lly(tr.lly),
             urx(tr.urx),
             ury(tr.ury),
-            l(tr.l) {}
+            l(tr.l),
+            start(tr.start),
+            end(tr.end) {}
 
         void print();
     };
@@ -383,17 +420,6 @@ namespace OABusRouter
 
     };
    
-    struct Contact
-    {
-        int id;
-        Contact() :
-        id(INT_MAX) {}
-
-        Contact(const Contact &con) :
-            id(con.id) {}
-        void print();
-    };
-    
     class Circuit
     {
       private:
@@ -425,7 +451,7 @@ namespace OABusRouter
         vector<Bit> bits;
         vector<Pin> pins;
         vector<MultiPin> multipins;
-        
+        vector<Contact> contacts;
         
         // Hash Map
         dense_hash_map<string,int> bitHashMap;
@@ -484,7 +510,14 @@ namespace OABusRouter
         // pin_aceess.cpp
         void pin_access();
         void pin_access(string busName);
+        bool is_cross(Track* a, Track* b);
+        bool is_intersect(Point _a, Point _b, Point _c, Point _d);
+        bool is_intersect(Track* a, Track* b);
+        bool is_intersect(pair<pair<int,int>,pair<int,int> > line1, pair<pair<int,int>,pair<int,int> > line2);
+        void wire_track_mapping();
+        void ContactMapping();
         void debug();
+        int ccw(pair<int,int> a, pair<int,int> b, pair<int,int> c);
 
         // init.cpp 
         void Init();

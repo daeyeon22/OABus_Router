@@ -8,7 +8,7 @@
 #define INVALID_FILE_FORMAT 200
 
 
-#define DEBUG_PARSER
+#define _DEBUG_PARSER
 
 
 void OABusRouter::Circuit::Printall()
@@ -294,6 +294,20 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
                     Layer* layer = &this->layers[this->layerHashMap[layerName]];
                     layer->min_width = min(layer->min_width,track.width);
                     layer->tracks.push_back(track.id);
+
+
+                    if( layer->is_vertical() == true ) {
+                        track.start.x = track.llx;;
+                        track.start.y = track.lly;
+                        track.end.x = track.urx;
+                        track.end.y = track.ury;
+                    } else {
+                        track.start.x = track.llx;
+                        track.start.y = track.lly;
+                        track.end.x = track.urx;
+                        track.end.y = track.ury;
+                    }
+
                     //lyr->tracks.push_back(track.id);
                     track.offset = (layer->is_vertical())?track.llx:track.lly;
                     layer->trackOffsets.push_back(track.offset);
