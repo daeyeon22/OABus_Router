@@ -127,6 +127,10 @@ namespace OABusRouter
         vector<TreeEdge> edges;
         vector<int> segs;
         vector<int> junctions;
+        vector<int> gcells;
+
+
+
 
         dense_hash_map<int,int> node2multipin;
 

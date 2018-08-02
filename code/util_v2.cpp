@@ -12,6 +12,7 @@ namespace br = OABusRouter;
 static string plotdir = "./plot/";
 static string plotall = "./plot/bus_all.svg";
 static bool show_track = true;
+static bool maze = false;
 
 void OABusRouter::Router::Plot()
 {
@@ -34,6 +35,7 @@ void OABusRouter::Router::Plot()
 
 
 }
+
 
 
 void CreateBusPlot(bool all, int busid, const char* fileName)
@@ -168,49 +170,108 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
 
     }
 
-
-    //
-    for(segid=0; segid < numSegs; segid++)
+    if(maze)
     {
-        br::Segment* curS = &rou->segs[segid];
-        br::Bus* curB = &ckt->buses[rou->seg2bus[curS->id]];
-        target = (curB->id == busid)?true:false;
-        if(!all && !target) continue;   
-        GCllx = min(curS->x1, curS->x2);
-        GClly = min(curS->y1, curS->y2);
-        GCurx = max(curS->x1, curS->x2);
-        GCury = max(curS->y1, curS->y2);
-        curl = curS->l;
-        int g1 = grid->GetIndex(GCllx, GClly, curS->l);
-        int g2 = grid->GetIndex(GCurx, GCury, curS->l);
-        llx = grid->llx(g1) + layoutOffsetX;
-        lly = grid->lly(g1) + layoutOffsetY;
-        urx = grid->urx(g2) + layoutOffsetX;
-        ury = grid->ury(g2) + layoutOffsetY;
-        //llx = max(llx, layoutOffsetX);
-        //lly = max(lly, layoutOffsetY);
-        //urx = min(urx, layoutOffsetX + layoutWidth);
-        //ury = min(ury, layoutOffsetY + layoutHeight);
-        //llx = max(llx, 0); //layoutOffsetX);
-        //lly = max(lly, 0); //layoutOffsetY);
-        //urx = min(urx, layoutWidth);
-        //ury = min(ury, layoutHeight);
-        
-        content = curB->name + " BW[" + to_string(curB->numBits) + "]";
-        textOffsetX = (int)(1.0*(urx-llx)/2 + 0.5);
-        textOffsetY = (int)(1.0*(ury-lly)/2 + 0.5);
-       
+     
+        if(!all){
+            br::StTree* curtree = rou->rsmt[rou->rsmt.treeID[busid]];
+            for(auto& gcellid : curtree->gcells)
+            {
+                llx = grid->llx(gcellid) + layoutOffsetX;
+                lly = grid->lly(gcellid) + layoutOffsetY;
+                urx = grid->urx(gcellid) + layoutOffsetX;
+                ury = grid->ury(gcellid) + layoutOffsetY;
+                curl = rou->grid[gcellid]->l;
+                Polygon poly(Fill(colors[curl], 0.3), Stroke(5, Color::Black));
+                poly << Point(llx,lly) << Point(llx,ury) << Point(urx, ury) << Point(urx, lly);
+                doc << poly;
+            }
+        }   
 
-        Polygon poly(Fill(colors[curl], 0.3), Stroke(5, Color::Black));
-        poly << Point(llx,lly) << Point(llx,ury) << Point(urx, ury) << Point(urx, lly);
-        doc << poly;
-        
+    }
+    else
+    {
 
-        //doc << Rectangle(Point(llx,lly), (urx-llx), (ury-lly), colors[curl]);
+        
+        for(int i=0; i < numBuses; i++)
+        {
+            target = (i == busid)?true:false;
+            if(!all && !target) continue;   
+            br::StTree* curtree = rou->rsmt[rou->rsmt.treeID[busid]];
+            for(auto segid : curtree->segs)
+            {
+                br::Segment* curS = &rou->segs[segid];
+                br::Bus* curB = &ckt->buses[rou->seg2bus[curS->id]];
+                GCllx = min(curS->x1, curS->x2);
+                GClly = min(curS->y1, curS->y2);
+                GCurx = max(curS->x1, curS->x2);
+                GCury = max(curS->y1, curS->y2);
+                curl = curS->l;
+                int g1 = grid->GetIndex(GCllx, GClly, curS->l);
+                int g2 = grid->GetIndex(GCurx, GCury, curS->l);
+                llx = grid->llx(g1) + layoutOffsetX;
+                lly = grid->lly(g1) + layoutOffsetY;
+                urx = grid->urx(g2) + layoutOffsetX;
+                ury = grid->ury(g2) + layoutOffsetY;
+                //llx = max(llx, layoutOffsetX);
+                //lly = max(lly, layoutOffsetY);
+                //urx = min(urx, layoutOffsetX + layoutWidth);
+                //ury = min(ury, layoutOffsetY + layoutHeight);
+                //llx = max(llx, 0); //layoutOffsetX);
+                //lly = max(lly, 0); //layoutOffsetY);
+                //urx = min(urx, layoutWidth);
+                //ury = min(ury, layoutHeight);
+
+                content = curB->name + " BW[" + to_string(curB->numBits) + "]";
+                textOffsetX = (int)(1.0*(urx-llx)/2 + 0.5);
+                textOffsetY = (int)(1.0*(ury-lly)/2 + 0.5);
+
+
+                Polygon poly(Fill(colors[curl], 0.3), Stroke(5, Color::Black));
+                poly << Point(llx,lly) << Point(llx,ury) << Point(urx, ury) << Point(urx, lly);
+                doc << poly;
+
+
+                //doc << Rectangle(Point(llx,lly), (urx-llx), (ury-lly), colors[curl]);
 #ifdef DEBUG
-        printf("Rect (%8d %8d) (%8d %8d) -> Segment (%d %d) (%d %d)\n", llx, lly, urx, ury, GCllx, GClly, GCurx, GCury);
+                printf("Rect (%8d %8d) (%8d %8d) -> Segment (%d %d) (%d %d)\n", llx, lly, urx, ury, GCllx, GClly, GCurx, GCury);
 #endif
-        //doc << Text(Point(textOffsetX, textOffsetY), content, Fill(), Font(300));
+                //doc << Text(Point(textOffsetX, textOffsetY), content, Fill(), Font(300));
+                
+                for(auto wireid : curS->wires)
+                {
+                    br::Wire* curWire = &rou->wires[wireid];
+                    llx = curWire->x1 + layoutOffsetX;
+                    lly = curWire->y1 + layoutOffsetY;
+                    urx = curWire->x2 + layoutOffsetX;
+                    ury = curWire->y2 + layoutOffsetY;
+                    curl = curWire->l; //ckt->layerHashMap[curPin->layer];   
+
+                    if(llx == urx)
+                    {
+                        llx -= (int)(1.0*curWire->width/2);
+                        urx += (int)(1.0*curWire->width/2);
+                    }
+
+                    if(lly == ury)
+                    {
+                        lly -= (int)(1.0*curWire->width/2);
+                        ury += (int)(1.0*curWire->width/2);
+                    }
+
+                    Polygon poly(colors[curl], Stroke(10, Color::Black));
+                    poly << Point(llx,lly) << Point(llx,ury) << Point(urx, ury) << Point(urx, lly);
+                    doc << poly;
+                    //doc << Rectangle(Point(llx,lly), (urx-llx), (ury-lly), colors[curl]);
+#ifdef DEBUG_WIRE
+                    printf("Rect (%8d %8d) (%8d %8d)\n", llx, lly, urx, ury);
+#endif
+
+                }
+            
+            }
+
+        }
 
     }
     // Bus
@@ -250,66 +311,6 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
     }
 
 
-    // Wire
-    for(wireid=0; wireid < numWires; wireid++)
-    {
-        br::Wire* curWire = &rou->wires[wireid];
-        target = (curWire->busid == busid)? true : false;
-        if(!target && !all) continue;
-
-        llx = curWire->x1 + layoutOffsetX;
-        lly = curWire->y1 + layoutOffsetY;
-        urx = curWire->x2 + layoutOffsetX;
-        ury = curWire->y2 + layoutOffsetY;
-        curl = curWire->l; //ckt->layerHashMap[curPin->layer];   
-
-        if(llx == urx)
-        {
-            llx -= (int)(1.0*curWire->width/2);
-            urx += (int)(1.0*curWire->width/2);
-        }
-
-        if(lly == ury)
-        {
-            lly -= (int)(1.0*curWire->width/2);
-            ury += (int)(1.0*curWire->width/2);
-        }
-
-        Polygon poly(colors[curl], Stroke(10, Color::Black));
-        poly << Point(llx,lly) << Point(llx,ury) << Point(urx, ury) << Point(urx, lly);
-        doc << poly;
-        //doc << Rectangle(Point(llx,lly), (urx-llx), (ury-lly), colors[curl]);
-#ifdef DEBUG_WIRE
-        printf("Rect (%8d %8d) (%8d %8d)\n", llx, lly, urx, ury);
-#endif
-    }
-
-
-    // Via
-    for(viaid=0; viaid < numVias; viaid++)
-    {
-        br::Via* curV = &rou->vias[viaid];
-        
-        target = (rou->via2bus[viaid] == busid)? true : false;
-        if(!target && !all) continue;
-
-        centerX = curV->x + layoutOffsetX;
-        centerY = curV->y + layoutOffsetY;
-        curl = curV->l1;
-        double diameter = 100;
-        l1 = curV->l1;
-        l2 = curV->l2;
-        while(l1 < l2)
-        {
-            doc << Circle(Point(centerX, centerY), diameter, Fill(colors[l1], 1.0), Stroke(10, Color::Black));
-            l1++;
-        }
-        
-#ifdef DEBUG_VIA
-        printf("Circle (%8d %8d) Diameter %d\n", centerX, centerY, (int)diameter);
-#endif
-
-    }
     // Category
     //int coffsetx, coffsety;
     //int cwidth, cheight;
