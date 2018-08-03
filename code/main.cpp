@@ -34,6 +34,7 @@ int main(int argc, char** argv){
     char* outputFileName;
     int numThreads;
 
+
     for(int i=1; i < argc; i++){
         if(i+1 != argc){
             if(strncmp(argv[i], "-input", 6) == 0){

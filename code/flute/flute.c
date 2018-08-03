@@ -4,6 +4,9 @@
 #include <math.h>
 #include "flute.h"
 
+#include "post.cxx"
+#include "powv.cxx"
+
 #if D<=7
 #define MGROUP 5040/4  // Max. # of groups, 7! = 5040
 #define MPOWV 15  // Max. # of POWVs per group
@@ -51,6 +54,15 @@ void plottree(Tree t);
 
 void readLUT()
 {
+    /// FLUTE TEMP FILE GEN
+        FILE *file1 = fopen("POST9.dat","w");
+        fprintf(file1,"%s\n",POST9_dat);
+        fclose(file1); 
+        FILE *file2 = fopen("POWV9.dat","w");
+        fprintf(file2,"%s\n",POWV9_dat);
+        fclose(file2); 
+    ///
+
     unsigned char charnum[256], line[32], *linep, c;
     FILE *fpwv, *fprt;
     struct csoln *p;
