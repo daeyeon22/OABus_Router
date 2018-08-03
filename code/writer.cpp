@@ -70,6 +70,14 @@ void Circuit::def_write(string file_name) {
         Bit* theBit = &bits[theWire->bitid];
         theBit->wires.push_back(theWire->id);
     }
+    /////////////////////////////////////////////////////
+    //for(int i=0; i < rou->vias.size(); i++)
+    //{
+    //    Via* theVia = &rou->vias[i];
+    //    Bit* theBit = &bits[rou->wires[theVia->w1].bitid];
+    //    theBit->vias.push_back(theVia->id);
+    //}
+    /////////////////////////////////////////////////////
 
     // NETS
     dot_def << "NETS " << bits.size() << " ;" << endl;
@@ -185,7 +193,41 @@ void Circuit::lef_write(string file_name) {
     return;
 }
 
-void Circuit::out_write(){ 
+void Circuit::out_write(string file_name){ 
+
+    ofstream dot_out(file_name.c_str());
+
+
+    if(!dot_out.good())
+    {
+        cerr << "out_writer :: cannot open '" << file_name << "' for writing. " << endl;
+#ifdef DEBUG
+        exit(0);
+#endif
+    }
+
+
+
+    for(int i=0; i < buses.size(); i++)
+    {
+        Bus* curB = &buses[i];
+        dot_out << "BUS " << curB->name << endl;
+
+
+        for(int j =0; j < curB->numBits; j++)
+        {
+            Bit* curBit = &bits[curB->bits[j]];
+            dot_out << "BIT " << curBit->name << endl;
+            int numpath = curBit->wires.size(); 
+
+
+        }
+        dot_out << "ENDBUS" << endl;
+    }
+
+
+
+
 
     return;
 }

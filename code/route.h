@@ -189,7 +189,26 @@ namespace OABusRouter
     };
 
 
+   
+    struct Interval
+    {
+        int numtracks;
     
+        vector<IntervalSetT> empty;
+        vector<IntervalMapT> assign;
+        dense_hash_map<int,int> offset;
+        dense_hash_map<int,int> layer;
+        dense_hash_map<int,bool> is_vertical;
+
+        Interval()
+        {
+            offset.set_empty_key(INT_MAX);
+            layer.set_empty_key(INT_MAX);
+            is_vertical.set_empty_key(INT_MAX);
+        }
+    };
+
+
     
     struct RSMT
     {
@@ -449,28 +468,27 @@ namespace OABusRouter
     struct Via
     {
         int id;
+        int bitid;
+        int busid;
         int x, y;
-        int l1, l2;
-        int w1, w2;
+        int l;
 
         Via():
             id(INT_MAX),
+            bitid(INT_MAX),
+            busid(INT_MAX),
             x(INT_MAX),
             y(INT_MAX),
-            l1(INT_MAX),
-            l2(INT_MAX),
-            w1(INT_MAX),
-            w2(INT_MAX) {}
+            l(INT_MAX)
+        {}
 
         Via(const Via& v):
             id(v.id),
+            bitid(v.bitid),
+            busid(v.busid),
             x(v.x),
             y(v.y),
-            l1(v.l1),
-            l2(v.l2),
-            w1(v.w1),
-            w2(v.w2) {}
-
+            l(v.l) {}
     };
 
     class Router
@@ -481,9 +499,11 @@ namespace OABusRouter
       public:
         static Router* shared();
 
-        RSMT    rsmt;
-        Grid3D  grid;
-        Rtree   rtree;
+        RSMT        rsmt;
+        Grid3D      grid;
+        Rtree       rtree;
+        Interval    interval;
+
 
 
         // Created Segments
@@ -520,6 +540,7 @@ namespace OABusRouter
 
         // Initialize Grid3D
         void InitGrid3D();
+        void InitInterval();
         void CreateTrackRtree();
         
         SegRtree* GetTrackRtree();

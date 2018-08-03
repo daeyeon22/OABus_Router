@@ -132,7 +132,7 @@ void OABusRouter::Router::MappingPin2Wire()
 void OABusRouter::Router::CreateVia()
 {
 
-    int numJuncs, numBW, numtrees, busid;
+    int numJuncs, numBW, numtrees, busid, bitid;
     int i, c, s1, s2, l1, l2, x, y;
     bool assign1, assign2, ver1, ver2, isLL1, isUR1, isLL2, isUR2;
     Junction *curJ;
@@ -198,11 +198,17 @@ void OABusRouter::Router::CreateVia()
                 {
                     wire1 = &wires[seg1->wires[c]];
                     wire2 = &wires[seg2->wires[c]];
+                    bitid = wire1->bitid;
+                    if(wire1->bitid != wire2->bitid)
+                    {
+                        cout << "different bitid..." << endl;
+                        exit(0); 
+                    }
+
 
                     // via coordinate
                     if(ver1 && !ver2)
                     {
-
                         x = wire1->x1;
                         y = wire2->y1;
                     }
@@ -236,7 +242,9 @@ void OABusRouter::Router::CreateVia()
 
                     if(!bg::intersects(tmp1, tmp2))
                     {
+#ifdef DEBUG_VIA
                         cout << "No Intersection point..." << endl;
+#endif
                         //exit(0);
                     }
 
@@ -254,18 +262,19 @@ void OABusRouter::Router::CreateVia()
 #endif
 
 
-                    Via via;
-                    via.id = vias.size();
-                    via.x = x;
-                    via.y = y;
-                    via.l1 = l1;
-                    via.l2 = l2;
-                    via.w1 = wire1->id;
-                    via.w2 = wire2->id;
 
-                    vias.push_back(via);
-                    via2bus[via.id] = busid;
-
+                    for(int l=l1; l < l2; l++)
+                    {
+                        Via via;
+                        via.id = vias.size();
+                        via.bitid = bitid;
+                        via.busid = busid;
+                        via.x = x;
+                        via.y = y;
+                        via.l = l;
+                        vias.push_back(via);
+                        via2bus[via.id] = busid;
+                    }
 
                     // cut
                     if(isLL1)
@@ -460,18 +469,8 @@ void OABusRouter::Router::TrackAssign()
                     width = curBus->width[curl];
                     bitid = curBus->bits[s];
                     trackid = *it++;
-
-                    if(isVertical)
-                    {
-                        start = y1;
-                        end = y2;
-                    }
-                    else
-                    {
-                        start = x1;
-                        end = y2;
-                    }
-
+                    start = isVertical ? y1 : x1;
+                    end = isVertical ? y2 : x2;
 
                     // Erase available resources
                     while(start <= end)
@@ -490,22 +489,25 @@ void OABusRouter::Router::TrackAssign()
                     curWire.trackid = trackid;
                     curWire.seq = seq;
                     curWire.vertical = isVertical;
-                    if(isVertical)
-                    {
-                        curWire.x1 = ckt->tracks[trackid].offset;
-                        curWire.x2 = ckt->tracks[trackid].offset;
-                        curWire.y1 = grid.lly(g1); //grid.GetOffset_y(y1);
-                        curWire.y2 = grid.ury(g2); //min(grid.GetOffset_y(y2) + GCELL_HEIGHT, grid.yoffset + grid.height);
-                    }
-                    else
-                    {
-                        curWire.y1 = ckt->tracks[trackid].offset;
-                        curWire.y2 = ckt->tracks[trackid].offset;
-                        curWire.x1 = grid.llx(g1); //GetOffset_x(x1);
-                        curWire.x2 = grid.urx(g2); //min(grid.GetOffset_x(x2) + GCELL_WIDTH, grid.xoffset + grid.width);
-                    }
-
+                    curWire.x1 = isVertical? interval.offset[trackid] : grid.llx(g1);
+                    curWire.x2 = isVertical? interval.offset[trackid] : grid.urx(g2);
+                    curWire.y1 = isVertical? grid.lly(g1) : interval.offset[trackid]; 
+                    curWire.y2 = isVertical? grid.ury(g2) : interval.offset[trackid]; 
 #ifdef DEBUG_TRACK
+
+                    if(ckt->tracks[trackid].offset != interval.offset[trackid])
+                    {
+                        cout << "Invalid mapping..." << endl;
+                        cout << "trackid : "<< trackid << endl;
+                        cout << "#tracks : " << ckt->tracks.size() << endl;
+                        Track* curt = &ckt->tracks[trackid];
+                        printf("track%d (%d %d) (%d %d) offset %d\n", trackid, curt->llx, curt->lly, curt->urx, curt->ury, curt->offset);
+                        
+                        cout << ckt->tracks[trackid].offset << endl;
+                        cout << interval.offset[trackid] << endl;
+                        exit(0);
+                    }
+                    
                     printf("Create wire(%-4d) (%4d %-4d) (%4d %-4d) M%d --> %s\n",s,curWire.x1, curWire.y1, curWire.x2, curWire.y2, curWire.l, ckt->buses[curWire.busid].name.c_str());  
 #endif
                     wires.push_back(curWire);

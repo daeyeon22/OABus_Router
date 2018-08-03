@@ -43,11 +43,11 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
 
     int layoutOffsetX, layoutOffsetY, layoutWidth, layoutHeight;
     int numGCs, numRows, numCols, numLayers, GW, GH;
-    int xoffset, yoffset;
+    int xoffset, yoffset, offset;
     int llx, lly, urx, ury, curl, l1, l2;
     int col, row; 
     int wireid;
-
+    bool isVertical;
     //char* fileName = plotall.c_str();
 
 #ifdef DEBUG
@@ -158,14 +158,29 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         for(trackid=0; trackid < numTracks; trackid++)
         {
             br::Track* curT = &ckt->tracks[trackid];
-            llx = curT->llx + layoutOffsetX;
-            lly = curT->lly + layoutOffsetY;
-            urx = curT->urx + layoutOffsetX;
-            ury = curT->ury + layoutOffsetY;
-            l = curT->l;
+            IntervalSetT::iterator it1 = rou->interval.empty[trackid].begin();
+            IntervalSetT::iterator it2 = rou->interval.empty[trackid].end();
 
-            doc << Line(Point(llx, lly), Point(urx, ury), Stroke(10,colors[l]));
+            l = rou->interval.is_vertical[trackid];
+            offset = rou->interval.offset[trackid];            
+            isVertical = rou->interval.is_vertical[trackid];
 
+            while(it1 != it2)
+            {
+                DiscreteIntervalT intv = *it1++;
+                llx = isVertical ? offset : intv.lower();
+                urx = isVertical ? offset : intv.upper();
+                lly = isVertical ? intv.lower() : offset;
+                ury = isVertical ? intv.upper() : offset;
+                 
+                llx += layoutOffsetX;
+                urx += layoutOffsetX;
+                lly += layoutOffsetY;
+                ury += layoutOffsetY;
+
+
+                doc << Line(Point(llx, lly), Point(urx, ury), Stroke(10,colors[l]));
+            }
         }
 
     }

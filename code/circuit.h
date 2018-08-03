@@ -290,7 +290,7 @@ namespace OABusRouter
         string busName;
         vector<int> pins;
         vector<int> wires;
-
+        vector<int> vias;
         //Rect boundary();
 
         Bit() : 
@@ -479,7 +479,7 @@ namespace OABusRouter
         void def_write(string filename);
         void lef_write();
         void lef_write(string filename);
-        void out_write();
+        void out_write(string filename);
 
         // pin_aceess.cpp
         void pin_access();

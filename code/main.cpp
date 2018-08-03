@@ -77,6 +77,7 @@ int main(int argc, char** argv){
 
     cout << "Initialize" << endl;
     ckt->Init();
+    rou->InitInterval();
     rou->InitGrid3D();
     
     
