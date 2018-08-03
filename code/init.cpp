@@ -145,8 +145,8 @@ void OABusRouter::Circuit::InitTrack()
         }
     }
 
-    tracks.clear();
-    tracks = tmp;
+    //tracks.clear();
+    //tracks = tmp;
     
 }
 

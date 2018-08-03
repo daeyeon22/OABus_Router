@@ -236,7 +236,8 @@ bool OABusRouter::Circuit::getLayerInfo(char* fileName){
                     layer.direction = direction;
                     layer.spacing = spacing;
                     this->layers.push_back(layer);
-                    this->layerHashMap[layerName] = layer.id;
+                    this->layerHashMap.insert(make_pair(layerName,layer.id));
+                    //this->layerHashMap[layerName] = layer.id;
                 }
             }
         }
@@ -304,6 +305,7 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
                     layer->min_width = min(layer->min_width,track.width);
                     layer->tracks.push_back(track.id);
 
+                    assert(track.l == layer->id);
 
                     if( layer->is_vertical() == true ) {
                         track.start.x = track.llx;;
@@ -317,15 +319,15 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
                         track.end.y = track.ury;
                     }
 
-                    //lyr->tracks.push_back(track.id);
                     track.offset = (layer->is_vertical())?track.llx:track.lly;
                     //layer->trackOffsets.push_back(track.offset);
                     
                     //if(layer->offsets.find(track.offset) == layer->offsets.end())
                     //    layer->offsets.insert(track.offset); // (layer->is_vertical())?track.llx:track.lly);
                     
-                    printf("Track Offset %d\n", track.offset);
+                    //printf("Track Offset %d\n", track.offset);
                     this->tracks.push_back(track);
+                    
                     //pair<string,int> info(track.layer,track.offset);
                     //this->trackHashMap[GetHashKey(info)] = track.id; 
                 }
@@ -428,7 +430,6 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                         // Bits Information
                         bool bitFlag = false;
                         int pin_count = 0;
-                        MultiPin* theMultiPin;
                         Bit* targetBit;
                         while(true){
                             if(!getline(inputFile,line)) throw READ_FAILED;

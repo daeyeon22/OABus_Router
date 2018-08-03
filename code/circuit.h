@@ -72,6 +72,11 @@ typedef bgi::rtree<pair<bgSegmentT, int>, bgi::rstar<16>> SegRtreeT;
 typedef bgi::rtree<pair<bgBoxT, int>, bgi::rstar<16>> BoxRtreeT;
 typedef bgi::rtree<pair<bgPointT, int>, bgi::rstar<16>> PointRtreeT;
 
+typedef bg::model::linestring<bgPointT> linestring;
+typedef bg::model::multi_linestring<linestring> mlinestring;
+typedef bg::model::polygon<bgPointT> poly;
+typedef bg::model::multi_polygon<poly> mpoly;
+
 // Obstacle-Aware On-Track Bus Router
 namespace OABusRouter
 {
@@ -164,7 +169,7 @@ namespace OABusRouter
             min_width(INT_MAX),
             name(INIT_STR) 
         {
-            tracks.reserve(64);
+            tracks.reserve(1028);
         }
 
         Layer(const Layer& lr) :
@@ -190,11 +195,15 @@ namespace OABusRouter
         int id;
         int trackid;
         int l;
+        int connected_con; // connected contact on other layer;
+        bool wire_use;
         vector<int> tracks;
         Contact() :
             id(INT_MAX),
             trackid(INT_MAX),
-            l(INT_MAX)
+            l(INT_MAX),
+            connected_con(INT_MAX),
+            wire_use(false)
             {
                 tracks.reserve(2);
             }
@@ -203,7 +212,9 @@ namespace OABusRouter
             id(con.id),
             trackid(con.trackid),
             l(con.l),
-            p(con.p)
+            p(con.p),
+            connected_con(con.connected_con),
+            wire_use(con.wire_use)
             {
                 tracks.insert(tracks.end(),con.tracks.begin(),con.tracks.end());
             }
@@ -221,7 +232,6 @@ namespace OABusRouter
 
         Point start;
         Point end;
-      
 
         vector<int> wires;  // rou->wires index 
         vector<int> contacts; // ckt->contacts index
@@ -264,7 +274,8 @@ namespace OABusRouter
         int llx, lly;
         int urx, ury;
         int l; // layer id
-        
+        int trackid;
+
         string bitName;
         //string layer;
         //Rect boundary;
@@ -277,6 +288,7 @@ namespace OABusRouter
             urx(INT_MIN),
             ury(INT_MIN),
             l(INT_MAX),
+            trackid(INT_MAX),
             bitName(INIT_STR),
             direction("OUTPUT") {}
 
@@ -287,6 +299,7 @@ namespace OABusRouter
             urx(p.urx),
             ury(p.ury),
             l(p.l),
+            trackid(p.trackid),
             bitName(p.bitName),
             direction(p.direction) {}
 
@@ -509,15 +522,20 @@ namespace OABusRouter
 
         // pin_aceess.cpp
         void pin_access();
-        void pin_access(string busName);
+        void pin_access(int busid);
         bool is_cross(Track* a, Track* b);
         bool is_intersect(Point _a, Point _b, Point _c, Point _d);
+        bool rect_intersect(Point a, Point b, Point c, Point d);
         bool is_intersect(Track* a, Track* b);
         bool is_intersect(pair<pair<int,int>,pair<int,int> > line1, pair<pair<int,int>,pair<int,int> > line2);
         void wire_track_mapping();
+        void pin_track_mapping();
         void ContactMapping();
         void debug();
         int ccw(pair<int,int> a, pair<int,int> b, pair<int,int> c);
+
+        bgBoxT trackToBox(Track& _track);
+        poly buffered_track(Track& track);
 
         // init.cpp 
         void Init();

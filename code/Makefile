@@ -103,7 +103,7 @@ flute/heap.o: $(FLUTEDIR)/heap.c $(FLUTEDIR)/heap.h
 flute/dist.o: $(FLUTEDIR)/dist.c $(FLUTEDIR)/dist.h
 	$(CXX) $(CCFLAGS) -c -o $@ $< 
 
-flute/flute.o: $(FLUTEDIR)/flute.c $(FLUTEDIR)/flute.h
+flute/flute.o: $(FLUTEDIR)/flute.c $(FLUTEDIR)/flute.h $(FLUTEDIR)/powv.cxx $(FLUTEDIR)/post.cxx
 	$(CXX) $(CCFLAGS) -c -o $@ $< 
 
 flute/flute_mst.o: $(FLUTEDIR)/flute_mst.c $(FLUTEDIR)/flute.h

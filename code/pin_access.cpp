@@ -9,16 +9,29 @@ using namespace OABusRouter;
 
 void Circuit::pin_access() {
     wire_track_mapping();
+    pin_track_mapping();
     ContactMapping();
     for(int i=0; i < buses.size(); i++)
-        pin_access(buses[i].name);
+        pin_access(i);
     return;
 }
 
-void Circuit::pin_access(string busName) {
+void Circuit::pin_access(int busid) {
+    Bus* bus = &buses[busid];
+    for(int i=0; i < bus->multipins.size(); i++) {
+        MultiPin* mp = &multipins[bus->multipins[i]];
+        Segment* sg = &rou->segs[rou->multipin2seg[mp->id]];
+        assert ( sg->wires.size() == mp->pins.size() );
 
+        int dist_l = mp->l - sg->l;
+        if( mp->needVia == true )
+            if( mp->l == 0 )
+                dist_l++;
+            else
+                dist_l--;
+        cout << " dist l : " << dist_l << endl;
 
-
+    }
     return;
 }
 
@@ -74,6 +87,50 @@ void Circuit::wire_track_mapping() {
     return;
 }
 
+void Circuit::pin_track_mapping() {
+    int count = 0;
+    for(int i=0; i < multipins.size(); i++) {
+        MultiPin* MP = &multipins[i];
+        Segment* Seg = &rou->segs[rou->multipin2seg[i]];
+        for(int j = 0; j < MP->pins.size(); j++) {
+            Pin* P = &this->pins[MP->pins[j]];
+            int layer_num = P->l;
+            if( MP->needVia == true ) {
+                if( layer_num == 0 )
+                    layer_num++;
+                else
+                    layer_num--; 
+            }
+            Layer* theLayer = &layers[layer_num];
+            for(int k=0; k < theLayer->tracks.size(); k++) {
+                Track* TR = &tracks[theLayer->tracks[k]];
+                Point _a(P->llx,P->lly);
+                Point _b(P->urx,P->ury);
+                Point _c, _d;
+                if( theLayer->is_vertical() ){
+                    _c.x = TR->llx - TR->width/2;
+                    _c.y = TR->lly;
+                    _d.x = TR->urx + TR->width/2;
+                    _d.y = TR->ury;
+                } else {
+                    _c.x = TR->llx;
+                    _c.y = TR->lly - TR->width/2;
+                    _d.x = TR->urx;
+                    _d.y = TR->ury + TR->width/2;
+                }
+                if( rect_intersect(_a,_b,_c,_d) == true ) {
+                    P->trackid = TR->id;
+                    count++;
+                    break; 
+                }
+            }
+        }
+    }
+    cout << " num_pin : " << pins.size();
+    cout << " count : " << count << endl;
+    return;
+}
+
 void Circuit::ContactMapping() {
 
     for(int i=1; i < layers.size(); i++) {
@@ -121,27 +178,58 @@ void Circuit::ContactMapping() {
 }
 
 void Circuit::debug() {
+    Pin* P = &pins[90];
+    Layer* L = &layers[P->l];
+    for(int i=0; i < L->tracks.size(); i++) {
+        Track* T = &tracks[L->tracks[i]];
 
-    for(int i=0; i < multipins.size(); i++) {
-        MultiPin* mp = &multipins[i];
-        Segment* sg = &rou->segs[rou->multipin2seg[i]];
-        cout << " layer distance : " << mp->l - sg->l << endl;
+        pair<int,int> a(P->llx,P->lly);
+        pair<int,int> b(P->urx,P->ury);
+        pair<int,int> c(T->llx,T->lly);
+        pair<int,int> d(T->urx,T->ury);
+
+        if( is_intersect(make_pair(a,b),make_pair(c,d)) == true ) {
+            P->trackid = T->id;
+            cout << "ab : " << ccw(a,b,c) * ccw(a,b,d) << endl;
+            cout << "cd : " << ccw(c,d,a) * ccw(c,d,b) << endl;
+
+            cout << " Found !!" << endl;
+            cout << " a : " << a.first << " " << a.second << endl;
+            cout << " b : " << b.first << " " << b.second << endl;
+            cout << " c : " << c.first << " " << c.second << endl;
+            cout << " d : " << d.first << " " << d.second << endl;
+        }
+
     }
+
 
     exit(0);
     return;
 }
 
+bool Circuit::rect_intersect(Point A_ll, Point A_ur, Point B_ll, Point B_ur) {
+
+    bool a = A_ll.x > B_ur.x;
+    bool b = A_ur.x < B_ll.x;
+    bool c = A_ur.y < B_ll.y;
+    bool d = A_ll.y > B_ur.y;
+
+    if( ( a || b || c || d ) == true )
+        return false;
+    else
+        return true;
+}
+
+
 int Circuit::ccw(pair<int,int> a, pair<int,int> b, pair<int,int> c)
 {
-    int op = a.first*b.second + b.first*c.second + c.first*a.second;
-    op -= (a.second*b.first + b.second*c.first + c.second*a.first);
-    if( op > 0)
-        return 1;
-    else if ( op == 0 )
-        return 0;
-    else
-        return -1;
+    double op = a.first/100.0*b.second/100.0 + b.first/100.0*c.second/100.0 + c.first/100.0*a.second/100.0;
+    op -= (a.second/100.0*b.first/100.0 + b.second/100.0*c.first/100.0 + c.second/100.0*a.first/100.0);
+    //cout << op << endl;
+    
+    if( op > 0 ) return 1;
+    else if ( op == 0 ) return 0;
+    else return -1;
 }
 
 
