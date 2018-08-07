@@ -55,10 +55,12 @@ void plottree(Tree t);
 void readLUT()
 {
     /// FLUTE TEMP FILE GEN
-        FILE *file1 = fopen("POST9.dat","w");
+#if ROUTING==1
+        FILE *file1 = fopen(POSTFILE,"w");
         fprintf(file1,"%s\n",POST9_dat);
         fclose(file1); 
-        FILE *file2 = fopen("POWV9.dat","w");
+#endif
+        FILE *file2 = fopen(POWVFILE,"w");
         fprintf(file2,"%s\n",POWV9_dat);
         fclose(file2); 
     ///
@@ -137,6 +139,14 @@ void readLUT()
             }
         }
     }
+
+// REMOVING generated dat files
+    if( remove(POWVFILE) != 0 )
+        perror ( " Error deleting file " );
+#if ROUTING==1
+    remove(POSTFILE);
+#endif
+    return;
 }
 
 DTYPE flute_wl(int d, DTYPE x[], DTYPE y[], int acc)
