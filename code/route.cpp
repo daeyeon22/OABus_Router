@@ -711,7 +711,7 @@ void OABusRouter::Router::InitGrid3D()
         int lower = maxNumBit*i;
         int lx = (lower==0)? originX : (int)(1.0*(xoffsets[lower] + xoffsets[lower-1])/2);
         grid.offsetxs.push_back(lx);
-        printf("x offset %d\n",lx);
+        //printf("x offset %d\n",lx);
     }
 
     for(int i=0; i < numrows; i++)
@@ -719,7 +719,7 @@ void OABusRouter::Router::InitGrid3D()
         int lower = maxNumBit*i;
         int ly = (lower==0)? originY : (int)(1.0*(yoffsets[lower] + yoffsets[lower-1])/2);
         grid.offsetys.push_back(ly);
-        printf("y offset %d\n", ly);
+        //printf("y offset %d\n", ly);
     }
 
     grid.offsetxs.push_back(originX + ckt->width);

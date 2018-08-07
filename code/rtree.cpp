@@ -1,18 +1,23 @@
 #include "route.h"
 #include "circuit.h"
 
-//#define DEBUG_RTREE
+#define DEBUG_RTREE
 
 SegRtree* OABusRouter::Router::GetTrackRtree()
 {
     return &rtree.track;
 }
 
+
+
+
+
 void OABusRouter::Router::CreateTrackRtree()
 {
     int numTracks, tid, curl;
     int x1, y1, x2, y2, i, dir;
-    int elemindex, offset;
+    int offset;
+    int& elemindex = rtree.elemindex;
     bool isVertical;
     SegmentBG curS;
     Track* curT;
@@ -38,6 +43,17 @@ void OABusRouter::Router::CreateTrackRtree()
         isVertical = interval.is_vertical[i];
         offset = interval.offset[i];
         curl = interval.layer[i];
+
+    
+#ifdef DEBUG_RTREE
+        if(ckt->tracks[i].offset != offset)
+        {
+            printf("Invalid offset number...\n");
+            exit(0);
+        }
+#endif
+
+
         while(it_begin != it_end)
         {
             DiscreteIntervalT intv = (*it_begin++);

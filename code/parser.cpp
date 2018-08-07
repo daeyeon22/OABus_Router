@@ -310,7 +310,7 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
                     if(layer->offsets.find(track.offset) == layer->offsets.end())
                         layer->offsets.insert(track.offset); // (layer->is_vertical())?track.llx:track.lly);
                     
-                    printf("Track Offset %d\n", track.offset);
+                    //printf("Track Offset %d\n", track.offset);
                     this->tracks.push_back(track);
                     //pair<string,int> info(track.layer,track.offset);
                     //this->trackHashMap[GetHashKey(info)] = track.id; 

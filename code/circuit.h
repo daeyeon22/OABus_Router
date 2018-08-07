@@ -281,6 +281,7 @@ namespace OABusRouter
                 pins.insert(pins.end(), mp.pins.begin(), mp.pins.end());
             }
         void print();
+        bool vertical_arrange();
     };
 
     struct Bit

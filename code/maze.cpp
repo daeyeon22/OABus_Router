@@ -7,6 +7,9 @@
 
 #define DEBUG_MAZE
 
+
+static int randseed = 777;
+
 struct Elem
 {   
     int index;
@@ -44,7 +47,8 @@ bool operator > (const Elem& left, const Elem& right){
 
 int random(int moduler)
 {
-    srand(time(NULL));
+    //srand(time(timeseed));
+    srand(randseed);
     return rand() % moduler;
 }
 
@@ -445,8 +449,10 @@ void OABusRouter::Router::ObstacleAwareRouting(int treeid)
                     segid = this->segs.size();
                     
                     Segment seg(segid, x1, y1, x2, y2, l, bw, true, true);
-                    this->segs.push_back(seg);
+                    segs.push_back(seg);
+                    seg2bus[segid] = rsmt.busID[treeid]; 
                     curtree->segs.push_back(segid);
+                    
                     srtree[l].insert({SegmentBG(PointBG(x1,y1), PointBG(x2,y2)), segid});       
                 }
 
@@ -479,7 +485,8 @@ void OABusRouter::Router::ObstacleAwareRouting(int treeid)
                     segid = this->segs.size();
                     
                     Segment seg(segid, x1, y1, x2, y2, l, bw, true, false);
-                    this->segs.push_back(seg);
+                    segs.push_back(seg);
+                    seg2bus[segid] = rsmt.busID[treeid]; 
                     curtree->segs.push_back(segid);
                     srtree[l].insert({SegmentBG(PointBG(x1,y1), PointBG(x2,y2)), segid});       
                 

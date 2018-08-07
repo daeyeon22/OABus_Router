@@ -252,39 +252,40 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
                 printf("Rect (%8d %8d) (%8d %8d) -> Segment (%d %d) (%d %d)\n", llx, lly, urx, ury, GCllx, GClly, GCurx, GCury);
 #endif
                 //doc << Text(Point(textOffsetX, textOffsetY), content, Fill(), Font(300));
-                
-                for(auto wireid : curS->wires)
+            }
+
+
+            for(auto wireid : curtree->wires)
+            {
+                br::Wire* curWire = &rou->wires[wireid];
+                llx = curWire->x1 + layoutOffsetX;
+                lly = curWire->y1 + layoutOffsetY;
+                urx = curWire->x2 + layoutOffsetX;
+                ury = curWire->y2 + layoutOffsetY;
+                curl = curWire->l; //ckt->layerHashMap[curPin->layer];   
+
+                if(llx == urx)
                 {
-                    br::Wire* curWire = &rou->wires[wireid];
-                    llx = curWire->x1 + layoutOffsetX;
-                    lly = curWire->y1 + layoutOffsetY;
-                    urx = curWire->x2 + layoutOffsetX;
-                    ury = curWire->y2 + layoutOffsetY;
-                    curl = curWire->l; //ckt->layerHashMap[curPin->layer];   
+                    llx -= (int)(1.0*curWire->width/2);
+                    urx += (int)(1.0*curWire->width/2);
+                }
 
-                    if(llx == urx)
-                    {
-                        llx -= (int)(1.0*curWire->width/2);
-                        urx += (int)(1.0*curWire->width/2);
-                    }
+                if(lly == ury)
+                {
+                    lly -= (int)(1.0*curWire->width/2);
+                    ury += (int)(1.0*curWire->width/2);
+                }
 
-                    if(lly == ury)
-                    {
-                        lly -= (int)(1.0*curWire->width/2);
-                        ury += (int)(1.0*curWire->width/2);
-                    }
-
-                    Polygon poly(colors[curl], Stroke(10, Color::Black));
-                    poly << Point(llx,lly) << Point(llx,ury) << Point(urx, ury) << Point(urx, lly);
-                    doc << poly;
-                    //doc << Rectangle(Point(llx,lly), (urx-llx), (ury-lly), colors[curl]);
+                Polygon poly(colors[curl], Stroke(10, Color::Black));
+                poly << Point(llx,lly) << Point(llx,ury) << Point(urx, ury) << Point(urx, lly);
+                doc << poly;
+                //doc << Rectangle(Point(llx,lly), (urx-llx), (ury-lly), colors[curl]);
 #ifdef DEBUG_WIRE
-                    printf("Rect (%8d %8d) (%8d %8d)\n", llx, lly, urx, ury);
+                printf("Rect (%8d %8d) (%8d %8d)\n", llx, lly, urx, ury);
 #endif
 
-                }
-            
             }
+        
 
         }
 

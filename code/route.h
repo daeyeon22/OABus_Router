@@ -60,10 +60,6 @@ typedef bgi::rtree<BoxValT, bgi::rstar<16>> BoxRtree;
 namespace OABusRouter
 {
 
-   
-
-
-
     struct TreeNode
     {
         int id;             // index
@@ -129,8 +125,8 @@ namespace OABusRouter
         vector<int> junctions;
         vector<int> gcells;
 
-
-
+        vector<int> wires;
+        vector<int> vias;
 
         dense_hash_map<int,int> node2multipin;
 
@@ -317,9 +313,10 @@ namespace OABusRouter
     struct Rtree
     {
 
+        int elemindex;
         SegRtree track;
+        SegRtree emtpytrack;
         BoxRtree obstacle; 
-
 
         //
         dense_hash_map<int,int> trackNuml;
@@ -331,12 +328,10 @@ namespace OABusRouter
         dense_hash_map<int,int> obsID;
         Rtree()
         {
+            elemindex = 0;
             trackNuml.set_empty_key(INT_MAX);
             trackID.set_empty_key(INT_MAX);
             trackDir.set_empty_key(INT_MAX);
-        
-        
-        
         }
     };
 
@@ -552,7 +547,7 @@ namespace OABusRouter
         // Mapping 3D
         void TopologyMapping3D();
         void ObstacleAwareRouting(int treeid);
-
+        void PinAccess(int bitid);
 
         // ILP
         void CreateClips();
@@ -562,6 +557,7 @@ namespace OABusRouter
 
 
         // Detailed
+        void RouteAll();
         void TrackAssign();
         void CreateVia();
         void MappingPin2Wire();
@@ -569,6 +565,8 @@ namespace OABusRouter
 
         // Make Plot
         void Plot();
+
+    
     };
 
 

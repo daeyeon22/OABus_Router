@@ -90,7 +90,7 @@ void OABusRouter::Router::InitInterval()
             //iset[trackid] += 
             (ckt->is_vertical(l)) ? IntervalT::open(y1, y2) : IntervalT::open(x1, x2);  
         interval.is_vertical[trackid] = ckt->is_vertical(l);
-        cout << "offset : " << curT->offset << endl;
+        //cout << "offset : " << curT->offset << endl;
         interval.offset[trackid] = curT->offset;
         interval.layer[trackid] = l;
     }
