@@ -8,32 +8,49 @@
 //#define GCELL_HEIGHT rou->grid.GCELL_HEIGHT
 //#define DEBUG_TRACK
 //#define DEBUG_VIA
+#define DEBUG_MAP
 
+void OABusRouter::Router::RouteAll()
+{
+    for(int i=0; i < ckt->buses.size(); i++)
+    {
+        cout << "current busid : " << i << endl;
+        PinAccess(i);
+    }
+
+
+
+}
 
 void OABusRouter::Router::MappingMultipin2Seg()
 {
     int i, j, x, y;
-    int x1, y1, x2, y2;
+    
+    int x1, y1, x2, y2, l1, l2;
     int treeid, busid, mpid, segid;
     int numSegs, numTrees, deg;
+    int mplx, mply, mpux, mpuy;
     StTree* sttree;
-    Segment* seg;
-    TreeNode* n;
+    Segment* curseg;
+    Pin* curpin;
+    typedef BoxBG box;
+    typedef PointBG pt;
+    typedef SegmentBG seg;
+
     numTrees = rsmt.trees.size();
-    vector<SegmentValT> queries;
-    PointBG pt;
+    
+
 
     for(i=0;  i < numTrees; i++)
     {
-        SegRtree segrtree;
-        //segrtree.clear();
-
         sttree = rsmt[i];
         treeid = sttree->id;
         busid = rsmt.busID[treeid];
-        deg = sttree->deg;
-        numSegs = sttree->segs.size();
+        vector<int> sorted;
+        sorted = sttree->segs;
 
+
+        /*
         for(j=0; j < numSegs; j++)
         {
             segid = sttree->segs[j];
@@ -43,43 +60,97 @@ void OABusRouter::Router::MappingMultipin2Seg()
             x2 = seg->x2;
             y2 = seg->y2;
             segrtree.insert(SegmentValT(SegmentBG(PointBG(x1,y1), PointBG(x2,y2)), segid));
-
             if(seg2bus[segid] != busid)
             {
                 cout << "Invalid id mapping..." << endl;
                 exit(0);
             }
         }
+        */
 
         ///////
+#ifdef DEBUG_MAP
         printf("%s -> {", ckt->buses[busid].name.c_str());
         for(j=0; j < deg; j++)
         {
             printf(" %d", sttree->node2multipin[j]);
         }
         printf(" }\n");
+#endif
 
-        for(j=0; j < deg; j++)
+        for(auto& mpid : ckt->buses[busid].multipins)
         {
-            queries.clear();
-            n = &sttree->nodes[j];          
-            mpid = sttree->node2multipin[n->id];
-            x = n->x;
-            y = n->y;
-            pt = PointBG(x,y);
-            segrtree.query(bgi::intersects(pt), back_inserter(queries));
-
-            segid = queries[0].second;
-            multipin2seg[mpid] = segid;
-            
-            
-            if(seg2bus[segid] != ckt->multipins[mpid].busid)
+            mplx = INT_MAX;
+            mply = INT_MAX;
+            mpux = INT_MIN;
+            mpuy = INT_MIN;
+            for(auto& pinid : ckt->multipins[mpid].pins)
             {
-                printf("s%d -> b%d\n", segid, seg2bus[segid]);
-                printf("mp%d -> %s != %s\n", mpid, ckt->buses[ckt->multipins[mpid].busid].name.c_str(), ckt->buses[busid].name.c_str());
-                cout << "Invalid id mapping2..." << endl;
-                exit(0);
+                curpin = &ckt->pins[pinid];
+                mplx = min(curpin->llx, mplx);
+                mply = min(curpin->lly, mply);
+                mpux = max(curpin->urx, mpux);
+                mpuy = max(curpin->ury, mpuy);
             }
+
+            typedef BoxBG box;
+            typedef PointBG pt;
+            int curl;
+            box b1;
+            b1 = box(pt(mplx, mply), pt(mpux, mpuy));
+            curl = ckt->multipins[mpid].l;
+            sort(sorted.begin(), sorted.end(), [&, this, b1, curl](int left, int right){
+                    int x1, x2, y1, y2, l, gcellid1, gcellid2;
+                    int dist1, dist2;
+                    int VIA_COST = 1000;
+                    box b2;
+                    gcellid1 = this->grid.GetIndex(this->segs[left].x1, this->segs[left].y1, this->segs[left].l);
+                    gcellid2 = this->grid.GetIndex(this->segs[left].x2, this->segs[left].y2, this->segs[left].l); 
+                    x1 = this->grid.llx(gcellid1);
+                    x2 = this->grid.urx(gcellid2);
+                    y1 = this->grid.lly(gcellid1);
+                    y2 = this->grid.ury(gcellid2);
+                    l = this->segs[left].l;
+                    b2 = box(pt(x1, y1), pt(x2, y2));
+                    dist1 = (int)(bg::distance(b1,b2) +0.5) + VIA_COST*abs(curl-l);
+#ifdef DEBUG_MAP
+                    cout << "b1     " << bg::dsv(b1) << endl;
+                    cout << "b2     " << bg::dsv(b2) << endl;
+                    cout << "dist : " << dist1 << endl;
+#endif
+                    gcellid1 = this->grid.GetIndex(this->segs[right].x1, this->segs[right].y1, this->segs[right].l);
+                    gcellid2 = this->grid.GetIndex(this->segs[right].x2, this->segs[right].y2, this->segs[right].l); 
+                    x1 = this->grid.llx(gcellid1);
+                    x2 = this->grid.urx(gcellid2);
+                    y1 = this->grid.lly(gcellid1);
+                    y2 = this->grid.ury(gcellid2);
+                    l = this->segs[right].l;
+                    b2 = box(pt(x1, y1), pt(x2, y2));
+                    dist2 = (int)(bg::distance(b1,b2) + 0.5) + VIA_COST*abs(curl-l);
+#ifdef DEBUG_MAP
+                    cout << "b1     " << bg::dsv(b1) << endl;
+                    cout << "b2     " << bg::dsv(b2) << endl;
+                    cout << "dist : " << dist2 << endl;
+                    cout << endl << endl;
+#endif
+                    return dist1 < dist2;
+                    });
+
+            segid = sorted[0];
+            multipin2seg[mpid] = segid;
+#ifdef DEBUG_MAP
+
+            int gcellid1 = this->grid.GetIndex(this->segs[segid].x1, this->segs[segid].y1, this->segs[segid].l);
+            int gcellid2 = this->grid.GetIndex(this->segs[segid].x2, this->segs[segid].y2, this->segs[segid].l); 
+            x1 = this->grid.llx(gcellid1);
+            x2 = this->grid.urx(gcellid2);
+            y1 = this->grid.lly(gcellid1);
+            y2 = this->grid.ury(gcellid2);
+            l1 = this->segs[segid].l;
+            printf("Current Multipin (%d %d) (%d %d) M%d\n", mplx, mply, mpux, mpuy, curl);
+            printf("Mapped Segment (%d %d) (%d %d) M%d\n", x1, y1, x2, y2, l1);
+            printf("\n\n");
+#endif
         }
     }
 }
@@ -132,7 +203,7 @@ void OABusRouter::Router::MappingPin2Wire()
 void OABusRouter::Router::CreateVia()
 {
 
-    int numJuncs, numBW, numtrees, busid;
+    int numJuncs, numBW, numtrees, busid, bitid;
     int i, c, s1, s2, l1, l2, x, y;
     bool assign1, assign2, ver1, ver2, isLL1, isUR1, isLL2, isUR2;
     Junction *curJ;
@@ -198,11 +269,17 @@ void OABusRouter::Router::CreateVia()
                 {
                     wire1 = &wires[seg1->wires[c]];
                     wire2 = &wires[seg2->wires[c]];
+                    bitid = wire1->bitid;
+                    if(wire1->bitid != wire2->bitid)
+                    {
+                        cout << "different bitid..." << endl;
+                        exit(0); 
+                    }
+
 
                     // via coordinate
                     if(ver1 && !ver2)
                     {
-
                         x = wire1->x1;
                         y = wire2->y1;
                     }
@@ -236,7 +313,9 @@ void OABusRouter::Router::CreateVia()
 
                     if(!bg::intersects(tmp1, tmp2))
                     {
+#ifdef DEBUG_VIA
                         cout << "No Intersection point..." << endl;
+#endif
                         //exit(0);
                     }
 
@@ -254,28 +333,44 @@ void OABusRouter::Router::CreateVia()
 #endif
 
 
-                    Via via;
-                    via.id = vias.size();
-                    via.x = x;
-                    via.y = y;
-                    via.l1 = l1;
-                    via.l2 = l2;
-                    via.w1 = wire1->id;
-                    via.w2 = wire2->id;
 
-                    vias.push_back(via);
-                    via2bus[via.id] = busid;
+                    for(int l=l1; l < l2; l++)
+                    {
+                        Via via;
+                        via.id = vias.size();
+                        via.bitid = bitid;
+                        via.busid = busid;
+                        via.x = x;
+                        via.y = y;
+                        via.l = l;
+                        vias.push_back(via);
+                        via2bus[via.id] = busid;
+                    
+                    
+                        interval.empty[wire1->trackid] -=
+                            interval.is_vertical[wire1->l] ? IntervalT::closed(y, y) : IntervalT::closed(x, x);
 
+                        interval.empty[wire2->trackid] -=
+                            interval.is_vertical[wire2->l] ? IntervalT::closed(y, y) : IntervalT::closed(x, x);
+                   
+                        curtree->vias.push_back(via.id);
+                    
+                    }
 
                     // cut
                     if(isLL1)
                     {
+                        interval.empty[wire1->trackid] +=
+                            interval.is_vertical[wire1->l] ? IntervalT::open(wire1->y1, y) :  IntervalT::open(wire1->x1, x);
                         wire1->x1 = x;
                         wire1->y1 = y;
+                    
                     }
 
                     if(isUR1)
                     {
+                        interval.empty[wire1->trackid] +=
+                            interval.is_vertical[wire1->l] ? IntervalT::open(y, wire1->y2) :  IntervalT::open(x, wire1->x2);
                         wire1->x2 = x;
                         wire1->y2 = y;
 
@@ -283,6 +378,8 @@ void OABusRouter::Router::CreateVia()
 
                     if(isLL2)
                     {
+                        interval.empty[wire2->trackid] +=
+                            interval.is_vertical[wire2->l] ? IntervalT::open(wire2->y1, y) :  IntervalT::open(wire2->x1, x);
                         wire2->x1 = x;
                         wire2->y1 = y;
 
@@ -290,6 +387,8 @@ void OABusRouter::Router::CreateVia()
 
                     if(isUR2)
                     {
+                        interval.empty[wire2->trackid] +=
+                            interval.is_vertical[wire1->l] ? IntervalT::open(y, wire2->y2) :  IntervalT::open(x, wire2->x2);
                         wire2->x2 = x;
                         wire2->y2 = y;
 
@@ -460,18 +559,8 @@ void OABusRouter::Router::TrackAssign()
                     width = curBus->width[curl];
                     bitid = curBus->bits[s];
                     trackid = *it++;
-
-                    if(isVertical)
-                    {
-                        start = y1;
-                        end = y2;
-                    }
-                    else
-                    {
-                        start = x1;
-                        end = y2;
-                    }
-
+                    start = isVertical ? y1 : x1;
+                    end = isVertical ? y2 : x2;
 
                     // Erase available resources
                     while(start <= end)
@@ -490,26 +579,37 @@ void OABusRouter::Router::TrackAssign()
                     curWire.trackid = trackid;
                     curWire.seq = seq;
                     curWire.vertical = isVertical;
-                    if(isVertical)
-                    {
-                        curWire.x1 = ckt->tracks[trackid].offset;
-                        curWire.x2 = ckt->tracks[trackid].offset;
-                        curWire.y1 = grid.lly(g1); //grid.GetOffset_y(y1);
-                        curWire.y2 = grid.ury(g2); //min(grid.GetOffset_y(y2) + GCELL_HEIGHT, grid.yoffset + grid.height);
-                    }
-                    else
-                    {
-                        curWire.y1 = ckt->tracks[trackid].offset;
-                        curWire.y2 = ckt->tracks[trackid].offset;
-                        curWire.x1 = grid.llx(g1); //GetOffset_x(x1);
-                        curWire.x2 = grid.urx(g2); //min(grid.GetOffset_x(x2) + GCELL_WIDTH, grid.xoffset + grid.width);
-                    }
+                    curWire.x1 = isVertical? interval.offset[trackid] : grid.llx(g1);
+                    curWire.x2 = isVertical? interval.offset[trackid] : grid.urx(g2);
+                    curWire.y1 = isVertical? grid.lly(g1) : interval.offset[trackid]; 
+                    curWire.y2 = isVertical? grid.ury(g2) : interval.offset[trackid]; 
+
+
+                    interval.empty[trackid] -= 
+                        isVertical ? IntervalT::closed(curWire.y1, curWire.y2) : IntervalT::closed(curWire.x1, curWire.x2);
+
 
 #ifdef DEBUG_TRACK
+
+                    if(ckt->tracks[trackid].offset != interval.offset[trackid])
+                    {
+                        cout << "Invalid mapping..." << endl;
+                        cout << "trackid : "<< trackid << endl;
+                        cout << "#tracks : " << ckt->tracks.size() << endl;
+                        Track* curt = &ckt->tracks[trackid];
+                        printf("track%d (%d %d) (%d %d) offset %d\n", trackid, curt->llx, curt->lly, curt->urx, curt->ury, curt->offset);
+                        
+                        cout << ckt->tracks[trackid].offset << endl;
+                        cout << interval.offset[trackid] << endl;
+                        exit(0);
+                    }
+                    
                     printf("Create wire(%-4d) (%4d %-4d) (%4d %-4d) M%d --> %s\n",s,curWire.x1, curWire.y1, curWire.x2, curWire.y2, curWire.l, ckt->buses[curWire.busid].name.c_str());  
 #endif
                     wires.push_back(curWire);
                     curS->wires.push_back(curWire.id);
+                    //
+                    curtree->wires.push_back(curWire.id);
                 }
 
 

@@ -42,12 +42,17 @@ void Circuit::def_write(string file_name) {
         Bit* theBit = &bits[i];
         pins[theBit->pins[0]].direction = "INPUT";
     }
+ 
+ 
+    Bus* theBus = &buses[1];
   
    
     // PINS 
     dot_def << "PINS " << pins.size() << " ;" << endl;
     for(int i=0; i < pins.size(); i++) {
         Pin* thePin = &pins[i];
+        if( bits[bitHashMap[thePin->bitName]].busName != theBus->name )
+            continue;
         int x_orig = ( thePin->llx + thePin->urx )/2;
         int y_orig = ( thePin->lly + thePin->ury )/2;
         //dot_def << "- pin_" << thePin->id << " + NET " << thePin->bitName << " + DIRECTION " << thePin->direction << " + USE SIGNAL" << endl;
@@ -65,11 +70,23 @@ void Circuit::def_write(string file_name) {
         Bit* theBit = &bits[theWire->bitid];
         theBit->wires.push_back(theWire->id);
     }
+    /////////////////////////////////////////////////////
+    //for(int i=0; i < rou->vias.size(); i++)
+    //{
+    //    Via* theVia = &rou->vias[i];
+    //    Bit* theBit = &bits[rou->wires[theVia->w1].bitid];
+    //    theBit->vias.push_back(theVia->id);
+    //}
+    /////////////////////////////////////////////////////
 
     // NETS
     dot_def << "NETS " << bits.size() << " ;" << endl;
     for(int i=0; i < bits.size(); i++) {
         Bit* theBit = &bits[i];
+
+        if( theBit->busName != theBus->name )
+            continue;
+
         dot_def << "- " << theBit->name << endl;
         dot_def << " ";
         for(int j=0; j < theBit->pins.size(); j++) {
@@ -172,6 +189,45 @@ void Circuit::lef_write(string file_name) {
         dot_lef << endl;
 
     }
+
+    return;
+}
+
+void Circuit::out_write(string file_name){ 
+
+    ofstream dot_out(file_name.c_str());
+
+
+    if(!dot_out.good())
+    {
+        cerr << "out_writer :: cannot open '" << file_name << "' for writing. " << endl;
+#ifdef DEBUG
+        exit(0);
+#endif
+    }
+
+
+
+    for(int i=0; i < buses.size(); i++)
+    {
+        Bus* curB = &buses[i];
+        dot_out << "BUS " << curB->name << endl;
+
+
+        for(int j =0; j < curB->numBits; j++)
+        {
+            Bit* curBit = &bits[curB->bits[j]];
+            dot_out << "BIT " << curBit->name << endl;
+            int numpath = curBit->wires.size(); 
+
+
+        }
+        dot_out << "ENDBUS" << endl;
+    }
+
+
+
+
 
     return;
 }

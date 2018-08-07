@@ -11,16 +11,22 @@ CFLAGS = -std=c++11 -O3 -fpermissive -g -ggdb -DNDEBUG -DIL_STD $(LIBINCLUDE)
 CCFLAGS = -O3 -I.
 
 # include library settings..
-LIBINCLUDE = -I$(SRCHASH)/include -I$(CPLEXDIR) -I$(CONCERTDIR) -I$(BOOST)
+LIBINCLUDE = -I$(SRCHASH) -I$(CPLEXDIR) -I$(CONCERTDIR) -I$(BOOST)
 
 # linking flag settings
 LINKCFLAGS = $(CFLAGS) -static-libstdc++ $(CPLEXLIBS) $(CONCERTLIBS) 
 
+
 # source settings.
-SRCHASH 	= /home/tool/sparsehash
+SRCHASH 	= /home/tool/sparsehash/include
 BOOST 		= /home/tool/boost/install/1.63.0/include
 CPLEXDIR 	= /home/tool/IBM/ILOG/127/cplex/include
 CONCERTDIR 	= /home/tool/IBM/ILOG/127/concert/include
+# source settings.
+# SRCHASH 	= /home/tool/cpplib/sparsehash/install/2.0.3/include
+# BOOST 		= /home/tool/cpplib/boost/install/1.63.0/include
+# CPLEXDIR 	= /home/tool/ibm/install/12.7.0/cplex/include
+# CONCERTDIR 	= /home/tool/ibm/install/12.7.0/concert/include
 
 
 # FLUTE #
@@ -30,7 +36,7 @@ FLUTESRC 	= $(FLUTEDIR)/neighbors.o $(FLUTEDIR)/mst2.o \
 			$(FLUTEDIR)/dist.o $(FLUTEDIR)/flute.o $(FLUTEDIR)/flute_mst.o 
 
 SRC			= func.o main.o parser.o route.o init.o maze.o\
-			  rsmt.o ilp.o util.o rtree.o track.o def_writer.o
+			  rsmt.o ilp.o util.o rtree.o track.o writer.o pin_access.o
 
 CPLEXLIBS       = -L$(CPLEXDIR)/../lib/$(SYSTEM)/$(LIBFORMAT) -lilocplex -lcplex
 CONCERTLIBS     = -L$(CONCERTDIR)/../lib/$(SYSTEM)/$(LIBFORMAT) -lconcert -lm -pthread -fopenmp -static-libstdc++ -std=c++11
@@ -58,7 +64,10 @@ rsmt.o: rsmt.cpp route.h circuit.h
 ilp.o: ilp.cpp ilp.h circuit.h route.h
 	$(CXX) $(CFLAGS) -c -o $@ $<  
 
-def_writer.o: def_writer.cpp circuit.h route.h
+writer.o: writer.cpp circuit.h route.h
+	$(CXX) $(CFLAGS) -c -o $@ $<
+
+pin_access.o: pin_access.cpp circuit.h route.h
 	$(CXX) $(CFLAGS) -c -o $@ $<
 
 rtree.o: rtree.cpp circuit.h route.h

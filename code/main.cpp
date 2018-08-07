@@ -77,6 +77,7 @@ int main(int argc, char** argv){
 
     cout << "Initialize" << endl;
     ckt->Init();
+    rou->InitInterval();
     rou->InitGrid3D();
     
     
@@ -120,22 +121,21 @@ int main(int argc, char** argv){
     rou->CreateVia();
 
     cout << "Mapping multipin to segment, pin to wire" << endl;
-    //rou->MappingMultipin2Seg();
-    //rou->MappingPin2Wire();
+    rou->MappingMultipin2Seg();
+    rou->MappingPin2Wire();
+
+    cout << "Pin access" << endl;
+    rou->RouteAll();
 
     cout << "Create Plot" << endl;
     rou->Plot();
 
     
     cout << "Write def & lef file" << endl;
-    //ckt->def_write();
-    //ckt->lef_write();
+    ckt->def_write();
+    ckt->lef_write();
+    ckt->debug();
 
-
-<<<<<<< HEAD
-=======
-
->>>>>>> a9d10c4578ebfe6fef220d80e7d14bc33473dacf
     cout << "End program" << endl;
     return 0;
 }

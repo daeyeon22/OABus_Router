@@ -60,10 +60,6 @@ typedef bgi::rtree<BoxValT, bgi::rstar<16>> BoxRtree;
 namespace OABusRouter
 {
 
-   
-
-
-
     struct TreeNode
     {
         int id;             // index
@@ -129,8 +125,8 @@ namespace OABusRouter
         vector<int> junctions;
         vector<int> gcells;
 
-
-
+        vector<int> wires;
+        vector<int> vias;
 
         dense_hash_map<int,int> node2multipin;
 
@@ -189,7 +185,26 @@ namespace OABusRouter
     };
 
 
+   
+    struct Interval
+    {
+        int numtracks;
     
+        vector<IntervalSetT> empty;
+        vector<IntervalMapT> assign;
+        dense_hash_map<int,int> offset;
+        dense_hash_map<int,int> layer;
+        dense_hash_map<int,bool> is_vertical;
+
+        Interval()
+        {
+            offset.set_empty_key(INT_MAX);
+            layer.set_empty_key(INT_MAX);
+            is_vertical.set_empty_key(INT_MAX);
+        }
+    };
+
+
     
     struct RSMT
     {
@@ -298,9 +313,10 @@ namespace OABusRouter
     struct Rtree
     {
 
+        int elemindex;
         SegRtree track;
+        SegRtree emtpytrack;
         BoxRtree obstacle; 
-
 
         //
         dense_hash_map<int,int> trackNuml;
@@ -312,12 +328,10 @@ namespace OABusRouter
         dense_hash_map<int,int> obsID;
         Rtree()
         {
+            elemindex = 0;
             trackNuml.set_empty_key(INT_MAX);
             trackID.set_empty_key(INT_MAX);
             trackDir.set_empty_key(INT_MAX);
-        
-        
-        
         }
     };
 
@@ -449,28 +463,27 @@ namespace OABusRouter
     struct Via
     {
         int id;
+        int bitid;
+        int busid;
         int x, y;
-        int l1, l2;
-        int w1, w2;
+        int l;
 
         Via():
             id(INT_MAX),
+            bitid(INT_MAX),
+            busid(INT_MAX),
             x(INT_MAX),
             y(INT_MAX),
-            l1(INT_MAX),
-            l2(INT_MAX),
-            w1(INT_MAX),
-            w2(INT_MAX) {}
+            l(INT_MAX)
+        {}
 
         Via(const Via& v):
             id(v.id),
+            bitid(v.bitid),
+            busid(v.busid),
             x(v.x),
             y(v.y),
-            l1(v.l1),
-            l2(v.l2),
-            w1(v.w1),
-            w2(v.w2) {}
-
+            l(v.l) {}
     };
 
     class Router
@@ -481,9 +494,11 @@ namespace OABusRouter
       public:
         static Router* shared();
 
-        RSMT    rsmt;
-        Grid3D  grid;
-        Rtree   rtree;
+        RSMT        rsmt;
+        Grid3D      grid;
+        Rtree       rtree;
+        Interval    interval;
+
 
 
         // Created Segments
@@ -520,6 +535,7 @@ namespace OABusRouter
 
         // Initialize Grid3D
         void InitGrid3D();
+        void InitInterval();
         void CreateTrackRtree();
         
         SegRtree* GetTrackRtree();
@@ -531,7 +547,7 @@ namespace OABusRouter
         // Mapping 3D
         void TopologyMapping3D();
         void ObstacleAwareRouting(int treeid);
-
+        void PinAccess(int bitid);
 
         // ILP
         void CreateClips();
@@ -541,6 +557,7 @@ namespace OABusRouter
 
 
         // Detailed
+        void RouteAll();
         void TrackAssign();
         void CreateVia();
         void MappingPin2Wire();
@@ -548,6 +565,8 @@ namespace OABusRouter
 
         // Make Plot
         void Plot();
+
+    
     };
 
 

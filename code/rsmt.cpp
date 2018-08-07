@@ -12,6 +12,7 @@ int ordery(const void *a, const void *b);
 void FluteNormal(int d, DTYPE x[], DTYPE y[], int acc, float coeffV, Tree *t);
 
 
+
 void OABusRouter::Router::GenBackbone()
 {
     enum Dir
@@ -78,7 +79,118 @@ void OABusRouter::Router::GenBackbone()
             curMultipin = &ckt->multipins[curBus->multipins[p]];
             curPin = &ckt->pins[curMultipin->pins[0]];
             curLayer = &ckt->layers[curMultipin->l];
-            int pinllx = curPin->llx;
+            /*
+            int mincol, maxcol, minrow, maxrow;
+            int pinllx, pinlly, pinurx, pinury;
+            int minllx, minlly, maxurx, maxury;
+            int col1, col2, row1, row2, curl;
+            bool arrange_vertical;
+            bool layer_vertical;
+            mincol = INT_MAX;
+            minrow = INT_MAX;
+            maxcol = INT_MIN;
+            maxrow = INT_MIN;
+            minllx = INT_MAX;
+            minlly = INT_MAX;
+            maxurx = INT_MIN;
+            maxury = INT_MIN;
+
+            curLayer = &ckt->layers[curMultipin->l];
+            curl = curLayer->id;
+            for(int s=0; s < curMultipin->pins.size(); s++)
+            {
+                curPin = &ckt->pins[curMultipin->pins[s]];
+                pinllx = curPin->llx;
+                pinlly = curPin->lly;
+                pinurx = curPin->urx;
+                pinury = curPin->ury;
+                
+                col1 = grid.GetColum(pinllx);
+                row1 = grid.GetRow(pinlly);
+                col2 = grid.GetColum(pinurx);
+                row2 = grid.GetRow(pinurx);
+
+                mincol = min(mincol, col1);
+                minrow = min(minrow, row1);
+                maxcol = max(maxcol, col2);
+                maxrow = max(maxrow, row2);
+                minllx = min(minllx, pinllx);
+                minlly = min(minlly, pinlly);
+                maxurx = max(maxurx, pinurx);
+                maxury = max(maxury, pinury);
+            }
+            //layer_vertical = curLayer->is_vertical();
+            //arrange_vertical = ((maxurx - minllx) < (maxury - minlly)) ? true : false;
+            */
+           
+            /*
+            if(layer_vertical && arrange_vertical)
+            {
+                
+            }
+            else if(!layer_vertical && arrange_vertical)
+            {
+
+            }
+            else if(layer_vertical && !arrange_vertical)
+            {
+
+            }
+            else if(!layer_vertical && !arrange_vertical)
+            {
+
+            }
+            
+            int l1 = curLayer->id;
+            int bw = curMultipin->pins.size();
+            int move = 1;
+            int cap =  0 ; //grid[grid.GetIndex(col1,row1,l1)]->cap;
+
+            for(int j=0; cap < bw; j++)
+            {
+                if(j%4 == 0)
+                {
+                    row2 = max(0, minrow-move); //row1;
+                    col2 = max(0, mincol-move);
+                }
+                else if(j%4 == 1)
+                {
+                    row2 = min(grid.numRows-1, maxrow+move);
+                    col2 = max(0, mincol-move);
+                }
+                else if(j%4 == 2)
+                {
+                    row2 = min(grid.numRows-1, maxrow+move); //row1;
+                    col2 = min(grid.numCols-1, maxcol+move);
+                }
+                else if(j%4 == 3)
+                {
+                    row2 = max(0, minrow-move);
+                    col2 = min(grid.numCols-1, maxcol+move);
+                }
+                if(j%4 == 3)
+                    move++;
+                
+                cap = grid[grid.GetIndex(col2,row2,curl)]->cap;
+            }
+
+
+#ifdef DEBUG_RSMT
+            printf(" %d", curMultipin->id);
+            if(curBus->id != curMultipin->busid)
+            {
+                cout << "???" << endl;
+                exit(0);
+            }
+#endif
+               
+            ids[p] = curMultipin->id;
+            x[p] = col2;
+            y[p] = row2;
+            l[p] = curl; // curLayer->id;
+
+            */
+           int pinllx = curPin->llx;
             int pinlly = curPin->lly;
             int pinurx = curPin->urx;
             int pinury = curPin->ury;
