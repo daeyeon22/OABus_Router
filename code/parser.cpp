@@ -320,10 +320,10 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
                     }
 
                     track.offset = (layer->is_vertical())?track.llx:track.lly;
-                    //layer->trackOffsets.push_back(track.offset);
+                    layer->trackOffsets.push_back(track.offset);
                     
-                    //if(layer->offsets.find(track.offset) == layer->offsets.end())
-                    //    layer->offsets.insert(track.offset); // (layer->is_vertical())?track.llx:track.lly);
+                    if(layer->offsets.find(track.offset) == layer->offsets.end())
+                        layer->offsets.insert(track.offset); // (layer->is_vertical())?track.llx:track.lly);
                     
                     //printf("Track Offset %d\n", track.offset);
                     this->tracks.push_back(track);

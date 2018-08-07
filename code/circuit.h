@@ -331,6 +331,7 @@ namespace OABusRouter
                 pins.insert(pins.end(), mp.pins.begin(), mp.pins.end());
             }
         void print();
+        bool vertical_arrange();
     };
 
     struct Bit
@@ -340,7 +341,7 @@ namespace OABusRouter
         string busName;
         vector<int> pins;
         vector<int> wires;
-
+        vector<int> vias;
         //Rect boundary();
 
         Bit() : 
@@ -518,7 +519,7 @@ namespace OABusRouter
         void def_write(string filename);
         void lef_write();
         void lef_write(string filename);
-        void out_write();
+        void out_write(string filename);
 
         // pin_aceess.cpp
         void pin_access();

@@ -78,6 +78,7 @@ int main(int argc, char** argv){
 
     cout << "Initialize" << endl;
     ckt->Init();
+    rou->InitInterval();
     rou->InitGrid3D();
     
     
@@ -121,8 +122,11 @@ int main(int argc, char** argv){
     rou->CreateVia();
 
     cout << "Mapping multipin to segment, pin to wire" << endl;
-    //rou->MappingMultipin2Seg();
-    //rou->MappingPin2Wire();
+    rou->MappingMultipin2Seg();
+    rou->MappingPin2Wire();
+
+    cout << "Pin access" << endl;
+    rou->RouteAll();
 
     cout << "Create Plot" << endl;
     rou->Plot();
