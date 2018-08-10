@@ -76,8 +76,10 @@ int main(int argc, char** argv){
     //exit(0);
 
     cout << "Initialize" << endl;
-    ckt->Init();
-    rou->InitInterval();
+    //ckt->Init();
+    //rou->InitInterval();
+   
+    rou->InitRtree();
     rou->InitGrid3D();
     
     
@@ -92,7 +94,7 @@ int main(int argc, char** argv){
     //cout << "Generate Plot file" << endl;
     //ckt->GenPlot();
 
-    cout << "Topology Mapping 3D" << endl;
+    //cout << "Topology Mapping 3D" << endl;
     rou->TopologyMapping3D();
 
 
@@ -118,7 +120,7 @@ int main(int argc, char** argv){
 
 
     cout << "Create Via" << endl;
-    rou->CreateVia();
+    //rou->CreateVia();
 
     cout << "Mapping multipin to segment, pin to wire" << endl;
     rou->MappingMultipin2Seg();
@@ -127,13 +129,22 @@ int main(int argc, char** argv){
     cout << "Pin access" << endl;
     rou->RouteAll();
 
+    cout << "Cutting" << endl;
+    rou->Cut();
+
+
     cout << "Create Plot" << endl;
     rou->Plot();
 
     
+    cout << "Create Path" << endl;
+    ckt->CreatePath();
+    
+    
     cout << "Write def & lef file" << endl;
     ckt->def_write();
     ckt->lef_write();
+    ckt->out_write(outputFileName);
     ckt->debug();
 
     cout << "End program" << endl;

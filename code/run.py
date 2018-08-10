@@ -14,6 +14,8 @@ from datetime import datetime
 
 dirpos = "../bench"
 binaryName = "./iccad18obr"
+evalpos = "../eval/eval_1.0-a3"
+evaluator = "eval"
 outpos = "../output"
 logpos = "../log"
 
@@ -42,13 +44,20 @@ else:
 
 numThreads = int(sys.argv[2])
 curTime = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
+benchName = benchName.split('.')[0]
 
 #print curTime
 
 rmlogStr = "rm %s/*" % (logpos)
 ExecuteCommand(rmlogStr)
-exeStr = "%s -input %s/%s -threads %d -output %s/%s | tee %s/%s_%s_out.log" % (binaryName, dirpos, benchName, numThreads, outpos, benchName, logpos, benchName, curTime)
+exeStr = "%s -input %s/%s.input -threads %d -output %s/%s.out | tee %s/%s_%s.log" % (binaryName, dirpos, benchName, numThreads, outpos, benchName, logpos, benchName, curTime)
 ExecuteCommand(exeStr)
+"""
+evalStr = "%s/%s %s/%s.input %s/%s.out | tee %s/%s.eval" % (evalpos, evaluator, dirpos, benchName, outpos, benchName, logpos, benchName)
+ExecuteCommand(evalStr)
+"""
+
+
 
 
 

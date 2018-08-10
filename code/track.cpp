@@ -6,7 +6,7 @@
 
 //#define GCELL_WIDTH rou->grid.GCELL_WIDTH
 //#define GCELL_HEIGHT rou->grid.GCELL_HEIGHT
-//#define DEBUG_TRACK
+#define DEBUG_TRACK
 //#define DEBUG_VIA
 #define DEBUG_MAP
 
@@ -346,13 +346,10 @@ void OABusRouter::Router::CreateVia()
                         vias.push_back(via);
                         via2bus[via.id] = busid;
                     
-                    
-                        interval.empty[wire1->trackid] -=
-                            interval.is_vertical[wire1->l] ? IntervalT::closed(y, y) : IntervalT::closed(x, x);
-
-                        interval.empty[wire2->trackid] -=
-                            interval.is_vertical[wire2->l] ? IntervalT::closed(y, y) : IntervalT::closed(x, x);
                    
+                        int _x[2] = { x, x };
+                        int _y[2] = { y, y };
+                        rtree.insert_element(wire1->trackid, _x, _y, wire1->l, true);
                         curtree->vias.push_back(via.id);
                     
                     }
@@ -360,38 +357,39 @@ void OABusRouter::Router::CreateVia()
                     // cut
                     if(isLL1)
                     {
-                        interval.empty[wire1->trackid] +=
-                            interval.is_vertical[wire1->l] ? IntervalT::open(wire1->y1, y) :  IntervalT::open(wire1->x1, x);
+                        int _x[2] = { wire1->x1, x };
+                        int _y[2] = { wire1->y1, y };
+                        rtree.insert_element(wire1->trackid, _x, _y, wire1->l, false);
                         wire1->x1 = x;
                         wire1->y1 = y;
-                    
                     }
 
                     if(isUR1)
                     {
-                        interval.empty[wire1->trackid] +=
-                            interval.is_vertical[wire1->l] ? IntervalT::open(y, wire1->y2) :  IntervalT::open(x, wire1->x2);
+                        
+                        int _x[2] = { x, wire1->x2 };
+                        int _y[2] = { y, wire1->y2 };
+                        rtree.insert_element(wire1->trackid, _x, _y, wire1->l, false);
                         wire1->x2 = x;
                         wire1->y2 = y;
-
                     }
 
                     if(isLL2)
                     {
-                        interval.empty[wire2->trackid] +=
-                            interval.is_vertical[wire2->l] ? IntervalT::open(wire2->y1, y) :  IntervalT::open(wire2->x1, x);
+                        int _x[2] = { wire2->x1, x };
+                        int _y[2] = { wire2->y1, y };
+                        rtree.insert_element(wire2->trackid, _x, _y, wire2->l, false);
                         wire2->x1 = x;
                         wire2->y1 = y;
-
                     }
 
                     if(isUR2)
                     {
-                        interval.empty[wire2->trackid] +=
-                            interval.is_vertical[wire1->l] ? IntervalT::open(y, wire2->y2) :  IntervalT::open(x, wire2->x2);
+                        int _x[2] = { x, wire2->x2 };
+                        int _y[2] = { y, wire2->y2 };
+                        rtree.insert_element(wire2->trackid, _x, _y, wire2->l, false);
                         wire2->x2 = x;
                         wire2->y2 = y;
-
                     }
 
 
@@ -412,42 +410,60 @@ void OABusRouter::Router::CreateVia()
 }
 
 
+/*
+void OABusRouter::Router::SpacingAwareTrackAssign()
+{
+    
+    int bw;
+    StTree* curtree;
+    SegRtree* trackrtree;
+
+
+
+
+}
+*/
+
+
 void OABusRouter::Router::TrackAssign()
 {
     //this->grid.print();
     //exit(0);
     
     int numLayers, numRows, numCols, numSegs, numtrees;
-    int i, row, col, curl, dir, GCidx, bw;
+    int i, j, k, row, col, curl, dir, GCidx, bw;
     int x1,y1, x2, y2, segid, busid, bitid, trackid, width, seq;
+    int lx, ly, ux, uy, l;
     int g1, g2;
     int GCx1, GCy1, GCx2, GCy2;
     int curBW, tarBW, start, end;
+    int xs[2], ys[2];
     //int MAXSIZE=100;
     //int GCELL_WIDTH, GCELL_HEIGHT; 
     int absx1, absx2, absy1, absy2;
-    set<int>::iterator it;
     bool isVertical, isValid;
     bool ver1, ver2;
     
+    typedef SegmentBG seg;
+    typedef PointBG pt;
+    typedef BoxBG box;
+    Wire* curwire;
     BoxBG qbox;
     Segment* curS;
     Bus* curBus;
     Bit* curBit;
     Gcell* curGC;
-    SegRtree* curRtree;
     StTree* curtree;
-    vector<SegmentValT> queries;
     numSegs = segs.size();
-    set<int> set1, set2, set3;
 
 
     //GCELL_WIDTH = grid.GCELL_WIDTH;
     //GCELL_HEIGHT = grid.GCELL_HEIGHT;
-    curRtree = &rtree.track;
     numtrees = rsmt.trees.size();
     //numSegs = this->segs.size();
  
+    SegRtree* trackrtree;
+    trackrtree = &rtree.track;
     for(i=0; i < numtrees; i++)
     {
         curtree = rsmt[i];
@@ -461,185 +477,249 @@ void OABusRouter::Router::TrackAssign()
             x2 = max(curS->x1, curS->x2);
             y2 = max(curS->y1, curS->y2);
             tarBW = curS->bw;
+            isVertical = curS->vertical;
             //this->bitwidth[curS->id];
 
+            // Expand Segment window
+            if(isVertical)
+            {
+                if(x2+1 < grid.numCols)
+                {
+                    x2 += 1;
+                }
+                else if(x1-1 > 0)
+                {
+                    x1 -= 1;
+                }
+            }
+            else
+            {
+                if(y2+1 < grid.numRows)
+                {
+                    y2 += 1;
+                }
+                else if(y1-1 > 0)
+                {
+                    y1 -= 1;
+                }
+            }
+            
             g1 = grid.GetIndex(x1, y1, curl);
             g2 = grid.GetIndex(x2, y2, curl);
 
-
-            dir = this->grid.direction[curl];
-            isVertical = (dir == VERTICAL)?true:false;
-
-            // Initial resources
-            col = x1;
-            row = y1;
-            GCidx = this->grid.GetIndex(col,row,curl);
-            set1 = this->grid[GCidx]->resources;
-
-            start = x1;
-            end = x2;
-
-            if(isVertical)
+            lx = grid.llx(g1);
+            ly = grid.lly(g1);
+            ux = grid.urx(g2);
+            uy = grid.ury(g2);
+            
+            vector<pair<seg, int>> queries;
+            box b(pt(lx, ly), pt(ux, uy));
+            trackrtree->query(bgi::intersects(b), back_inserter(queries));
+            /*
+            trackrtree->query(bgi::intersects(b) && bgi::satisfies(
+                        [&,this,curl,b](const pair<seg, int>& val){
+                        bool falling, target;
+                        pt ll(bg::get<0,0>(val.first), bg::get<0,1>(val.first));
+                        pt ur(bg::get<1,0>(val.first), bg::get<1,1>(val.first));
+                        target = (this->rtree.layer(val.second) == curl) ? true : false;
+                        falling = (bg::within(ll, b) || bg::within(ur, b)) ? true : false; 
+                        return target && !falling;
+                        }), back_inserter(queries));
+            */
+            
+            vector<int> availables;
+            for(auto& it : queries)
             {
-                start = y1;
-                end = y2;
+                
+                bool falling, target;
+                pt ll(bg::get<0,0>(it.first), bg::get<0,1>(it.first));
+                pt ur(bg::get<1,0>(it.first), bg::get<1,1>(it.first));
+                falling = (bg::within(ll, b) || bg::within(ur,b)) ? true : false;
+                target = (rtree.layer(it.second) == curl) ? true : false;
+                cout << "Box " << bg::dsv(b) << endl;
+                cout << "Pt1 " << bg::dsv(ll) << endl;
+                cout << "pt2 " << bg::dsv(ur) << endl;
+                if(!falling && target)
+                {
+                    cout << "Not Falling...!!" << endl;
+                    
+                    availables.push_back(rtree.trackid(it.second));
+                }else{
+                    cout << "Falling...!!" << endl;
+
+                }
             }
 
-            isValid = true;
+            sort(availables.begin(), availables.end());
+            int it1, it2;
+            vector<int> tmp;
+            it1 = 0;
+            it2 = 1;
+            tmp.push_back(availables[0]);
+           
 
-#ifdef DEBUG_TRACK
-            if(isVertical)
-                printf("Segment (%d %d) (%d %d) M%d VERTICAL\n", x1, y1, x2, y2, curl);
-            else
-                printf("Segment (%d %d) (%d %d) M%d HORIZONTAL\n", x1, y1, x2, y2, curl);
-            printf("Start %d End %d\n", start, end);
-#endif
-
-            while(start <= end)
+            while(it2 < availables.size())
             {
-                GCidx = (isVertical)? this->grid.GetIndex(col,start,curl) : this->grid.GetIndex(start,row,curl);
-                set2 = this->grid[GCidx]->resources;
-                //it = set_intersection(v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin());
-                set_intersection(set1.begin(), set1.end(), set2.begin(), set2.end(), inserter(set3, set3.begin()));
-                curBW = set3.size();
-
-#ifdef DEBUG_TRACK
-                if(isVertical)
-                    printf("Current Gcell (%d %d) M%d Cap %d\n", col, start, curl, set2.size());
-                else
-                    printf("Current Gcell (%d %d) M%d Cap %d\n", start, row, curl, set2.size());
-                printf("\n\nSet1 -> ");
-                for(auto& iter : set1) cout << iter << " ";
-                printf("\n\nSet2 -> ");
-                for(auto& iter : set2) cout << iter << " ";
-                printf("\n\nSet3 -> ");
-                for(auto& iter : set3) cout << iter << " ";
-                printf("\n\n\nset1 %d set2 %d set3 %d\n\n", set1.size(), set2.size(), set3.size());
-#endif
-
-
-                if(curBW < tarBW)
+                int offset1 = rtree.track_offset(tmp[it1]);
+                int offset2 = rtree.track_offset(availables[it2]);
+                int width = ckt->buses[i].width[curl];           
+                if(abs(offset1 - offset2) > spacing[curl])
+                //if(abs(offset1 - offset2) - width > spacing[curl])
                 {
-                    printf("Bitwidth (%d %d)\n", curBW, tarBW);
-                    cout << "Fail to assign track..." << endl;
-                    isValid = false;
-                    //
-                    set1 = set3;
-                    break;
+                    tmp.push_back(availables[it2]);
+                    it1++;
                 }
-                else
-                {
-                    set1 = set3;
-                    set3.clear(); // = vector<int>(MAXSIZE);
-                }
-
-
-
-                start++;
+                it2++;
             }
+
+            availables = tmp;
+
+
+ 
+            isValid = (availables.size() >= tarBW) ? true :false;
 
             // Create wire
             if(isValid)
             {
+                //sort(availables.begin(), availables.end());
+
                 // Assign track for all bits
                 //assign[segid] = true;
                 curBus = &ckt->buses[busid];
-                it = set1.begin();
-                tarBW = curS->bw;
-                //bitwidth[segid];
-#ifdef DEBUG_TRACK
-                printf("Segment(%2d) (%3d %3d) (%3d %3d) m%d Bitwidth %d\n", curS->id, x1, y1, x2, y2, curl, tarBW);
-                //for(auto& iter : set1) printf("Available resource index(%d)\n", iter);
-                printf("\n\n");
-#endif
-
+                vector<int>::iterator it = availables.begin();
                 for(int s=0; s < tarBW; s++)
                 {
                     seq = s;
                     width = curBus->width[curl];
                     bitid = curBus->bits[s];
                     trackid = *it++;
-                    start = isVertical ? y1 : x1;
-                    end = isVertical ? y2 : x2;
-
-                    // Erase available resources
-                    while(start <= end)
-                    {
-                        curGC = (isVertical)? grid[grid.GetIndex(col,start,curl)] : grid[grid.GetIndex(start,row,curl)];
-                        curGC->resources.erase(trackid);
-                        start++;
-                    }
-
-                    Wire curWire;
-                    curWire.id = wires.size();
-                    curWire.width = width;
-                    curWire.l = curl;
-                    curWire.busid = busid;
-                    curWire.bitid = bitid;
-                    curWire.trackid = trackid;
-                    curWire.seq = seq;
-                    curWire.vertical = isVertical;
-                    curWire.x1 = isVertical? interval.offset[trackid] : grid.llx(g1);
-                    curWire.x2 = isVertical? interval.offset[trackid] : grid.urx(g2);
-                    curWire.y1 = isVertical? grid.lly(g1) : interval.offset[trackid]; 
-                    curWire.y2 = isVertical? grid.ury(g2) : interval.offset[trackid]; 
-
-
-                    interval.empty[trackid] -= 
-                        isVertical ? IntervalT::closed(curWire.y1, curWire.y2) : IntervalT::closed(curWire.x1, curWire.x2);
-
-
-#ifdef DEBUG_TRACK
-
-                    if(ckt->tracks[trackid].offset != interval.offset[trackid])
-                    {
-                        cout << "Invalid mapping..." << endl;
-                        cout << "trackid : "<< trackid << endl;
-                        cout << "#tracks : " << ckt->tracks.size() << endl;
-                        Track* curt = &ckt->tracks[trackid];
-                        printf("track%d (%d %d) (%d %d) offset %d\n", trackid, curt->llx, curt->lly, curt->urx, curt->ury, curt->offset);
-                        
-                        cout << ckt->tracks[trackid].offset << endl;
-                        cout << interval.offset[trackid] << endl;
-                        exit(0);
-                    }
-                    
-                    printf("Create wire(%-4d) (%4d %-4d) (%4d %-4d) M%d --> %s\n",s,curWire.x1, curWire.y1, curWire.x2, curWire.y2, curWire.l, ckt->buses[curWire.busid].name.c_str());  
-#endif
-                    wires.push_back(curWire);
-                    curS->wires.push_back(curWire.id);
+                    xs[0] = isVertical? rtree.track_offset(trackid) : grid.llx(g1);
+                    xs[1] = isVertical? rtree.track_offset(trackid) : grid.urx(g2);
+                    ys[0] = isVertical? grid.lly(g1) : rtree.track_offset(trackid);
+                    ys[1] = isVertical? grid.ury(g2) : rtree.track_offset(trackid);
+                    curwire = CreateWire(bitid, trackid, xs, ys, curl, seq, false);
                     //
-                    curtree->wires.push_back(curWire.id);
+                    curS->wires.push_back(curwire->id);
+
+                   
                 }
 
 
-
-
             }else{
-#ifdef DEBUG_TRACK
-                printf("#required tracks : %d\n", tarBW);
-                printf("failed... current remained tracks: %d\n\n\n", set1.size());
+                cout << "Invalid..." << endl;
+                //exit(0);
 
-#endif
 
             }
             ///
         }
 
+        ///////////
+        for(auto& juncid : curtree->junctions)
+        {
+            Segment *s1, *s2;
+            Wire *w1, *w2, *w_it1, *w_it2;
+            int l1, l2;
+
+            s1 = &segs[junctions[juncid].s1];
+            s2 = &segs[junctions[juncid].s2];
+            l1 = s1->l;
+            l2 = s2->l;
+
+            for(j=0; j < s1->bw; j++)
+            {
+                w1 = &wires[s1->wires[j]];
+                w2 = &wires[s2->wires[j]];
+                int x, y;
+                if(!Intersection(w1, w2, x, y))
+                {
+                    cout << "No intersection...!" << endl;
+                    
+                    printf("wire1 (%d %d) (%d %d)\n", w1->x1, w1->y1, w1->x2, w1->y2);
+                    printf("wire2 (%d %d) (%d %d)\n", w2->x1, w2->y1, w2->x2, w2->y2);
+                    
+
+                    if(w1->vertical && !w2->vertical)
+                    {
+                        x = rtree.track_offset(w1->trackid);
+                        y = rtree.track_offset(w2->trackid);
+                    }
+                    else if(!w1->vertical && w2->vertical)
+                    {
+                        x = rtree.track_offset(w2->trackid);
+                        y = rtree.track_offset(w1->trackid);
+                    }
+                    else
+                    {
+                        //printf("Invalid pair of tracks...\n");
+                        //exit(0);
+                    }
+
+                    int xs1[2], xs2[2], ys1[2], ys2[2];
+                    xs1[0] = min(w1->x1, x);
+                    xs1[1] = max(w1->x2, x);
+                    ys1[0] = min(w1->y1, y);
+                    ys1[1] = max(w1->y2, y);
+                    xs2[0] = min(w2->x1, x);
+                    xs2[1] = max(w2->x2, x);
+                    ys2[0] = min(w2->y1, y);
+                    ys2[1] = max(w2->y2, y);
+                    if(ValidUpdate(w1->id, xs1, ys1) && ValidUpdate(w2->id, xs2, ys2))
+                    {
+                        UpdateWire(w1->id, xs1, ys1);
+                        UpdateWire(w2->id, xs2, ys2);
+                    }
+                    else
+                    {
+                        cout << "Invalid updated..." << endl;
+                        exit(0);
+                    }
+                }
+
+
+                if(abs(w1->l - w2->l) > 1)
+                {
+                    w_it1 = w1;       
+                    for(l=l1+1; l < l2; l++)
+                    {
+
+                        // find trackid
+                        vector<pair<seg,int>> queries;
+                        trackrtree->query(bgi::intersects(pt(x,y)) && bgi::satisfies([&,l,this](const pair<seg,int>& val){
+                                return (l == this->rtree.layer(val.second)) ? true : false;
+                                    }), back_inserter(queries));
+                        if(queries.size() ==0)
+                        {
+                            cout << "Invalid.. no remained tracks...." << endl;
+                            exit(0);
+                        }
+                        
+                        trackid = rtree.trackid(queries[0].second);
+                        bitid = w_it1->bitid;
+                        xs[0] = x;
+                        xs[1] = x;
+                        ys[0] = y;
+                        ys[1] = y;
+                        w_it2 = CreateWire(bitid, trackid, xs, ys, l, j, false);
+
+                        SetNeighbor(w_it1, w_it2, x, y);
+
+                        
+                        w_it1 = w_it2;
+                    }
+
+                    SetNeighbor(w_it1, w2, x, y);
+
+                }
+                else
+                {
+                    SetNeighbor(w1, w2, x, y);
+                }
+            }
+        }
+
     }
     
-    // Iterating segments
-    for(i=0; i < numSegs; i++)
-    {
-#ifdef DEBUG_TRACK
-        printf("\n\n");
-#endif 
-        curS = &this->segs[i];
-        segid = curS->id;
-        busid = this->seg2bus[segid];
-
-    }
-
 #ifdef DEBUG_TRACK
     Wire* curW;
     
@@ -718,6 +798,78 @@ void OABusRouter::Grid3D::print()
 
 
     /*
+     *
+            dir = this->grid.direction[curl];
+            isVertical = (dir == VERTICAL)?true:false;
+
+            // Initial resources
+            col = x1;
+            row = y1;
+            GCidx = this->grid.GetIndex(col,row,curl);
+            set1 = this->grid[GCidx]->resources;
+
+            start = x1;
+            end = x2;
+
+            if(isVertical)
+            {
+                start = y1;
+                end = y2;
+            }
+
+            isValid = true;
+
+#ifdef DEBUG_TRACK
+            if(isVertical)
+                printf("Segment (%d %d) (%d %d) M%d VERTICAL\n", x1, y1, x2, y2, curl);
+            else
+                printf("Segment (%d %d) (%d %d) M%d HORIZONTAL\n", x1, y1, x2, y2, curl);
+            printf("Start %d End %d\n", start, end);
+#endif
+
+            while(start <= end)
+            {
+                GCidx = (isVertical)? this->grid.GetIndex(col,start,curl) : this->grid.GetIndex(start,row,curl);
+                set2 = this->grid[GCidx]->resources;
+                //it = set_intersection(v1.begin(), v1.end(), v2.begin(), v2.end(), v3.begin());
+                set_intersection(set1.begin(), set1.end(), set2.begin(), set2.end(), inserter(set3, set3.begin()));
+                curBW = set3.size();
+
+#ifdef DEBUG_TRACK
+                if(isVertical)
+                    printf("Current Gcell (%d %d) M%d Cap %d\n", col, start, curl, set2.size());
+                else
+                    printf("Current Gcell (%d %d) M%d Cap %d\n", start, row, curl, set2.size());
+                printf("\n\nSet1 -> ");
+                for(auto& iter : set1) cout << iter << " ";
+                printf("\n\nSet2 -> ");
+                for(auto& iter : set2) cout << iter << " ";
+                printf("\n\nSet3 -> ");
+                for(auto& iter : set3) cout << iter << " ";
+                printf("\n\n\nset1 %d set2 %d set3 %d\n\n", set1.size(), set2.size(), set3.size());
+#endif
+
+
+                if(curBW < tarBW)
+                {
+                    printf("Bitwidth (%d %d)\n", curBW, tarBW);
+                    cout << "Fail to assign track..." << endl;
+                    isValid = false;
+                    //
+                    set1 = set3;
+                    break;
+                }
+                else
+                {
+                    set1 = set3;
+                    set3.clear(); // = vector<int>(MAXSIZE);
+                }
+
+
+
+                start++;
+            }
+
     for(i=0; i < numSegs; i++)
     {
         queries.clear();

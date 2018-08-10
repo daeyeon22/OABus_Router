@@ -284,6 +284,26 @@ namespace OABusRouter
         bool vertical_arrange();
     };
 
+    struct Path
+    {
+        int x[2];
+        int y[2];
+        int l;
+        bool via;
+        Path(){}
+        Path(const Path& p)
+        {
+            x[0] = p.x[0];
+            x[1] = p.x[1];
+            y[0] = p.y[0];
+            y[1] = p.y[1];
+            l = p.l;
+            via = p.via;
+        }
+
+    };
+
+
     struct Bit
     {
         int id;
@@ -292,6 +312,7 @@ namespace OABusRouter
         vector<int> pins;
         vector<int> wires;
         vector<int> vias;
+        vector<Path> paths;
         //Rect boundary();
 
         Bit() : 
@@ -394,7 +415,9 @@ namespace OABusRouter
             id(con.id) {}
         void print();
     };
-    
+
+
+
     class Circuit
     {
       private:
@@ -491,7 +514,8 @@ namespace OABusRouter
         void Init();
         void InitTrack();
         void Getpitch();
-
+        void CreatePath();
+        
         void Printall();
 
         bool is_vertical(int l){ return layers[l].is_vertical(); }

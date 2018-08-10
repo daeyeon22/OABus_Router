@@ -332,7 +332,7 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
 bool OABusRouter::Circuit::getBusInfo(char* fileName){
     ifstream inputFile(fileName);
     string line = "";
-    string delim = " ()<>";
+    string delim = " ()";
     bool flag = false;
 
     typedef boost::tokenizer<boost::char_separator<char>>::iterator tokenIter;
@@ -426,7 +426,7 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                                 bit.id = this->bits.size();
                                 bit.busName = bus.name;
                                 bit.name = *++iter;
-                                bit.name = bit.name + "_" + *++iter;
+                                //bit.name = bit.name + "_" + *++iter;
                                 this->bits.push_back(bit);
                                 this->bitHashMap[bit.name] = bit.id;
                                 bitFlag = true;

@@ -79,11 +79,13 @@ void OABusRouter::Router::GenBackbone()
             curMultipin = &ckt->multipins[curBus->multipins[p]];
             curPin = &ckt->pins[curMultipin->pins[0]];
             curLayer = &ckt->layers[curMultipin->l];
-            /*
+   
+            
             int mincol, maxcol, minrow, maxrow;
             int pinllx, pinlly, pinurx, pinury;
             int minllx, minlly, maxurx, maxury;
             int col1, col2, row1, row2, curl;
+            int move, bw, cap;
             bool arrange_vertical;
             bool layer_vertical;
             mincol = INT_MAX;
@@ -119,62 +121,40 @@ void OABusRouter::Router::GenBackbone()
                 maxurx = max(maxurx, pinurx);
                 maxury = max(maxury, pinury);
             }
-            //layer_vertical = curLayer->is_vertical();
-            //arrange_vertical = ((maxurx - minllx) < (maxury - minlly)) ? true : false;
-            */
-           
-            /*
-            if(layer_vertical && arrange_vertical)
-            {
-                
-            }
-            else if(!layer_vertical && arrange_vertical)
-            {
 
-            }
-            else if(layer_vertical && !arrange_vertical)
-            {
-
-            }
-            else if(!layer_vertical && !arrange_vertical)
-            {
-
-            }
             
-            int l1 = curLayer->id;
-            int bw = curMultipin->pins.size();
-            int move = 1;
-            int cap =  0 ; //grid[grid.GetIndex(col1,row1,l1)]->cap;
-
-            for(int j=0; cap < bw; j++)
+            cap = 0;
+            move = 4;
+            bw = curMultipin->pins.size();
+            int count=0;
+            while(cap < bw && count++ < 30)
             {
-                if(j%4 == 0)
-                {
-                    row2 = max(0, minrow-move); //row1;
-                    col2 = max(0, mincol-move);
-                }
-                else if(j%4 == 1)
-                {
-                    row2 = min(grid.numRows-1, maxrow+move);
-                    col2 = max(0, mincol-move);
-                }
-                else if(j%4 == 2)
-                {
-                    row2 = min(grid.numRows-1, maxrow+move); //row1;
-                    col2 = min(grid.numCols-1, maxcol+move);
-                }
-                else if(j%4 == 3)
-                {
-                    row2 = max(0, minrow-move);
-                    col2 = min(grid.numCols-1, maxcol+move);
-                }
-                if(j%4 == 3)
-                    move++;
                 
-                cap = grid[grid.GetIndex(col2,row2,curl)]->cap;
+                col2 = (curMultipin->align == VERTICAL)?
+                    mincol + pow(-1,move%2) : (move%2 == 1)?mincol:maxcol + pow(-1,move%2)*(int)(1.0*move/4);
+                row2 = (curMultipin->align == VERTICAL)?
+                   ((move%2 == 1)?minrow:maxrow) + pow(-1,move%2)*(int)(1.0*move/4) : minrow + pow(-1, move%2);
+                move++;
+                if(col2 < 0 || col2 >= grid.numCols)
+                {
+                    continue;
+                }
+
+                if(row2 < 0 || row2 >= grid.numRows)
+                {
+                    continue;
+                }
+                for(int k=0; k < grid.numLayers; k++)
+                    cap = max(cap, grid[grid.GetIndex(col2,row2,k)]->cap);
             }
 
-
+            /////////////////////
+            if(count == 30)
+            {
+                col2 = mincol;
+                row2 = minrow;
+            }
+            /////////////////////
 #ifdef DEBUG_RSMT
             printf(" %d", curMultipin->id);
             if(curBus->id != curMultipin->busid)
@@ -189,8 +169,8 @@ void OABusRouter::Router::GenBackbone()
             y[p] = row2;
             l[p] = curl; // curLayer->id;
 
-            */
-           int pinllx = curPin->llx;
+            /*
+            int pinllx = curPin->llx;
             int pinlly = curPin->lly;
             int pinurx = curPin->urx;
             int pinury = curPin->ury;
@@ -245,12 +225,12 @@ void OABusRouter::Router::GenBackbone()
                 exit(0);
             }
 #endif
-               
             ids[p] = curMultipin->id;
             x[p] = col2;
             y[p] = row2;
             l[p] = l1; // curLayer->id;
 
+             */  
         
         }
 #ifdef DEBUG_RSMT

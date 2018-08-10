@@ -12,7 +12,114 @@
 //#define DEBUG_ROUTE
 //#define DEBUG_GRID
 
+
+
+
+
 // 3D mapping
+bool OABusRouter::Router::ValidUpdate(int wireid, int x[], int y[])
+{
+    Wire* curwire = &wires[wireid];
+    IntervalSetT empty = rtree.track_empty(curwire->trackid);
+    if(curwire->vertical)
+    {
+        empty += IntervalT::closed(curwire->y1, curwire->y2);
+        return bi::within(IntervalT::open(y[0], y[1]), empty);
+    }
+    else
+    {
+        empty += IntervalT::closed(curwire->x1, curwire->x2);
+        return bi::within(IntervalT::open(x[0], x[1]), empty);
+    }
+}
+
+bool OABusRouter::Router::UpdateWire(int wireid, int x[], int y[])
+{
+    Wire* curwire = &wires[wireid];
+    int origXs[] = {curwire->x1, curwire->x2};
+    int origYs[] = {curwire->y1, curwire->y2};
+    
+    rtree.insert_element(curwire->trackid, origXs, origYs, curwire->l, false);
+    
+    curwire->x1 = x[0];
+    curwire->x2 = x[1];
+    curwire->y1 = y[0];
+    curwire->y2 = y[1];
+
+    rtree.insert_element(curwire->trackid, x, y, curwire->l, true);
+    return true;
+}
+
+OABusRouter::Wire* OABusRouter::Router::CreateWire(int bitid, int trackid, int x[], int y[], int l, int seq, bool pin)
+{
+    
+    Wire w;
+    w.id = wires.size();
+    w.x1 = x[0];
+    w.y1 = y[0];
+    w.x2 = x[1];
+    w.y2 = y[1];
+    w.l = l;
+    w.seq = seq;
+    w.busid = ckt->busHashMap[ckt->bits[bitid].busName];
+    w.bitid = bitid;
+    w.width = ckt->buses[w.busid].width[l];
+    w.trackid = trackid;
+    w.vertical = ckt->is_vertical(l);
+    w.pin = pin;
+    w.via = (x[0]==x[1] && y[0]==y[1]) ? true : false;
+
+    wires.push_back(w);
+
+    // add into the bit and tree
+    ckt->bits[w.bitid].wires.push_back(w.id);
+    rsmt[rsmt.treeID[w.busid]]->wires.push_back(w.id);
+
+    // rtree update
+    rtree.insert_element(trackid, x, y, l, true);
+    return &wires[w.id];
+}
+
+
+bool OABusRouter::Router::Intersection(Wire* w1, Wire* w2, int &x, int &y)
+{
+    typedef PointBG pt;
+    typedef SegmentBG seg;
+
+    vector<pt> intersection;
+    seg s1(pt(w1->x1, w1->y1), pt(w1->x2, w1->y2));
+    seg s2(pt(w2->x1, w2->y1), pt(w2->x2, w2->y2));
+    bg::intersection(s1, s2, intersection);
+    if(intersection.size() == 0)
+        return false;
+    else
+    {
+        x = (int)(bg::get<0>(intersection[0]) + 0.5);
+        y = (int)(bg::get<1>(intersection[0]) + 0.5);
+        return true;
+    }
+}
+
+void OABusRouter::Router::SetNeighbor(Wire* w1, Wire* w2, int x, int y)
+{
+
+    int x2, y2;
+    Intersection(w1, w2, x2, y2);
+    if(x2 != x || y2 != y)
+    {
+        printf("orig (%d %d) value (%d %d)\n", x, y , x2, y2);
+        printf("w1 (%d %d) (%d %d)\n", w1->x1, w1->y1, w1->x2, w1->y2);
+        printf("w2 (%d %d) (%d %d)\n", w2->x1, w2->y1, w2->x2, w2->y2);
+        exit(0);
+    }
+    
+    
+    w1->neighbor.push_back(w2->id);
+    w2->neighbor.push_back(w1->id);
+    w1->intersection[w2->id] = {x,y};
+    w2->intersection[w1->id] = {x,y};
+}
+
 void OABusRouter::Router::TopologyMapping3D()
 {
 
@@ -100,7 +207,7 @@ void OABusRouter::Router::TopologyMapping3D()
             if(!verline || !horline)
             {
                 cout << "Invalid steiner point..." << endl;
-                exit(0);
+                //exit(0);
             }else{
             }
         }
@@ -634,6 +741,7 @@ int OABusRouter::Grid3D::Capacity(int col, int row, int layer)
     return gcells[GetIndex(col, row, layer)].cap;
 }
 
+
 // Initialize Grid3D
 void OABusRouter::Router::InitGrid3D()
 {
@@ -653,6 +761,8 @@ void OABusRouter::Router::InitGrid3D()
     for(int i=0; i < numlayers; i++)
     {
         Layer* curl = &ckt->layers[i];
+        spacing[curl->id] = curl->spacing;
+        
         if(curl->is_vertical())
         {
 
@@ -816,7 +926,7 @@ void OABusRouter::Grid3D::InitGcellCap(int layer, int dir, vector<int> &offsets)
                         bool fallLL, fallUR, targetL;
                         idx = val.second;
                         SegmentBG curSeg = val.first;
-                        tarl = rtree->trackNuml[idx];
+                        tarl = rtree->layer(idx); //trackNuml[idx];
                         llx = bg::get<0,0>(curSeg);
                         lly = bg::get<0,1>(curSeg);
                         urx = bg::get<1,0>(curSeg);
@@ -876,7 +986,7 @@ void OABusRouter::Grid3D::InitGcellCap(int layer, int dir, vector<int> &offsets)
             for(int i=0; i < cap; i++)
             {
                 int idx = queries[i].second;
-                tid = rtree->trackID[idx];
+                tid = rtree->trackid(idx); //trackID[idx];
                 curGC->resources.insert(tid);   
             }
             //sort(curGC->resources.begin(), curGC->resources.end());

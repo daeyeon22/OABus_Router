@@ -21,13 +21,21 @@ void OABusRouter::Router::Plot()
     int i, numBuses;
     numBuses = ckt->buses.size();
 
+
+cout << "1" << endl;
     for(i=0; i < numBuses; i++)
     {
+cout << "2" << endl;
         Bus* curB = &ckt->buses[i];
+cout << "3" << endl;
         string filename;
+cout << "4" << endl;
         filename = plotdir + curB->name + ".svg";
+cout << "5" << endl;
         CreateBusPlot(false, curB->id, filename.c_str());
+cout << "6" << endl;
     }
+cout << "7" << endl;
 
 
 
@@ -157,30 +165,17 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
     {
         for(trackid=0; trackid < numTracks; trackid++)
         {
-            br::Track* curT = &ckt->tracks[trackid];
-            IntervalSetT::iterator it1 = rou->interval.empty[trackid].begin();
-            IntervalSetT::iterator it2 = rou->interval.empty[trackid].end();
-
-            l = rou->interval.is_vertical[trackid];
-            offset = rou->interval.offset[trackid];            
-            isVertical = rou->interval.is_vertical[trackid];
-
-            while(it1 != it2)
+            br::Container* curct = &rou->rtree.containers[trackid];
+            curl = curct->l;
+            for(auto& it : curct->segs)
             {
-                DiscreteIntervalT intv = *it1++;
-                llx = isVertical ? offset : intv.lower();
-                urx = isVertical ? offset : intv.upper();
-                lly = isVertical ? intv.lower() : offset;
-                ury = isVertical ? intv.upper() : offset;
-                 
-                llx += layoutOffsetX;
-                urx += layoutOffsetX;
-                lly += layoutOffsetY;
-                ury += layoutOffsetY;
-
-
-                doc << Line(Point(llx, lly), Point(urx, ury), Stroke(10,colors[l]));
+                llx = (int)(bg::get<0,0>(it) +0.5) + layoutOffsetX;
+                lly = (int)(bg::get<0,1>(it) +0.5) + layoutOffsetY;
+                urx = (int)(bg::get<1,0>(it) +0.5) + layoutOffsetX;
+                ury = (int)(bg::get<1,1>(it) +0.5) + layoutOffsetY;
+                doc << Line(Point(llx, lly), Point(urx, ury), Stroke(10,colors[curl]));
             }
+
         }
 
     }
@@ -312,6 +307,10 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         
         curl = curPin->l; //ckt->layerHashMap[curPin->layer];   
         content = curPin->bitName;
+        size_t found1 = content.find_last_of('<');
+        size_t found2 = content.find_last_of('>');
+        content = content.substr(0, found1) + "_" + content.substr(found1+1, found2);
+
         textOffsetX = (int)(1.0*(urx-llx)/2 + 0.5);
         textOffsetY = (int)(1.0*(ury-lly)/2 + 0.5);
 
@@ -323,7 +322,7 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
 #ifdef DEBUG_PIN
         printf("Rect (%8d %8d) (%8d %8d)\n", llx, lly, urx, ury);
 #endif
-        //doc << Text(Point(textOffsetX, textOffsetY), content, Fill(), Font(300));
+        doc << Text(Point(textOffsetX, textOffsetY), content, Fill(), Font(300));
     }
 
 

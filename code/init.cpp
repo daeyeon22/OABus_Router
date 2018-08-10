@@ -6,7 +6,7 @@
 using namespace OABusRouter;
 
 
-
+/*
 void OABusRouter::Circuit::Init()
 {
     //cout << "Init track" << endl;
@@ -46,8 +46,9 @@ void OABusRouter::Circuit::Getpitch()
 
 }
 
+*/
 
-
+/*
 void OABusRouter::Router::InitInterval()
 {
     int numtracks, numobstacles, numresults;
@@ -129,7 +130,7 @@ void OABusRouter::Router::InitInterval()
 
 
     CreateTrackRtree();
-
+    */
     /*
     for(i=0; i < numtracks; i++)
     {
@@ -168,5 +169,5 @@ void OABusRouter::Router::InitInterval()
     tracks.clear();
     tracks = tmp;
     */   
-}
+//}
 

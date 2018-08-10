@@ -16,11 +16,9 @@
 #include <boost/geometry.hpp>
 
 
-#ifndef PREDEF
-#define PREDEF
 #define HORIZONTAL 222
 #define VERTICAL 111 
-#endif
+#define PINTYPE 1212
 
 #ifndef DTYPE       // Data type used by FLUTE
 #define DTYPE int
@@ -310,29 +308,48 @@ namespace OABusRouter
 
     };
    
+    struct Container
+    {
+        typedef SegmentBG seg;
+        typedef PointBG pt;
+        
+        int trackid;
+        int offset;
+        int l;
+        bool vertical;
+
+        IntervalSetT empty;
+        vector<seg> segs;
+        vector<int> elems;
+    };
+
+
+
+    
     struct Rtree
     {
-
         int elemindex;
         SegRtree track;
-        SegRtree emtpytrack;
         BoxRtree obstacle; 
-
-        //
-        dense_hash_map<int,int> trackNuml;
-        dense_hash_map<int,int> trackID;
-        dense_hash_map<int,int> trackDir;
-
-        //
-        dense_hash_map<int,int> obsNuml;
-        dense_hash_map<int,int> obsID;
+        vector<Container> containers;
+        dense_hash_map<int,int> elem2track;
+        
+        
         Rtree()
         {
             elemindex = 0;
-            trackNuml.set_empty_key(INT_MAX);
-            trackID.set_empty_key(INT_MAX);
-            trackDir.set_empty_key(INT_MAX);
+            elem2track.set_empty_key(INT_MAX);
         }
+
+        bool insert_element(int trackid, int x[], int y[], int l, bool remove); 
+        int layer(int elemid);
+        int trackid(int elemid);
+        int direction(int elemid);
+        int offset(int elemid);
+        int track_offset(int trackid);
+        int track_layer(int trackid);
+        int track_direction(int trackid);
+        IntervalSetT track_empty(int trackid);
     };
 
 
@@ -431,33 +448,18 @@ namespace OABusRouter
         int bitid;
         int trackid;
         bool vertical;
+        bool pin;
+        bool via;
 
-        Wire():
-            id(INT_MAX),
-            x1(INT_MAX),
-            y1(INT_MAX),
-            y2(INT_MAX),
-            l(INT_MAX),
-            seq(INT_MAX),
-            width(INT_MAX),
-            busid(INT_MAX),
-            bitid(INT_MAX),
-            trackid(INT_MAX),
-            vertical(false) {}
-        
-        Wire(const Wire& w):
-            id(w.id),
-            x1(w.x1),
-            y1(w.y1),
-            x2(w.x2),
-            y2(w.y2),
-            l(w.l),
-            seq(w.seq),
-            width(w.width),
-            busid(w.busid),
-            bitid(w.bitid),
-            trackid(w.trackid),
-            vertical(w.vertical) {}
+        vector<int> neighbor;
+        dense_hash_map<int, pair<int,int>> intersection;
+
+        Wire()
+        {
+            intersection.set_empty_key(INT_MAX);
+        }
+
+
     };
 
     struct Via
@@ -510,6 +512,7 @@ namespace OABusRouter
 
         // Hash map
         //dense_hash_map<int,int> seg2multipin;   // ??
+        dense_hash_map<int,int> spacing;
         dense_hash_map<int,int> seg2bus;
         //dense_hash_map<int,int> wire2pin;       // ??
         dense_hash_map<int,int> junc2bus;
@@ -523,6 +526,7 @@ namespace OABusRouter
         Router()
         {
             //seg2multipin.set_empty_key(0);
+            spacing.set_empty_key(INT_MAX);
             multipin2seg.set_empty_key(INT_MAX);
             pin2wire.set_empty_key(INT_MAX);
             seg2bus.set_empty_key(INT_MAX);
@@ -535,9 +539,8 @@ namespace OABusRouter
 
         // Initialize Grid3D
         void InitGrid3D();
-        void InitInterval();
-        void CreateTrackRtree();
-        
+        void InitRtree();
+
         SegRtree* GetTrackRtree();
 
         // Generate Initial Topology for each bus
@@ -562,11 +565,16 @@ namespace OABusRouter
         void CreateVia();
         void MappingPin2Wire();
         void MappingMultipin2Seg();
-
+        void Cut();
         // Make Plot
         void Plot();
 
-    
+        void SetNeighbor(Wire* w1, Wire* w2, int x, int y);
+        bool Intersection(Wire* w1, Wire* w2, int &x, int &y);
+        
+        Wire* CreateWire(int bitid, int trackid, int x[], int y[], int l, int seq, bool pin);
+        bool ValidUpdate(int wireid, int x[], int y[]);
+        bool UpdateWire(int wireid, int x[], int y[]);
     };
 
 

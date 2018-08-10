@@ -41,8 +41,15 @@ void OABusRouter::Router::PinAccess(int busid)
     int llx, lly, urx, ury;
     int pinl, curl, tarl, l1, l2;
     int bitid, trackid, l, seq, width;
+    int xs[2], ys[2];
+    bool pin;
     bool vertical_arrange;
     bool vertical_segment;
+    typedef SegmentBG seg;
+    typedef PointBG pt;
+    typedef BoxBG box;
+    typedef pair<int,int> ipair;
+    typedef tuple<int,int,int> ituple;
     Bus* curbus;
     Bit* curbit;
     Pin* curpin;
@@ -65,16 +72,18 @@ void OABusRouter::Router::PinAccess(int busid)
     curbus = &ckt->buses[busid];
     nummultipins = curbus->multipins.size();
 
-    //printf("\n\n%s pin access\n", curbus->name.c_str());
+    printf("\n\n%s pin access\n", curbus->name.c_str());
 
     for(i=0; i < nummultipins; i++)
     {
         curmultipin = &ckt->multipins[curbus->multipins[i]];
         vertical_arrange = curmultipin->vertical_arrange();
         numpins = curmultipin->pins.size();
-
-        int maxDepth;
+        int maxDepth = INT_MAX;
         vector<int> tracel;
+        set<int> used;
+        vertical_arrange = (curmultipin->align == VERTICAL)? true : false;
+
         for(j=0; j < numpins; j++)
         {
             curpin = &ckt->pins[curmultipin->pins[j]];
@@ -91,11 +100,6 @@ void OABusRouter::Router::PinAccess(int busid)
             //curl = curpin->l;
 
 
-            typedef SegmentBG seg;
-            typedef PointBG pt;
-            typedef BoxBG box;
-            typedef pair<int,int> ipair;
-            typedef tuple<int,int,int> ituple;
             // { elem id, trace distance, target distance, depth }
 
 
@@ -137,9 +141,14 @@ void OABusRouter::Router::PinAccess(int busid)
             {
                 
                 e1 = it.second;
-                t1 = rtree.trackID[e1];
-                l1 = rtree.trackNuml[e1];
+                t1 = rtree.trackid(e1); //[e1];
+                l1 = rtree.layer(e1); //];
                 //it.second];
+                if(vertical_arrange == ckt->is_vertical(l1)) continue;
+                
+                // condition 2
+                if(used.find(t1) != used.end()) continue;
+                
                 if(abs(pinl - l1) < 2) //pinl+1 >= l1 && l1 >= pinl-1)
                 {
                     backtrace[e1] = e1;
@@ -150,7 +159,45 @@ void OABusRouter::Router::PinAccess(int busid)
                     y1 = (int)(bg::get<0,1>(element[e1]) + 0.5);
                     x2 = (int)(bg::get<1,0>(element[e1]) + 0.5);
                     y2 = (int)(bg::get<1,1>(element[e1]) + 0.5);
-                    
+                   
+                    if(pinl != l1)
+                    {
+                        for(auto& it2 : queries)
+                        {
+                            e2 = it2.second;
+                            if(rtree.layer(e2) == pinl)
+                            {
+                                if(rtree.direction(e1) == VERTICAL)
+                                {
+                                    iterPtx[e1] = rtree.offset(e1);
+                                    iterPty[e1] = rtree.offset(e2);
+                                }
+                                else
+                                {
+                                    iterPtx[e1] = rtree.offset(e2);
+                                    iterPty[e1] = rtree.offset(e1);
+                                }
+                                break;
+                            }
+                        }
+                    }else{
+                        if(bg::intersects(pt(x1,y1), b))
+                        {
+                            iterPtx[e1] = x1;
+                            iterPty[e1] = y1;
+                        }
+                        else if(bg::intersects(pt(x2,y2), b))
+                        {
+                            iterPtx[e1] = x2;
+                            iterPty[e1] = y2;
+                        }
+                        else
+                        {   
+                            printf("Invalid segment...\n");
+                            exit(0);
+                        }
+                    }
+                    /*
                     if(ckt->is_vertical(l1))
                     {
                         if(y2 < lly)
@@ -177,7 +224,7 @@ void OABusRouter::Router::PinAccess(int busid)
                             iterPtx[e1] = urx;
                         }
                     }
-
+                    */
                     c1 = VIA_COST* abs(pinl-l1);
                     c2 = (int)(bg::distance(wireseg, pt(iterPtx[e1],iterPty[e1])));
                     //cost = (int)bg::distance(wireseg, pt(iterPtx[e1], iterPty[e1])); //element[e1]);
@@ -217,8 +264,8 @@ void OABusRouter::Router::PinAccess(int busid)
                 e1 = get<0>(e);
                 cost1 = get<1>(e);
                 cost2 = get<2>(e);
-                t1 = rtree.trackID[e1];
-                l1 = rtree.trackNuml[e1];
+                t1 = rtree.trackid(e1); //[e1];
+                l1 = rtree.layer(e1); //l[e1];
 
                 curtrack = &ckt->tracks[t1];
                 x1 = curtrack->llx;
@@ -243,31 +290,49 @@ void OABusRouter::Router::PinAccess(int busid)
                     */
                     //break;
                 }
+                //
+                if(maxDepth <= depth[e1])
+                {
+                    continue;      
+                }
+
 
                 queries.clear();
                 trackrtree->query(bgi::intersects(element[e1]), back_inserter(queries));
+                
+                
                 for(auto& it : queries)
                 {
                     e2 = it.second;
-                    t2 = rtree.trackID[e2];
-                    l2 = rtree.trackNuml[e2];
+                    t2 = rtree.trackid(e2); //ID[e2];
+                    l2 = rtree.layer(e2);
 
+    
+                    // condition 1
                     if(abs(l1 - l2) > 1) continue;
+                    // condition 2
+                    if(used.find(t2) != used.end()) continue;
+                    
+                    // condition 3
                     if(backtrace[e2] == -1)
                     {
                         element[e2] = it.first;
                         backtrace[e2] = e1;
                         depth[e2] = depth[e1] + 1;
+
+                        if(j!=0 && tracel[depth[e2]] != l2) continue;
                         
                         vector<pt> intersection;
                         intersection.clear();
                         bg::intersection(element[e1], element[e2], intersection);
+                        ///////////////////////////////////////////////////////
                         if(intersection.size() == 0){
                             cout << bg::dsv(element[e1]) << endl;
                             cout << bg::dsv(element[e2]) << endl;
                             printf("???\n"); 
 
                         }
+                        ///////////////////////////////////////////////////////
                         pt p = intersection[0];
                         int x = (int)(bg::get<0>(p) + 0.5);
                         int y = (int)(bg::get<1>(p) + 0.5);
@@ -310,156 +375,175 @@ void OABusRouter::Router::PinAccess(int busid)
             // backtrace start
             if(hasMinElem)
             {
+                int w1, w2;
+                
                 if(j==0)
                 {
-                    maxDepth = depth[e1];
+                    maxDepth = depth[e1] + 1;
+                    tracel.insert(tracel.begin(), targetwire->l);
                 }
                 
                 
                 cout << "arrival..." << endl;    
                 e1 = minElem;
                 l1 = tarl;
-                l2 = rtree.trackNuml[e1];
-                if(ckt->is_vertical(l1) == ckt->is_vertical(l2))
-                {
-                    cout << "both same direction..." << endl;
-                    cout << bg::dsv(wireseg) << endl;
-                    cout << bg::dsv(element[e1]) << endl;
+                l2 = rtree.layer(e1); //trackNuml[e1];
                 
-                }
-               
-                vector<pt> intersection;
-                bg::intersection(element[e1], wireseg, intersection);
-                pt p = intersection[0];
-                x1 =  (int)(bg::get<0>(p) + 0.5);
-                y1 =  (int)(bg::get<1>(p) + 0.5);
-                x2 = iterPtx[e1];
-                y2 = iterPty[e1];
-                l = rtree.trackNuml[e1];
                 
-                if(x1 > x2) swap(x1, x2);
-                if(y1 > y2) swap(y1, y2);
-                trackid = rtree.trackID[e1];
-                seq = j;
-                width = curbus->width[l];
-
-                Wire w;
-                w.id = wires.size();
-                w.x1 = x1;
-                w.y1 = y1;
-                w.x2 = x2;
-                w.y2 = y2;
-                w.l = l;
-                w.width = width;
-                w.busid = busid;
-                w.bitid = bitid;
-                w.trackid = trackid;
-                w.vertical = (rtree.trackDir[e1] == VERTICAL)? true : false;
-
-                printf("Create wire (%d %d) (%d %d) M%d\n", x1, y1, x2, y2, l);
-                wires.push_back(w);
-                curbit->wires.push_back(w.id);
-
-                interval.empty[trackid] -=
-                    w.vertical ? IntervalT::closed(w.y1, w.y2) : IntervalT::closed(w.x1, w.x2);
-
-                curtree->wires.push_back(w.id);
-                ////////////////////////////////////////
-                int lower, upper;
-                lower = (w.vertical) ? (int)(bg::get<0,1>(element[e1]) + 0.5) : (int)(bg::get<0,0>(element[e1]) + 0.5);
-                upper = (w.vertical) ? (int)(bg::get<1,1>(element[e1]) + 0.5) : (int)(bg::get<1,0>(element[e1]) + 0.5);
-
-                IntervalSetT tmp = interval.empty[trackid] & IntervalT::open(lower, upper);
-                trackrtree->remove({element[e1],e1});
-
-                IntervalSetT::iterator it1 = tmp.begin();
-                IntervalSetT::iterator it2 = tmp.end();
-                while(it1 != it2)
+                if(l1 == l2)
                 {
-                    seg s1 = w.vertical ? 
-                        seg(pt(x1, it1->lower()), pt(x1, it1->upper())) : seg(pt(it1->lower(), y1), pt(it1->upper(),y1));
-                    trackrtree->insert({s1, rtree.elemindex});
-                    rtree.trackNuml[rtree.elemindex] = l;
-                    rtree.trackID[rtree.elemindex] = trackid;
-                    rtree.trackDir[rtree.elemindex] = w.vertical ? VERTICAL : HORIZONTAL;
-                    rtree.elemindex++;
-                    it1++;
-                }
-                ////////////////////////////////////////               
+                    targetwire->x1 = min(iterPtx[e1], targetwire->x1);
+                    targetwire->x2 = max(iterPtx[e1], targetwire->x2);
+                    targetwire->y1 = min(iterPty[e1], targetwire->y1);
+                    targetwire->y2 = max(iterPty[e1], targetwire->y2);
+                    l = targetwire->l;
+                    
+                    if(j==0)
+                        tracel.insert(tracel.begin(), l);
+                    
+                    
+                    pin = (e1 == backtrace[e1]) ? true : false;
+                    targetwire->pin = (e1 == backtrace[e1]) ? true : false;
+                    xs[0] = targetwire->x1;
+                    xs[1] = targetwire->x2;
+                    ys[0] = targetwire->y1;
+                    ys[1] = targetwire->y2;
+                    rtree.insert_element(targetwire->trackid, xs, ys, targetwire->l, true);
 
+                    w1 = targetwire->id;
+                    //
+                    used.insert(targetwire->trackid);
+
+                    if(targetwire->pin)
+                    {
+                        pin2wire[curpin->id] = w1;
+                        wires[w1].intersection[PINTYPE] = {iterPtx[e1], iterPty[e1]};
+                    }
+                    
+                    //if(j==0)
+                    //    maxDepth++;
+                }
+                else
+                {
+                    vector<pt> intersection;
+                    bg::intersection(element[e1], wireseg, intersection);
+                    pt p = intersection[0];
+                    x1 =  (int)(bg::get<0>(p) + 0.5);
+                    y1 =  (int)(bg::get<1>(p) + 0.5);
+                    x2 = iterPtx[e1];
+                    y2 = iterPty[e1];
+                    l = rtree.layer(e1); //trackNuml[e1];
+                    //
+                    if(j==0) 
+                        tracel.insert(tracel.begin(), l);
+
+                    // Data setting
+                    xs[0] = min(x1,x2);
+                    xs[1] = max(x1,x2);
+                    ys[0] = min(y1,y2);
+                    ys[1] = max(y1,y2);
+                    trackid = rtree.trackid(e1); //]
+                    seq = j;
+                    pin = (e1 == backtrace[e1]) ? true : false;
+
+                    w1 = targetwire->id;
+                    w2 = CreateWire(bitid, trackid, xs, ys, l, seq, pin)->id;
+
+                    //
+                    used.insert(trackid);
+                    
+                    if(pin)
+                    {
+                        pin2wire[curpin->id] = w2;
+                        wires[w2].intersection[PINTYPE] = {x2, y2};
+                    }
+
+                    //w2 = w.id;
+                    SetNeighbor(&wires[w1], &wires[w2], x1, y1);
+
+                    w1 = w2;                
+                }
+                
+
+                // Backtrace
                 while(backtrace[e1] != e1)
                 {
+                    // Iterating Points
                     e2 = backtrace[e1];
                     x1 = iterPtx[e1];
                     y1 = iterPty[e1];
                     x2 = iterPtx[e2];
                     y2 = iterPty[e2];
-                    l = rtree.trackNuml[e2];
-                    if(x1 > x2) swap(x1, x2);
-                    if(y1 > y2) swap(y1, y2);
+                    l = rtree.layer(e2); 
+                    // if first bit trace all layer sequences.
+                    if(j==0) 
+                        tracel.insert(tracel.begin(), l);
+                    //
 
+#ifdef DEBUG_PIN
                     if(x1 != x2 && y1 != y2)
                     {
                         cout << x1 << " " << x2 << endl;
                         cout << y1 << " " << y2 << endl;
                         //exit(0);
                     }
-                    trackid = rtree.trackID[e1];
+#endif    
+
+                    // Data setting                    
+                    xs[0] = min(x1,x2);
+                    xs[1] = max(x1,x2);
+                    ys[0] = min(y1,y2);
+                    ys[1] = max(y1,y2);
+                    pin = (e2 == backtrace[e2])? true : false;
+                    trackid = rtree.trackid(e2); //[e1];
                     seq = j;
-                    width = curbus->width[l];
-
-                    Wire w;
-                    w.id = wires.size();
-                    w.x1 = x1;
-                    w.y1 = y1;
-                    w.x2 = x2;
-                    w.y2 = y2;
-                    w.l = l;
-                    w.width = width;
-                    w.busid = busid;
-                    w.bitid = bitid;
-                    w.trackid = trackid;
-                    w.vertical = (rtree.trackDir[e1] == VERTICAL)? true : false;
-
-                    printf("Create wire (%d %d) (%d %d) M%d\n", x1, y1, x2, y2, l);
-                    wires.push_back(w);
-                    curbit->wires.push_back(w.id);
-                    curtree->wires.push_back(w.id);
-
-                    interval.empty[trackid] -=
-                        w.vertical ? IntervalT::closed(w.y1, w.y2) : IntervalT::closed(w.x1, w.x2);
-
-
-
-                    ///////////////////////////////////////
-                    lower = (w.vertical) ? (int)(bg::get<0,1>(element[e1]) + 0.5) : (int)(bg::get<0,0>(element[e1]) + 0.5);
-                    upper = (w.vertical) ? (int)(bg::get<1,1>(element[e1]) + 0.5) : (int)(bg::get<1,0>(element[e1]) + 0.5);
-
-                    tmp = interval.empty[trackid] & IntervalT::open(lower, upper);
-                    trackrtree->remove({element[e1],e1});
-
-                    it1 = tmp.begin();
-                    it2 = tmp.end();
-                    while(it1 != it2)
+                    
+                    w2 = CreateWire(bitid, trackid, xs, ys, l, seq, pin)->id;
+                    if(pin)
                     {
-                        seg s1 = w.vertical ? 
-                            seg(pt(x1, it1->lower()), pt(x1, it1->upper())) : seg(pt(it1->lower(), y1), pt(it1->upper(),y1));
-                        trackrtree->insert({s1, rtree.elemindex});
-                        rtree.trackNuml[rtree.elemindex] = l;
-                        rtree.trackID[rtree.elemindex] = trackid;
-                        rtree.trackDir[rtree.elemindex] = w.vertical ? VERTICAL : HORIZONTAL;
-                        rtree.elemindex++;
-                        it1++;
-                    }                   
-                    ////////////////////////////////////////
+                        pin2wire[curpin->id] = w2;
+                        wires[w2].intersection[PINTYPE] = {x2, y2};
+                        
+                    }
+                    
+                    //
+                    used.insert(trackid);
+                    
+                   
+                    // Setting neighbor wire
+                    SetNeighbor(&wires[w1], &wires[w2], x1, y1);
 
+                    // Swap element for iterating
+                    w1 = w2;
                     e1 = e2;
-
                 }
-                
-            }else
+ 
+#ifdef DEBUG
+                if(j==0)
+                {
+                    printf("trace layer num -> {");
+                    for(auto& it : tracel)
+                    {
+                        printf(" %d", it);
+                    }
+                    printf(" }\n\n");
+                }
+#endif
+
+
+            }
+            else
             {
                 cout << "No solution..." << endl;
+            
+                printf("maxDepth %dn", maxDepth);
+                printf("trace layer num -> {");
+                for(auto& it : tracel)
+                {
+                    printf(" %d", it);
+                }
+                printf(" }\n\n");
+
             }
             // backtrace end
         }
