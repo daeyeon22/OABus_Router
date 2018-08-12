@@ -78,9 +78,10 @@ int main(int argc, char** argv){
     cout << "Initialize" << endl;
     //ckt->Init();
     //rou->InitInterval();
-   
-    rou->InitRtree();
-    rou->InitGrid3D();
+  
+    rou->Init();
+    //rou->InitRtree();
+    //rou->InitGrid3D();
     
     
     //cout << "Initialize" << endl;
@@ -133,12 +134,12 @@ int main(int argc, char** argv){
     rou->Cut();
 
 
+    cout << "Create Path" << endl;
+    ckt->CreatePath();
     cout << "Create Plot" << endl;
     rou->Plot();
 
     
-    cout << "Create Path" << endl;
-    ckt->CreatePath();
     
     
     cout << "Write def & lef file" << endl;

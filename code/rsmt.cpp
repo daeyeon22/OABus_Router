@@ -106,11 +106,16 @@ void OABusRouter::Router::GenBackbone()
                 pinlly = curPin->lly;
                 pinurx = curPin->urx;
                 pinury = curPin->ury;
-                
+#ifdef DEBUG_RSMT
+                printf("pin (%d %d) (%d %d)\n", pinllx, pinlly, pinurx, pinury);
+#endif
+
+
+
                 col1 = grid.GetColum(pinllx);
                 row1 = grid.GetRow(pinlly);
                 col2 = grid.GetColum(pinurx);
-                row2 = grid.GetRow(pinurx);
+                row2 = grid.GetRow(pinury);
 
                 mincol = min(mincol, col1);
                 minrow = min(minrow, row1);
@@ -122,19 +127,74 @@ void OABusRouter::Router::GenBackbone()
                 maxury = max(maxury, pinury);
             }
 
+           
+           
+
+        
+#ifdef DEBUG_RSMT2
             
+            printf("x offsets : \n");
+            for(int c = 0; c < grid.numCols; c++)
+            {
+                printf("(%d) %d\n", c, grid.offsetxs[c]);
+            }
+            cout << endl;
+
+            printf("y offsets : \n");
+            for(int r = 0; r < grid.numRows; r++)
+            {
+                printf("(%d) %d\n", r, grid.offsetys[r]);
+            }
+            cout << endl;
+#endif
+
+
             cap = 0;
             move = 4;
             bw = curMultipin->pins.size();
             int count=0;
             while(cap < bw && count++ < 30)
             {
-                
+               
+
+                if(curMultipin->align == VERTICAL)
+                {
+                    if(move %2 == 0)
+                    {
+                        col2 = mincol - 1;
+                        row2 = minrow - (int)(1.0*move/4);
+                    }
+                    else
+                    {
+                        col2 = maxcol + 1;
+                        row2 = maxrow + (int)(1.0*move/4);
+                    }
+                }
+                else
+                {
+                    if(move %2 == 0)
+                    {
+                        col2 = mincol - (int)(1.0*move/4);
+                        row2 = minrow - 1;
+                    }
+                    else
+                    {
+                        col2 = maxcol + (int)(1.0*move/4);
+                        row2 = maxrow + 1;
+                    }
+
+
+                }
+                /*
                 col2 = (curMultipin->align == VERTICAL)?
                     mincol + pow(-1,move%2) : (move%2 == 1)?mincol:maxcol + pow(-1,move%2)*(int)(1.0*move/4);
                 row2 = (curMultipin->align == VERTICAL)?
                    ((move%2 == 1)?minrow:maxrow) + pow(-1,move%2)*(int)(1.0*move/4) : minrow + pow(-1, move%2);
-                move++;
+                */
+                   move++;
+                
+                
+
                 if(col2 < 0 || col2 >= grid.numCols)
                 {
                     continue;
@@ -144,6 +204,8 @@ void OABusRouter::Router::GenBackbone()
                 {
                     continue;
                 }
+               
+                cap = 0;
                 for(int k=0; k < grid.numLayers; k++)
                     cap = max(cap, grid[grid.GetIndex(col2,row2,k)]->cap);
             }
@@ -156,12 +218,9 @@ void OABusRouter::Router::GenBackbone()
             }
             /////////////////////
 #ifdef DEBUG_RSMT
-            printf(" %d", curMultipin->id);
-            if(curBus->id != curMultipin->busid)
-            {
-                cout << "???" << endl;
-                exit(0);
-            }
+            printf("orig (%d %d) (%d %d) changed (%d %d)\n", mincol, minrow,maxcol, maxrow, col2, row2);            
+            
+
 #endif
                
             ids[p] = curMultipin->id;

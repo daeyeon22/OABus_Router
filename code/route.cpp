@@ -9,7 +9,7 @@
 
 //#define DEBUG
 
-//#define DEBUG_ROUTE
+#define DEBUG_ROUTE
 //#define DEBUG_GRID
 
 
@@ -24,11 +24,39 @@ bool OABusRouter::Router::ValidUpdate(int wireid, int x[], int y[])
     if(curwire->vertical)
     {
         empty += IntervalT::closed(curwire->y1, curwire->y2);
+#ifdef DEBUG_ROUTE
+        if(!bi::within(IntervalT::open(y[0], y[1]), empty))
+        {
+            printf("Empty intervals ->\n{\n");
+            for(auto& it : empty)
+            {
+                cout << it << endl;
+            }
+            printf("}\nQuery Interval (%d %d)\n", y[0], y[1]);
+
+        }
+#endif
+        
+        
         return bi::within(IntervalT::open(y[0], y[1]), empty);
     }
     else
     {
         empty += IntervalT::closed(curwire->x1, curwire->x2);
+#ifdef DEBUG_ROUTE
+        if(!bi::within(IntervalT::open(x[0], x[1]), empty))
+        {
+            printf("Empty intervals ->\n{\n");
+            for(auto& it : empty)
+            {
+                cout << it << endl;
+            }
+            printf("}\nQuery Interval (%d %d)\n", x[0], x[1]);
+
+        }
+#endif
+        
+        
         return bi::within(IntervalT::open(x[0], x[1]), empty);
     }
 }
@@ -739,6 +767,36 @@ int OABusRouter::Grid3D::ury(int gcellid)
 int OABusRouter::Grid3D::Capacity(int col, int row, int layer)
 {
     return gcells[GetIndex(col, row, layer)].cap;
+}
+
+
+void OABusRouter::Router::Init()
+{
+    for(auto& mp : ckt->multipins)
+    {
+        int llx, lly, urx, ury;
+        llx = INT_MAX;
+        lly = INT_MAX;
+        urx = INT_MIN;
+        ury = INT_MIN;
+        for(auto& pinid : mp.pins)
+        {
+            Pin* curpin = &ckt->pins[pinid];
+            llx = min(llx, curpin->llx);
+            lly = min(lly, curpin->lly);
+            urx = max(urx, curpin->urx);
+            ury = max(ury, curpin->ury);
+        }
+
+
+        multipin2llx[mp.id] = llx;
+        multipin2lly[mp.id] = lly;
+        multipin2urx[mp.id] = urx;
+        multipin2ury[mp.id] = ury;
+    }
+
+    InitRtree();
+    InitGrid3D();
 }
 
 

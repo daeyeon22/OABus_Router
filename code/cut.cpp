@@ -78,7 +78,7 @@ void OABusRouter::Circuit::CreatePath()
 {
 
 
-    int wireid, x, y;
+    int wireid, pinid, x, y;
     bool visit[rou->wires.size()];
     Wire *w1, *w2;
     Pin* curpin;
@@ -131,6 +131,9 @@ void OABusRouter::Circuit::CreatePath()
                     return left.second.first < right.second.first || left.second.second < right.second.second;
                 };
 
+                intersection.insert(intersection.end(), w1->intersection.begin(), w1->intersection.end());
+
+                /*
                 for(auto& it : w1->intersection)
                 {
                     wireid = it.first;
@@ -139,30 +142,49 @@ void OABusRouter::Circuit::CreatePath()
                         intersection.push_back(it);
                     }
                 }
-                
+                */
                 sort(intersection.begin(), intersection.end(), cmp);
 
                 for(auto& it : intersection)
                 {
-                    wireid = it.first;
-                    w2 = &rou->wires[wireid];
                     x = it.second.first;
                     y = it.second.second;
-                    if(w1->l == w2->l) continue;
-
-                    if(!visit[wireid])
+                    if(it.first == PINTYPE)
                     {
                         
-                        visit[wireid] = true;
-                        Path p;
-                        p.x[0] = x;
-                        p.x[1] = x;
-                        p.y[0] = y;
-                        p.y[1] = y;
-                        p.l = min(w1->l, w2->l);
-                        p.via = true;
-                        s.push(wireid);
-                        paths.push_back(p);
+                        pinid = rou->wire2pin[w1->id];
+                        if(pins[pinid].l != w1->l)
+                        {
+                            Path p;
+                            p.x[0] = x;
+                            p.y[0] = y;
+                            p.x[1] = x;
+                            p.y[1] = y;
+                            p.l = min(pins[pinid].l, w1->l);
+                            p.via = true;
+                            paths.push_back(p);
+                        }
+                    }else{
+
+
+                        wireid = it.first;
+                        w2 = &rou->wires[wireid];
+                        if(w1->l == w2->l) continue;
+
+                        if(!visit[wireid])
+                        {
+
+                            visit[wireid] = true;
+                            Path p;
+                            p.x[0] = x;
+                            p.x[1] = x;
+                            p.y[0] = y;
+                            p.y[1] = y;
+                            p.l = min(w1->l, w2->l);
+                            p.via = true;
+                            s.push(wireid);
+                            paths.push_back(p);
+                        }
                     }
                 }
             }

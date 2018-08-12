@@ -6,7 +6,7 @@
 
 //#define GCELL_WIDTH rou->grid.GCELL_WIDTH
 //#define GCELL_HEIGHT rou->grid.GCELL_HEIGHT
-#define DEBUG_TRACK
+//#define DEBUG_TRACK
 //#define DEBUG_VIA
 #define DEBUG_MAP
 
@@ -441,9 +441,10 @@ void OABusRouter::Router::TrackAssign()
     //int MAXSIZE=100;
     //int GCELL_WIDTH, GCELL_HEIGHT; 
     int absx1, absx2, absy1, absy2;
+    int window;
     bool isVertical, isValid;
     bool ver1, ver2;
-    
+    bool backward;
     typedef SegmentBG seg;
     typedef PointBG pt;
     typedef BoxBG box;
@@ -472,111 +473,129 @@ void OABusRouter::Router::TrackAssign()
             curS = &segs[segid];
             busid = seg2bus[segid];
             curl = curS->l;
-            x1 = min(curS->x1, curS->x2);
-            y1 = min(curS->y1, curS->y2);
-            x2 = max(curS->x1, curS->x2);
-            y2 = max(curS->y1, curS->y2);
             tarBW = curS->bw;
             isVertical = curS->vertical;
             //this->bitwidth[curS->id];
-
-            // Expand Segment window
-            if(isVertical)
-            {
-                if(x2+1 < grid.numCols)
-                {
-                    x2 += 1;
-                }
-                else if(x1-1 > 0)
-                {
-                    x1 -= 1;
-                }
-            }
-            else
-            {
-                if(y2+1 < grid.numRows)
-                {
-                    y2 += 1;
-                }
-                else if(y1-1 > 0)
-                {
-                    y1 -= 1;
-                }
-            }
-            
-            g1 = grid.GetIndex(x1, y1, curl);
-            g2 = grid.GetIndex(x2, y2, curl);
-
-            lx = grid.llx(g1);
-            ly = grid.lly(g1);
-            ux = grid.urx(g2);
-            uy = grid.ury(g2);
-            
-            vector<pair<seg, int>> queries;
-            box b(pt(lx, ly), pt(ux, uy));
-            trackrtree->query(bgi::intersects(b), back_inserter(queries));
-            /*
-            trackrtree->query(bgi::intersects(b) && bgi::satisfies(
-                        [&,this,curl,b](const pair<seg, int>& val){
-                        bool falling, target;
-                        pt ll(bg::get<0,0>(val.first), bg::get<0,1>(val.first));
-                        pt ur(bg::get<1,0>(val.first), bg::get<1,1>(val.first));
-                        target = (this->rtree.layer(val.second) == curl) ? true : false;
-                        falling = (bg::within(ll, b) || bg::within(ur, b)) ? true : false; 
-                        return target && !falling;
-                        }), back_inserter(queries));
-            */
-            
+            window = 2;
+            isValid = false;
             vector<int> availables;
-            for(auto& it : queries)
-            {
+            //expandWindow = 1;
+
+            while(!isValid){
                 
-                bool falling, target;
-                pt ll(bg::get<0,0>(it.first), bg::get<0,1>(it.first));
-                pt ur(bg::get<1,0>(it.first), bg::get<1,1>(it.first));
-                falling = (bg::within(ll, b) || bg::within(ur,b)) ? true : false;
-                target = (rtree.layer(it.second) == curl) ? true : false;
-                cout << "Box " << bg::dsv(b) << endl;
-                cout << "Pt1 " << bg::dsv(ll) << endl;
-                cout << "pt2 " << bg::dsv(ur) << endl;
-                if(!falling && target)
+                x1 = min(curS->x1, curS->x2);
+                y1 = min(curS->y1, curS->y2);
+                x2 = max(curS->x1, curS->x2);
+                y2 = max(curS->y1, curS->y2);
+                
+                availables.clear();
+                // Expand Segment window
+                if(isVertical)
                 {
-                    cout << "Not Falling...!!" << endl;
-                    
-                    availables.push_back(rtree.trackid(it.second));
-                }else{
-                    cout << "Falling...!!" << endl;
-
+                    if(x2+window < grid.numCols)
+                    {
+                        x2 += window;
+                        backward = false;
+                    }
+                    else if(x1-window > 0)
+                    {
+                        x1 -= window;
+                        backward = true;
+                    }
                 }
-            }
-
-            sort(availables.begin(), availables.end());
-            int it1, it2;
-            vector<int> tmp;
-            it1 = 0;
-            it2 = 1;
-            tmp.push_back(availables[0]);
-           
-
-            while(it2 < availables.size())
-            {
-                int offset1 = rtree.track_offset(tmp[it1]);
-                int offset2 = rtree.track_offset(availables[it2]);
-                int width = ckt->buses[i].width[curl];           
-                if(abs(offset1 - offset2) > spacing[curl])
-                //if(abs(offset1 - offset2) - width > spacing[curl])
+                else
                 {
-                    tmp.push_back(availables[it2]);
-                    it1++;
+                    if(y2+window < grid.numRows)
+                    {
+                        y2 += window;
+                        backward = false;
+                    }
+                    else if(y1-window > 0)
+                    {
+                        y1 -= window;
+                        backward = true;
+                    }
                 }
-                it2++;
+
+                printf("g1 (%d %d) g2 (%d %d) bound (%d %d)\n", x1, y1, x2, y2, grid.numCols, grid.numRows);
+
+                g1 = grid.GetIndex(x1, y1, curl);
+                g2 = grid.GetIndex(x2, y2, curl);
+
+                lx = grid.llx(g1);
+                ly = grid.lly(g1);
+                ux = grid.urx(g2);
+                uy = grid.ury(g2);
+
+                vector<pair<seg, int>> queries;
+                box b(pt(lx, ly), pt(ux, uy));
+                trackrtree->query(bgi::intersects(b), back_inserter(queries));
+                /*
+                   trackrtree->query(bgi::intersects(b) && bgi::satisfies(
+                   [&,this,curl,b](const pair<seg, int>& val){
+                   bool falling, target;
+                   pt ll(bg::get<0,0>(val.first), bg::get<0,1>(val.first));
+                   pt ur(bg::get<1,0>(val.first), bg::get<1,1>(val.first));
+                   target = (this->rtree.layer(val.second) == curl) ? true : false;
+                   falling = (bg::within(ll, b) || bg::within(ur, b)) ? true : false; 
+                   return target && !falling;
+                   }), back_inserter(queries));
+                   */
+
+                for(auto& it : queries)
+                {
+
+                    bool falling, target;
+                    pt ll(bg::get<0,0>(it.first), bg::get<0,1>(it.first));
+                    pt ur(bg::get<1,0>(it.first), bg::get<1,1>(it.first));
+                    falling = (bg::within(ll, b) || bg::within(ur,b)) ? true : false;
+                    target = (rtree.layer(it.second) == curl) ? true : false;
+#ifdef DEBUG_TRACK
+                    cout << "Box " << bg::dsv(b) << endl;
+                    cout << "Pt1 " << bg::dsv(ll) << endl;
+                    cout << "pt2 " << bg::dsv(ur) << endl;
+#endif
+                    if(!falling && target)
+                    {
+                        //cout << "Not Falling...!!" << endl;
+
+                        availables.push_back(rtree.trackid(it.second));
+                    }else{
+                        //cout << "Falling...!!" << endl;
+
+                    }
+                }
+
+                if(backward)
+                    sort(availables.begin(), availables.end(), [](int left, int right){
+                            return left > right; });
+                else
+                    sort(availables.begin(), availables.end());
+
+                int it1, it2;
+                vector<int> tmp;
+                it1 = 0;
+                it2 = 1;
+                tmp.push_back(availables[0]);
+
+                while(it2 < availables.size())
+                {
+                    int offset1 = rtree.track_offset(tmp[it1]);
+                    int offset2 = rtree.track_offset(availables[it2]);
+                    int width = ckt->buses[i].width[curl];           
+                    //if(abs(offset1 - offset2) > spacing[curl])
+                    if(abs(offset1 - offset2) - width > spacing[curl])
+                    {
+                        tmp.push_back(availables[it2]);
+                        it1++;
+                    }
+                    it2++;
+                }
+
+                availables = tmp;
+                isValid = (availables.size() >= tarBW) ? true :false;
+                window++;
             }
-
-            availables = tmp;
-
-
- 
-            isValid = (availables.size() >= tarBW) ? true :false;
 
             // Create wire
             if(isValid)
@@ -600,20 +619,25 @@ void OABusRouter::Router::TrackAssign()
                     curwire = CreateWire(bitid, trackid, xs, ys, curl, seq, false);
                     //
                     curS->wires.push_back(curwire->id);
-
+                    curS->assign = true;
                    
                 }
 
 
             }else{
                 cout << "Invalid..." << endl;
+                cout << "target bitwidth " << tarBW << endl;
+                cout << "current resources " << availables.size() << endl;
+                curS->assign = false;
                 //exit(0);
 
 
             }
             ///
+cout << "4" << endl;
         }
 
+cout << "5" << endl;
         ///////////
         for(auto& juncid : curtree->junctions)
         {
@@ -626,11 +650,14 @@ void OABusRouter::Router::TrackAssign()
             l1 = s1->l;
             l2 = s2->l;
 
+            if(!s1->assign || !s2->assign) continue;
+cout << "6" << endl;
             for(j=0; j < s1->bw; j++)
             {
                 w1 = &wires[s1->wires[j]];
                 w2 = &wires[s2->wires[j]];
                 int x, y;
+cout << "7" << endl;
                 if(!Intersection(w1, w2, x, y))
                 {
                     cout << "No intersection...!" << endl;
@@ -639,6 +666,7 @@ void OABusRouter::Router::TrackAssign()
                     printf("wire2 (%d %d) (%d %d)\n", w2->x1, w2->y1, w2->x2, w2->y2);
                     
 
+cout << "8" << endl;
                     if(w1->vertical && !w2->vertical)
                     {
                         x = rtree.track_offset(w1->trackid);
@@ -654,6 +682,7 @@ void OABusRouter::Router::TrackAssign()
                         //printf("Invalid pair of tracks...\n");
                         //exit(0);
                     }
+cout << "9" << endl;
 
                     int xs1[2], xs2[2], ys1[2], ys2[2];
                     xs1[0] = min(w1->x1, x);
@@ -676,10 +705,12 @@ void OABusRouter::Router::TrackAssign()
                     }
                 }
 
+cout << "10" << endl;
 
                 if(abs(w1->l - w2->l) > 1)
                 {
                     w_it1 = w1;       
+cout << "11" << endl;
                     for(l=l1+1; l < l2; l++)
                     {
 
@@ -694,6 +725,7 @@ void OABusRouter::Router::TrackAssign()
                             exit(0);
                         }
                         
+cout << "12" << endl;
                         trackid = rtree.trackid(queries[0].second);
                         bitid = w_it1->bitid;
                         xs[0] = x;
@@ -704,20 +736,25 @@ void OABusRouter::Router::TrackAssign()
 
                         SetNeighbor(w_it1, w_it2, x, y);
 
+cout << "13" << endl;
                         
                         w_it1 = w_it2;
                     }
 
                     SetNeighbor(w_it1, w2, x, y);
 
+cout << "14" << endl;
                 }
                 else
                 {
                     SetNeighbor(w1, w2, x, y);
                 }
+cout << "15" << endl;
             }
+cout << "16" << endl;
         }
 
+cout << "17" << endl;
     }
     
 #ifdef DEBUG_TRACK

@@ -45,6 +45,11 @@ else:
 numThreads = int(sys.argv[2])
 curTime = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
 benchName = benchName.split('.')[0]
+if len(sys.argv) > 3:
+    exeEval = (sys.argv[3] == "eval")
+else:
+    exeEval = False
+
 
 #print curTime
 
@@ -52,10 +57,9 @@ rmlogStr = "rm %s/*" % (logpos)
 ExecuteCommand(rmlogStr)
 exeStr = "%s -input %s/%s.input -threads %d -output %s/%s.out | tee %s/%s_%s.log" % (binaryName, dirpos, benchName, numThreads, outpos, benchName, logpos, benchName, curTime)
 ExecuteCommand(exeStr)
-"""
 evalStr = "%s/%s %s/%s.input %s/%s.out | tee %s/%s.eval" % (evalpos, evaluator, dirpos, benchName, outpos, benchName, logpos, benchName)
-ExecuteCommand(evalStr)
-"""
+if exeEval == True:
+    ExecuteCommand(evalStr)
 
 
 

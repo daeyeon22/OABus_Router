@@ -250,6 +250,49 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
             }
 
 
+            for(auto& it : ckt->buses[i].bits)
+            {
+                bitid = it;
+                for(auto& p : ckt->bits[bitid].paths)
+                {
+                    if(p.via)
+                    {
+                        centerX = p.x[0] + layoutOffsetX;
+                        centerY = p.y[0] + layoutOffsetY;
+                        curl = p.l;
+                        doc << Circle(Point(centerX, centerY), 150.0, colors[curl], Stroke(10, Color::Black));
+                    }
+                    else
+                    {
+                        llx = p.x[0] + layoutOffsetX;
+                        lly = p.y[0] + layoutOffsetY;
+                        urx = p.x[1] + layoutOffsetX;
+                        ury = p.y[1] + layoutOffsetY;
+                        curl = p.l;
+                        int width = ckt->buses[i].width[curl];
+
+
+                        if(llx == urx)
+                        {
+                            llx -= (int)(1.0*width/2);
+                            urx += (int)(1.0*width/2);
+                        }
+
+                        if(lly == ury)
+                        {
+                            lly -= (int)(1.0*width/2);
+                            ury += (int)(1.0*width/2);
+                        }
+
+                        Polygon poly(colors[curl], Stroke(10, Color::Black));
+                        poly << Point(llx,lly) << Point(llx,ury) << Point(urx, ury) << Point(urx, lly);
+                        doc << poly;
+                    }
+
+                }
+            }
+
+            /*
             for(auto wireid : curtree->wires)
             {
                 br::Wire* curWire = &rou->wires[wireid];
@@ -280,7 +323,7 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
 #endif
 
             }
-        
+            */
 
         }
 

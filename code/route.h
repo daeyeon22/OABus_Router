@@ -514,12 +514,16 @@ namespace OABusRouter
         //dense_hash_map<int,int> seg2multipin;   // ??
         dense_hash_map<int,int> spacing;
         dense_hash_map<int,int> seg2bus;
-        //dense_hash_map<int,int> wire2pin;       // ??
+        dense_hash_map<int,int> wire2pin;       // ??
         dense_hash_map<int,int> junc2bus;
         dense_hash_map<int,int> via2bus;
         dense_hash_map<int,int> multipin2seg;
         dense_hash_map<int,int> pin2wire;
 
+        dense_hash_map<int,int> multipin2llx;
+        dense_hash_map<int,int> multipin2lly;
+        dense_hash_map<int,int> multipin2urx;
+        dense_hash_map<int,int> multipin2ury;
         //dense_hash_map<int,int> bitwidth;
         //dense_hash_map<int,bool> assign;
 
@@ -532,12 +536,17 @@ namespace OABusRouter
             seg2bus.set_empty_key(INT_MAX);
             junc2bus.set_empty_key(INT_MAX);
             via2bus.set_empty_key(INT_MAX);
-            //wire2pin.set_empty_key(0);
+            wire2pin.set_empty_key(INT_MAX);
             //bitwidth.set_empty_key(0);
             //assign.set_empty_key(0);
+            multipin2llx.set_empty_key(INT_MAX);
+            multipin2lly.set_empty_key(INT_MAX);
+            multipin2urx.set_empty_key(INT_MAX);
+            multipin2ury.set_empty_key(INT_MAX);
         }
 
         // Initialize Grid3D
+        void Init();
         void InitGrid3D();
         void InitRtree();
 

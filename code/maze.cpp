@@ -262,12 +262,10 @@ void OABusRouter::Router::ObstacleAwareRouting(int treeid)
                         distr = abs(tarGC->x - gc_right->x) + abs(tarGC->y - gc_right->y) + abs(tarGC->l - gc_right->l);
                         return distl < distr;
                         });
-
                     g_closest = setG[0];
                     gc_closest = grid[g_closest];
                     cost +=  abs(tarGC->x - gc_closest->x) + abs(tarGC->y - gc_closest->y) + abs(tarGC->l - gc_closest->l);
                                
-
                     combG_PATH.clear();
                     combG_PATH = setG;
                     */
@@ -287,7 +285,6 @@ void OABusRouter::Router::ObstacleAwareRouting(int treeid)
                         {
                             cost -= abs(minDist2[j] - dist);
                         }
-
                         sort(combG_PATH.begin(), combG_PATH.end(), 
                                 [&,g_iter,this](int left, int right){
                                 int distl, distr;
@@ -639,3 +636,11 @@ void OABusRouter::Router::ObstacleAwareRouting(int treeid)
 
 
 //}
+
+
+
+
+
+
+
+
