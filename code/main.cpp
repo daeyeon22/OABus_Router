@@ -127,6 +127,9 @@ int main(int argc, char** argv){
     rou->MappingMultipin2Seg();
     rou->MappingPin2Wire();
 
+    cout << "Cutting" << endl;
+    rou->Cut();
+    
     cout << "Pin access" << endl;
     rou->RouteAll();
 

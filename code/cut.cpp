@@ -1,6 +1,6 @@
 #include "route.h"
 #include "circuit.h"
-#define DEBUG_CUT
+//#define DEBUG_CUT
 void OABusRouter::Router::Cut()
 {
     
@@ -27,10 +27,10 @@ void OABusRouter::Router::Cut()
             continue;
 
 
-        printf("orignal (%d %d) (%d %d)\n", curwire->x1, curwire->y1, curwire->x2, curwire->y2);
+        //printf("orignal (%d %d) (%d %d)\n", curwire->x1, curwire->y1, curwire->x2, curwire->y2);
         for(auto& it : curwire->intersection)
         {
-            printf("intersect (%d %d)\n", it.second.first, it.second.second);
+            //printf("intersect (%d %d)\n", it.second.first, it.second.second);
             intersection.push_back(it.second);       
         }
 

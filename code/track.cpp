@@ -492,28 +492,40 @@ void OABusRouter::Router::TrackAssign()
                 // Expand Segment window
                 if(isVertical)
                 {
-                    if(x2+window < grid.numCols)
+                    if(window % 2 == 0)
                     {
-                        x2 += window;
-                        backward = false;
+                        if(x2+window < grid.numCols)
+                        {
+                            x2 += window;
+                            backward = false;
+                        }
                     }
-                    else if(x1-window > 0)
+                    else
                     {
-                        x1 -= window;
-                        backward = true;
+                        if(x1-window > 0)
+                        {
+                            x1 -= window;
+                            backward = true;
+                        }
                     }
                 }
                 else
                 {
-                    if(y2+window < grid.numRows)
+                    if(window % 2 == 0)
                     {
-                        y2 += window;
-                        backward = false;
+                        if(y2+window < grid.numRows)
+                        {
+                            y2 += window;
+                            backward = false;
+                        }
                     }
-                    else if(y1-window > 0)
+                    else
                     {
-                        y1 -= window;
-                        backward = true;
+                        if(y1-window > 0)
+                        {
+                            y1 -= window;
+                            backward = true;
+                        }
                     }
                 }
 
@@ -634,10 +646,8 @@ void OABusRouter::Router::TrackAssign()
 
             }
             ///
-cout << "4" << endl;
         }
 
-cout << "5" << endl;
         ///////////
         for(auto& juncid : curtree->junctions)
         {
@@ -651,13 +661,11 @@ cout << "5" << endl;
             l2 = s2->l;
 
             if(!s1->assign || !s2->assign) continue;
-cout << "6" << endl;
             for(j=0; j < s1->bw; j++)
             {
                 w1 = &wires[s1->wires[j]];
                 w2 = &wires[s2->wires[j]];
                 int x, y;
-cout << "7" << endl;
                 if(!Intersection(w1, w2, x, y))
                 {
                     cout << "No intersection...!" << endl;
@@ -665,8 +673,6 @@ cout << "7" << endl;
                     printf("wire1 (%d %d) (%d %d)\n", w1->x1, w1->y1, w1->x2, w1->y2);
                     printf("wire2 (%d %d) (%d %d)\n", w2->x1, w2->y1, w2->x2, w2->y2);
                     
-
-cout << "8" << endl;
                     if(w1->vertical && !w2->vertical)
                     {
                         x = rtree.track_offset(w1->trackid);
@@ -682,8 +688,6 @@ cout << "8" << endl;
                         //printf("Invalid pair of tracks...\n");
                         //exit(0);
                     }
-cout << "9" << endl;
-
                     int xs1[2], xs2[2], ys1[2], ys2[2];
                     xs1[0] = min(w1->x1, x);
                     xs1[1] = max(w1->x2, x);
@@ -705,12 +709,9 @@ cout << "9" << endl;
                     }
                 }
 
-cout << "10" << endl;
-
                 if(abs(w1->l - w2->l) > 1)
                 {
                     w_it1 = w1;       
-cout << "11" << endl;
                     for(l=l1+1; l < l2; l++)
                     {
 
@@ -725,7 +726,6 @@ cout << "11" << endl;
                             exit(0);
                         }
                         
-cout << "12" << endl;
                         trackid = rtree.trackid(queries[0].second);
                         bitid = w_it1->bitid;
                         xs[0] = x;
@@ -735,26 +735,17 @@ cout << "12" << endl;
                         w_it2 = CreateWire(bitid, trackid, xs, ys, l, j, false);
 
                         SetNeighbor(w_it1, w_it2, x, y);
-
-cout << "13" << endl;
-                        
                         w_it1 = w_it2;
                     }
 
                     SetNeighbor(w_it1, w2, x, y);
-
-cout << "14" << endl;
                 }
                 else
                 {
                     SetNeighbor(w1, w2, x, y);
                 }
-cout << "15" << endl;
             }
-cout << "16" << endl;
         }
-
-cout << "17" << endl;
     }
     
 #ifdef DEBUG_TRACK

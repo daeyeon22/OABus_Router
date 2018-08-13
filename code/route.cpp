@@ -15,6 +15,12 @@
 
 
 
+bool OABusRouter::Wire::leaf()
+{
+    return intersection.size() < 2;
+}
+
+
 
 // 3D mapping
 bool OABusRouter::Router::ValidUpdate(int wireid, int x[], int y[])

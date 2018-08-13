@@ -233,7 +233,7 @@ void OABusRouter::Router::ObstacleAwareRouting(int treeid)
                     row2 = row1;
                     l2 = l1 + move[j];
                     //cost += 3;
-                    cost = e.cost + 3;
+                    cost = e.cost + 1;
                 }
 
                 if(col2 < 0 || col2 >= numcols) continue;
@@ -250,7 +250,7 @@ void OABusRouter::Router::ObstacleAwareRouting(int treeid)
                 tarGC = grid[g2];
                 cap = tarGC->cap;
                 //cout << "Cap : " << cap << endl;
-                if(cap > bw)
+                if(2*cap > bw)
                 {
                     /*
                     // distance between current Gcell and SetG

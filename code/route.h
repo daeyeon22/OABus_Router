@@ -459,6 +459,7 @@ namespace OABusRouter
             intersection.set_empty_key(INT_MAX);
         }
 
+        bool leaf();
 
     };
 

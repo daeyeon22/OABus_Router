@@ -153,6 +153,7 @@ void OABusRouter::Router::PinAccess(int busid)
             
             int e1, e2, t1, t2;
             int c1, c2; 
+            int targetShape;
             int minElem = INT_MAX;
             int minCost = INT_MAX;
             bool hasMinElem = false;
@@ -387,34 +388,17 @@ void OABusRouter::Router::PinAccess(int busid)
                         
                         //int traceDist = abs(iterPtx[e1] - iterPtx[e2]) + abs(iterPty[e1] - iterPty[e2]);
                         //c1 = (traceDist == 0)? cost1 + traceDist : cost1 + traceDist + abs(l1-l2)*VIA_COST;
-                        c1 = cost1 + abs(iterPtx[e1] - iterPtx[e2]) + abs(iterPty[e1] - iterPty[e2]) + abs(l1-l2)*VIA_COST;
+                        c1 = cost1 + abs(iterPtx[e1] - iterPtx[e2]) + abs(iterPty[e1] - iterPty[e2]) + abs(l1-l2)*VIA_COST + DEPTH_COST;
                         c2 = (int)(bg::distance(p, wireseg));    
             //cout << "target wire : " << bg::dsv(wireseg) << endl;
             //cout << "current seg : " << bg::dsv(element[e2]) << endl;
                         if(bg::intersects(element[e2], wireseg) && abs(l2 - tarl) < 2)
                         {
                             //printf("Mincost %d Curcost %d\n", minCost, c1+c2);
-                            int curDir;
-                            if(rtree.direction(e) == VERTICAL)
-                            {
-                                if(iterPty[e1] == iterPty[e2])
-                                    curDir = Direction::Point;
-                                else if(iterPty[e1] < iterPty[e2])
-                                    curDir = Direction::Up;
-                                else if(iterPty[e1] > iterPty[e2])
-                                    curDir = Direction::Down;
-                            }
-                            else
-                            {
-                                if(iterPtx[e1] == iterPtx[e2])
-                                    curDir = Direction::Point;
-                                else if(iterPtx[e1] < iterPtx[e2])
-                                    curDir = Direction::Right;
-                                else if(iterPtx[e1] > iterPtx[e2])
-                                    curDir = Direction::Left;
-                            }
-                            
-                            
+                            // condition6 
+                            if(!targetwire->leaf() && (l2 == tarl))
+                                continue;
+
                             if(hasMinElem)
                             {
                                 if(minCost > c1+c2)
@@ -538,30 +522,47 @@ void OABusRouter::Router::PinAccess(int busid)
                     //
                     if(j==0) 
                     {
-                        maxDepth = depth[e1] + 1;
-                        tracel.insert(tracel.begin(), targetwire->l);
-                        tracel.insert(tracel.begin(), l);
-                        // Direction
-                        if(targetwire->vertical)
+                        bool alignVertical = (curmultipin->align == VERTICAL)? true : false;
+                        bool targetVertical = targetwire->vertical;
+                        if(alignVertical != targetVertical)
                         {
-                            if(y1 >= targetwire->y2){
-                                tracedir.insert(tracedir.begin(), Direction::Down);
-                            }else if(y1 <= targetwire->y1){
-                                tracedir.insert(tracedir.begin(), Direction::Up);
-                            }else{
-                                tracedir.insert(tracedir.begin(), Direction::T_Junction);
-                            }
+                            maxDepth = depth[e1];
                         }
                         else
                         {
-                            if(x1 >= targetwire->x2){
-                                tracedir.insert(tracedir.begin(), Direction::Left);
-                            }else if(x1 <= targetwire->x1){
-                                tracedir.insert(tracedir.begin(), Direction::Right);
-                            }else{
-                                tracedir.insert(tracedir.begin(), Direction::T_Junction);
+                            if(depth[e1] < 1)
+                            {
+                                maxDepth = depth[e1] + 1;
+                                tracel.insert(tracel.begin(), targetwire->l);
+                                // Direction
+                                if(targetwire->vertical)
+                                {
+                                    if(y1 >= targetwire->y2){
+                                        tracedir.insert(tracedir.begin(), Direction::Down);
+                                    }else if(y1 <= targetwire->y1){
+                                        tracedir.insert(tracedir.begin(), Direction::Up);
+                                    }else{
+                                        tracedir.insert(tracedir.begin(), Direction::T_Junction);
+                                    }
+                                }
+                                else
+                                {
+                                    if(x1 >= targetwire->x2){
+                                        tracedir.insert(tracedir.begin(), Direction::Left);
+                                    }else if(x1 <= targetwire->x1){
+                                        tracedir.insert(tracedir.begin(), Direction::Right);
+                                    }else{
+                                        tracedir.insert(tracedir.begin(), Direction::T_Junction);
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                maxDepth = depth[e1];
                             }
                         }
+                        
+                        tracel.insert(tracel.begin(), l);
                         // Direction
                         if(rtree.direction(e1) == VERTICAL)
                         {
