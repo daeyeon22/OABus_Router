@@ -250,7 +250,7 @@ void OABusRouter::Router::ObstacleAwareRouting(int treeid)
                 tarGC = grid[g2];
                 cap = tarGC->cap;
                 //cout << "Cap : " << cap << endl;
-                if(2*cap > bw)
+                if(cap > bw)
                 {
                     /*
                     // distance between current Gcell and SetG
@@ -419,6 +419,7 @@ void OABusRouter::Router::ObstacleAwareRouting(int treeid)
                 isetH[hormap[l]*numrows + row] +=
                     IntervalT::open(col-1, col+1);
             }
+            curGC->cap -= bw;
         }
 
 

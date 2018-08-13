@@ -34,6 +34,7 @@ void OABusRouter::Router::PinAccess(int busid)
     
     int DEPTH_COST = 1000;
     int VIA_COST = 1000;
+    int SPACING_VIOLATION = 10000;
     int i, j, wireid;
     int nummultipins, numwires, numpins;
     int numlayers, cost;
@@ -385,19 +386,151 @@ void OABusRouter::Router::PinAccess(int busid)
                                 continue;
                             }
                         }
-                        
-                        //int traceDist = abs(iterPtx[e1] - iterPtx[e2]) + abs(iterPty[e1] - iterPty[e2]);
-                        //c1 = (traceDist == 0)? cost1 + traceDist : cost1 + traceDist + abs(l1-l2)*VIA_COST;
+
+                        // Cost
                         c1 = cost1 + abs(iterPtx[e1] - iterPtx[e2]) + abs(iterPty[e1] - iterPty[e2]) + abs(l1-l2)*VIA_COST + DEPTH_COST;
                         c2 = (int)(bg::distance(p, wireseg));    
-            //cout << "target wire : " << bg::dsv(wireseg) << endl;
-            //cout << "current seg : " << bg::dsv(element[e2]) << endl;
+
+                       
+                       
+                        
+                        // condition7
+                        int xs[2], ys[2];
+                        xs[0] = min(iterPtx[e1], iterPtx[e2]);
+                        xs[1] = max(iterPtx[e1], iterPtx[e2]);
+                        ys[0] = min(iterPty[e1], iterPty[e2]);
+                        ys[1] = max(iterPty[e1], iterPty[e2]);
+                        if(rtree.direction(e1) == VERTICAL)
+                        {
+                            xs[0] -= 
+                                ((int)(1.0*curbus->width[rtree.layer(e1)]/2) + spacing[rtree.layer(e1)]);
+                            xs[1] += 
+                                ((int)(1.0*curbus->width[rtree.layer(e1)]/2) + spacing[rtree.layer(e1)]);
+                            ys[0] -= spacing[rtree.layer(e1)];
+                            ys[1] += spacing[rtree.layer(e1)];
+                        }
+                        else
+                        {
+                            ys[0] -= 
+                                ((int)(1.0*curbus->width[rtree.layer(e1)]/2) + spacing[rtree.layer(e1)]);
+                            ys[1] += 
+                                ((int)(1.0*curbus->width[rtree.layer(e1)]/2) + spacing[rtree.layer(e1)]);
+                            xs[0] -= spacing[rtree.layer(e1)];
+                            xs[1] += spacing[rtree.layer(e1)];
+
+                        }
+
+                        if(rtree.spacing_violations(bitid, xs, ys, rtree.layer(e1)))
+                        {
+                            c1 += SPACING_VIOLATION;
+                        }
+
+
+                        
                         if(bg::intersects(element[e2], wireseg) && abs(l2 - tarl) < 2)
                         {
-                            //printf("Mincost %d Curcost %d\n", minCost, c1+c2);
                             // condition6 
                             if(!targetwire->leaf() && (l2 == tarl))
                                 continue;
+
+                            // Intersection
+                            vector<pt> intersection;
+                            bg::intersection(element[e2], wireseg, intersection);
+                            pt p = intersection[0];
+                            x1 =  (int)(bg::get<0>(p) + 0.5);
+                            y1 =  (int)(bg::get<1>(p) + 0.5);
+
+                            if(j!=0)
+                            {
+                                int curDir;
+                                if(rtree.direction(e2) == VERTICAL)
+                                {
+                                    if(y1 == iterPty[e2])
+                                        curDir = Direction::Point;
+                                    else if(y1 < iterPty[e2])
+                                        curDir = Direction::Down;
+                                    else if(y1 > iterPty[e2])
+                                        curDir = Direction::Up;
+                                }
+                                else
+                                {
+                                    if(x1 == iterPtx[e2])
+                                        curDir = Direction::Point;
+                                    else if(x1 < iterPtx[e2])
+                                        curDir = Direction::Left;
+                                    else if(x1 > iterPtx[e2])
+                                        curDir = Direction::Right;
+                                }
+
+                                // if current routing direction is different,
+                                // don't push into the priority queue
+                                if(tracedir[depth[e2]] != curDir)
+                                {
+#ifdef DEBUG_PIN
+                                    printf("current depth %d trace dir ", depth[e2]);
+                                    if(tracedir[depth[e2]] == Direction::Up)
+                                        printf("Up ");
+                                    else if(tracedir[depth[e2]] == Direction::Down)
+                                        printf("Down ");
+                                    else if(tracedir[depth[e2]] == Direction::Left)
+                                        printf("Left ");
+                                    else if(tracedir[depth[e2]] == Direction::Right)
+                                        printf("Right ");
+                                    else if(tracedir[depth[e2]] == Direction::Point)
+                                        printf("Point ");
+                                    else
+                                        printf("T-Junction ");
+
+                                    printf("current dir ");
+                                    if(curDir == Direction::Up)
+                                        printf("Up ");
+                                    else if(curDir == Direction::Down)
+                                        printf("Down ");
+                                    else if(curDir == Direction::Left)
+                                        printf("Left ");
+                                    else if(curDir == Direction::Right)
+                                        printf("Right ");
+                                    else if(curDir == Direction::Point)
+                                        printf("Point ");
+                                    else
+                                        printf("T-Junction ");
+
+                                    printf("(%d %d) -> (%d %d)\n", iterPtx[e2], iterPty[e2], x1, y1);
+#endif
+                                    continue;
+                                }
+                            
+                            }
+
+
+                            // Check spacing violation
+                            xs[0] = min(x1, iterPtx[e2]);
+                            xs[1] = max(x1, iterPtx[e2]);
+                            ys[0] = min(y1, iterPty[e2]);
+                            ys[1] = max(y1, iterPty[e2]);
+                            if(rtree.direction(e2) == VERTICAL)
+                            {
+                                xs[0] -= 
+                                    ((int)(1.0*curbus->width[rtree.layer(e2)]/2) + spacing[rtree.layer(e2)]);
+                                xs[1] += 
+                                    ((int)(1.0*curbus->width[rtree.layer(e2)]/2) + spacing[rtree.layer(e2)]);
+                                ys[0] -= spacing[rtree.layer(e2)];
+                                ys[1] += spacing[rtree.layer(e2)];
+                            }
+                            else
+                            {
+                                ys[0] -= 
+                                    ((int)(1.0*curbus->width[rtree.layer(e2)]/2) + spacing[rtree.layer(e2)]);
+                                ys[1] += 
+                                    ((int)(1.0*curbus->width[rtree.layer(e2)]/2) + spacing[rtree.layer(e2)]);
+                                xs[0] -= spacing[rtree.layer(e2)];
+                                xs[1] += spacing[rtree.layer(e2)];
+                            }
+
+                            if(rtree.spacing_violations(bitid, xs, ys, rtree.layer(e2)))
+                                c1 += SPACING_VIOLATION;
+
+                            ////////////////////////////////////////////////////////////
 
                             if(hasMinElem)
                             {

@@ -22,21 +22,16 @@ void OABusRouter::Router::Plot()
     numBuses = ckt->buses.size();
 
 
-cout << "1" << endl;
     for(i=0; i < numBuses; i++)
     {
-cout << "2" << endl;
         Bus* curB = &ckt->buses[i];
-cout << "3" << endl;
         string filename;
-cout << "4" << endl;
         filename = plotdir + curB->name + ".svg";
-cout << "5" << endl;
         CreateBusPlot(false, curB->id, filename.c_str());
-cout << "6" << endl;
     }
-cout << "7" << endl;
 
+    string filename = plotdir + "bus_all.svg";
+    CreateBusPlot(true, 0, filename.c_str());
 
 
 

@@ -328,11 +328,20 @@ namespace OABusRouter
     
     struct Rtree
     {
+        typedef SegmentBG seg;
+        typedef PointBG pt;
+        typedef BoxBG box;
+        
+        // rtree for track
         int elemindex;
-        SegRtree track;
-        BoxRtree obstacle; 
+        SegRtree track; // element index -> track index
         vector<Container> containers;
         dense_hash_map<int,int> elem2track;
+        
+
+        // rtree for wire
+        vector<BoxRtree> wire; // element index == wire index
+        BoxRtree obstacle; 
         
         
         Rtree()
@@ -342,6 +351,9 @@ namespace OABusRouter
         }
 
         bool insert_element(int trackid, int x[], int y[], int l, bool remove); 
+        bool update_wire(int wireid, int x[], int y[], int l, bool remove);
+        bool intersects(int x[], int y[], int l);
+        bool spacing_violations(int bitid, int x[], int y[], int l);
         int layer(int elemid);
         int trackid(int elemid);
         int direction(int elemid);
