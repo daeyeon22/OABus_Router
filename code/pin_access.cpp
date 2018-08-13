@@ -32,9 +32,13 @@ bool OABusRouter::MultiPin::vertical_arrange()
 void OABusRouter::Router::PinAccess(int busid)
 {
     
+    // Cost Metrics
     int DEPTH_COST = 1000;
     int VIA_COST = 1000;
     int SPACING_VIOLATION = 10000;
+    int WIRE_EXPAND = 10000;
+
+    // Variables
     int i, j, wireid;
     int nummultipins, numwires, numpins;
     int numlayers, cost;
@@ -94,6 +98,7 @@ void OABusRouter::Router::PinAccess(int busid)
         vector<int> sorted = curmultipin->pins;
         vector<int> tracel;
         vector<int> tracedir; //Dir;
+        vector<int> tracepts;
         set<int> used;
         Circuit* circuit = ckt;
         vertical_arrange = (curmultipin->align == VERTICAL)? true : false;
@@ -164,6 +169,7 @@ void OABusRouter::Router::PinAccess(int busid)
             vector<int> depth(rtree.elemindex, -1);
             vector<int> iterPtx(rtree.elemindex, -1);
             vector<int> iterPty(rtree.elemindex, -1);
+            
             vector<seg> element(rtree.elemindex); 
             vector<pair<seg, int>> queries;
             
@@ -426,7 +432,8 @@ void OABusRouter::Router::PinAccess(int busid)
                         }
 
 
-                        
+                     
+                        // If target wire is found, 
                         if(bg::intersects(element[e2], wireseg) && abs(l2 - tarl) < 2)
                         {
                             // condition6 
@@ -500,6 +507,18 @@ void OABusRouter::Router::PinAccess(int busid)
                                     continue;
                                 }
                             
+                                // condition8 (wire ordering)
+                                int current;
+                                int lower = tracepts[0];
+                                int upper = tracepts[tracepts.size()-1];
+
+                                if(tarl == l2)
+                                    current = (targetwire->vertical) ? iterPty[e1] : iterPtx[e1];
+                                else
+                                    current = (targetwire->vertical) ? iterPty[e2] : iterPtx[e2];
+                            
+                                if(lower < current && current < upper)
+                                    continue;
                             }
 
 
@@ -532,6 +551,8 @@ void OABusRouter::Router::PinAccess(int busid)
 
                             ////////////////////////////////////////////////////////////
 
+                            //    c1 += WIRE_EXPAND;
+
                             if(hasMinElem)
                             {
                                 if(minCost > c1+c2)
@@ -561,21 +582,11 @@ void OABusRouter::Router::PinAccess(int busid)
             if(hasMinElem)
             {
                 int w1, w2;
-                
-              
-                
                 cout << "arrival..." << endl;    
                 e1 = minElem;
                 l1 = tarl;
                 l2 = rtree.layer(e1); //trackNuml[e1];
-                /*
-                if(j==0)
-                {
-                    maxDepth = depth[e1] + 1;
-                    tracel.insert(tracel.begin(), targetwire->l);
-                }
-                */
-                
+               
                 if(l1 == l2)
                 {
                     
@@ -583,12 +594,9 @@ void OABusRouter::Router::PinAccess(int busid)
                     y1 = targetwire->y1;
                     x2 = targetwire->x2;
                     y2 = targetwire->y2;
-                    //targetwire->x1 = min(iterPtx[e1], targetwire->x1);
-                    //targetwire->x2 = max(iterPtx[e1], targetwire->x2);
-                    //targetwire->y1 = min(iterPty[e1], targetwire->y1);
-                    //targetwire->y2 = max(iterPty[e1], targetwire->y2);
                     l = targetwire->l;
-                    
+                   
+                    // Store trace
                     if(j==0)
                     {
                         maxDepth = depth[e1];
@@ -616,8 +624,18 @@ void OABusRouter::Router::PinAccess(int busid)
                         }
                     }
                     
+                    //
                     pin = (e1 == backtrace[e1]) ? true : false;
                     targetwire->pin = (e1 == backtrace[e1]) ? true : false;
+
+                    /////////////////////////////////////////////
+                    if(targetwire->vertical)
+                        tracepts.push_back(iterPty[e1]);
+                    else 
+                        tracepts.push_back(iterPtx[e1]);
+                    sort(tracepts.begin(), tracepts.end());
+                    ////////////////////////////////////////////
+                    
                     xs[0] = min(iterPtx[e1], x1); //targetwire->x1;
                     xs[1] = max(iterPtx[e1], x2); //targetwire->x2;
                     ys[0] = min(iterPty[e1], y1); //targetwire->y1;
@@ -652,6 +670,17 @@ void OABusRouter::Router::PinAccess(int busid)
                     x2 = iterPtx[e1];
                     y2 = iterPty[e1];
                     l = rtree.layer(e1); //trackNuml[e1];
+                    
+                    /////////////////////////////////////////////
+                    if(targetwire->vertical)
+                        tracepts.push_back(y1);
+                    else 
+                        tracepts.push_back(x1);
+                    
+                    sort(tracepts.begin(), tracepts.end());
+                    ////////////////////////////////////////////
+                    
+                    
                     //
                     if(j==0) 
                     {
