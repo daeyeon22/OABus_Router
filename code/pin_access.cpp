@@ -331,7 +331,6 @@ void OABusRouter::Router::PinAccess(int busid)
                     if(backtrace[e2] == -1)
                     {
                         element[e2] = it.first;
-                        backtrace[e2] = e1;
                         depth[e2] = depth[e1] + 1;
 
                         if(j!=0 && tracel[depth[e2]] != l2) continue;
@@ -574,6 +573,7 @@ void OABusRouter::Router::PinAccess(int busid)
                         }
 
                         PQ.push(make_tuple(e2, c1, c2));
+                        backtrace[e2] = e1;
                     }
                 }
             }

@@ -95,7 +95,7 @@ int main(int argc, char** argv){
     //cout << "Generate Plot file" << endl;
     //ckt->GenPlot();
 
-    //cout << "Topology Mapping 3D" << endl;
+    cout << "Topology Mapping 3D" << endl;
     rou->TopologyMapping3D();
 
 

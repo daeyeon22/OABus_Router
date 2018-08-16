@@ -11,7 +11,7 @@ namespace br = OABusRouter;
 
 static string plotdir = "./plot/";
 static string plotall = "./plot/bus_all.svg";
-static bool show_track = true;
+static bool show_track = false;
 static bool maze = false;
 
 void OABusRouter::Router::Plot()
@@ -70,8 +70,8 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
     
 #endif
 
-    Dimensions dimensions(layoutWidth, layoutHeight);
-    Document doc(fileName, Layout(dimensions, Layout::BottomLeft, 1));
+    Dimensions dimensions(0.5*layoutWidth, 0.5*layoutHeight);
+    Document doc(fileName, Layout(dimensions, Layout::BottomLeft, 0.5));
 
     Color colors[]
         = { Color::Red, Color::Orange, Color::Yellow, Color::Green, Color::Blue, Color::Purple, Color::Black };
@@ -139,8 +139,8 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
 #endif
     }
 
-    int pinid, bitid, segid, viaid, trackid;
-    int numBuses, numPins, numBits, numSegs, numWires, numVias, numTracks;
+    int obsid, pinid, bitid, segid, viaid, trackid;
+    int numObs, numBuses, numPins, numBits, numSegs, numWires, numVias, numTracks;
     int centerX, centerY;
     int textOffsetX, textOffsetY;
     int GCllx, GClly, GCurx, GCury;
@@ -155,6 +155,21 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
     numWires = rou->wires.size();
     numVias = rou->vias.size();
     numTracks = ckt->tracks.size();
+    numObs = ckt->obstacles.size();
+
+    for(obsid=0; obsid < numObs; obsid++)
+    {
+        br::Obstacle* obs = &ckt->obstacles[obsid];
+        llx = obs->llx + layoutOffsetX;
+        lly = obs->lly + layoutOffsetY;
+        urx = obs->urx + layoutOffsetX;
+        ury = obs->ury + layoutOffsetY;
+        Polygon poly(Fill(Color::Black, 0.3), Stroke(5, Color::Black));
+        poly << Point(llx,lly) << Point(llx,ury) << Point(urx, ury) << Point(urx, lly);
+        doc << poly;
+
+    }   
+
 
     if(show_track)
     {

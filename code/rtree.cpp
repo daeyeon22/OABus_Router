@@ -295,28 +295,35 @@ bool OABusRouter::Rtree::insert_element(int trackid, int x[], int y[], int l, bo
 bool OABusRouter::Rtree::update_wire(int wireid, int x[], int y[], int l, bool remove)
 {
     if(remove)
-        wire[l].remove({ box(pt(x[0], y[0]), pt(x[1], y[1])), wireid } );
+        obstacle[l].remove({ box(pt(x[0], y[0]), pt(x[1], y[1])), wireid } );
     else
-        wire[l].insert({ box(pt(x[0], y[0]), pt(x[1], y[1])), wireid } );
+        obstacle[l].insert({ box(pt(x[0], y[0]), pt(x[1], y[1])), wireid } );
     return true;
 }
 
 bool OABusRouter::Rtree::intersects(int x[], int y[], int l)
 {
    vector<pair<box,int>> queries;
-   wire[l].query(bgi::intersects(box(pt(x[0], y[0]), pt(x[1], y[1]))), back_inserter(queries));
+   obstacle[l].query(bgi::intersects(box(pt(x[0], y[0]), pt(x[1], y[1]))), back_inserter(queries));
    return queries.size() > 0;
 }
 
 bool OABusRouter::Rtree::spacing_violations(int bitid, int x[], int y[], int l)
 {
     vector<pair<box,int>> queries;
-    wire[l].query(bgi::overlaps(box(pt(x[0], y[0]), pt(x[1], y[1]))), back_inserter(queries));
+    obstacle[l].query(bgi::overlaps(box(pt(x[0], y[0]), pt(x[1], y[1]))), back_inserter(queries));
     for(auto& it : queries)
     {
-        Wire* curwire = &rou->wires[it.second];
-        if(curwire->bitid != bitid)
+        if(it.second == OBSTACLE)
+        {
             return true;
+        }
+        else
+        {
+            Wire* curwire = &rou->wires[it.second];
+            if(curwire->bitid != bitid)
+                return true;
+        }
     }
 
     return false;
@@ -366,7 +373,9 @@ void OABusRouter::Router::InitRtree()
     rtree.containers = vector<Container>(numTracks);
     //
     rtree.wire = vector<BoxRtree>(numLayers);
-    
+    rtree.obstacle = vector<BoxRtree>(numLayers);
+
+    //
     for(i=0; i < numTracks; i++)
     {
         curT = &ckt->tracks[i];
@@ -390,7 +399,7 @@ void OABusRouter::Router::InitRtree()
             IntervalT::open(y1, y2) : IntervalT::open(x1, x2);
     }
     
- 
+    // obstacle
     for(i=0; i < numObstacles; i++)
     {
         curobs = &ckt->obstacles[i];
@@ -401,6 +410,8 @@ void OABusRouter::Router::InitRtree()
         l = curobs->l;
 
         box b(pt(x1,y1), pt(x2,y2));
+        // add into the obstacle tree
+        rtree.obstacle[l].insert({b, OBSTACLE});
         vector<pair<seg, int>> queries;
         trackrtree[l].query(bgi::intersects(b), back_inserter(queries));
         for(auto& it : queries)

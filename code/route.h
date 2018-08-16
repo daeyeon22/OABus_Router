@@ -19,6 +19,7 @@
 #define HORIZONTAL 222
 #define VERTICAL 111 
 #define PINTYPE 1212
+#define OBSTACLE -1232
 
 #ifndef DTYPE       // Data type used by FLUTE
 #define DTYPE int
@@ -341,7 +342,7 @@ namespace OABusRouter
 
         // rtree for wire
         vector<BoxRtree> wire; // element index == wire index
-        BoxRtree obstacle; 
+        vector<BoxRtree> obstacle; 
         
         
         Rtree()
