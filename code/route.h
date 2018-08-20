@@ -317,6 +317,7 @@ namespace OABusRouter
         int trackid;
         int offset;
         int l;
+        int width;
         bool vertical;
 
         IntervalSetT empty;
@@ -355,13 +356,19 @@ namespace OABusRouter
         bool update_wire(int wireid, int x[], int y[], int l, bool remove);
         bool intersects(int x[], int y[], int l);
         bool spacing_violations(int bitid, int x[], int y[], int l);
+        bool spacing_violations(int bitid, int x[], int y[], int l, int width, int spacing, bool vertical);
+        void design_ruled_area(int x[], int y[], int width, int spacing, bool vertical);
         int layer(int elemid);
         int trackid(int elemid);
         int direction(int elemid);
         int offset(int elemid);
+        int width(int elemid);
+        bool vertical(int elemid);
         int track_offset(int trackid);
         int track_layer(int trackid);
         int track_direction(int trackid);
+        int track_width(int trackid);
+        bool track_vertical(int trackid);
         IntervalSetT track_empty(int trackid);
     };
 
@@ -572,7 +579,13 @@ namespace OABusRouter
     
         // Mapping 3D
         void TopologyMapping3D();
+        
         void ObstacleAwareRouting(int treeid);
+        
+        bool Routing();
+        bool ObstacleAwareBusRouting(int busid);
+        
+        
         void PinAccess(int bitid);
 
         // ILP
@@ -583,6 +596,8 @@ namespace OABusRouter
 
 
         // Detailed
+        
+        
         void RouteAll();
         void TrackAssign();
         void CreateVia();

@@ -1,11 +1,25 @@
 
 #include "circuit.h"
 #include "route.h"
+#include "func.h"
+
 #include <stdlib.h>
 #include <time.h>
 #include <unordered_map>
+#include <tuple>
 
-#define DEBUG_MAZE
+//#define DEBUG_MAZE
+// Routing direction
+enum Direction
+{
+    Left,
+    Right,
+    Up,
+    Down,
+    T_Junction,
+    Point
+};
+
 
 
 static int randseed = 777;
@@ -53,6 +67,9 @@ int random(int moduler)
 }
 
 
+
+
+
 void OABusRouter::Router::PostGlobalRouting()
 {
     int numtrees, treeid, i;
@@ -71,6 +88,865 @@ void OABusRouter::Router::PostGlobalRouting()
 
 
 }
+
+
+
+int routing_direction(int x1, int y1, int x2, int y2, bool vertical)
+{
+    if(vertical)
+    {
+        if(y1 < y2)
+            return Direction::Up;
+        else if(y1 > y2)
+            return Direction::Down;
+        else
+            return Direction::Point;
+    }
+    else
+    {
+        if(x1 < x2)
+            return Direction::Right;
+        else if(x1 > x2)
+            return Direction::Left;
+        else
+            return Direction::Point;
+    }
+}
+
+void OABusRouter::Router::RouteAll()
+{
+    int thr = 10;
+    bool gcell_model;
+    
+    gcell_model = (grid.numCols > thr && grid.numRows > thr) ? true : false;
+
+    if(!gcell_model)
+    {
+        GenBackbone();
+
+        vector<int> sorted;
+        for(auto& b : ckt->buses)
+            sorted.push_back(b.id);
+        
+        Circuit* circuit = ckt;
+        sort(sorted.begin(), sorted.end(), [&,circuit](int left, int right){
+                int x1 = circuit->buses[left].llx; //(int)( 1.0 * ( circuit->buses[left].llx + circuit->buses[left].urx ) / 2 );
+                int y1 = circuit->buses[left].lly; //(int)( 1.0 * ( circuit->buses[left].lly + circuit->buses[left].ury ) / 2 );
+                int x2 = circuit->buses[right].llx; //(int)( 1.0 * ( circuit->buses[right].llx + circuit->buses[right].urx ) / 2 );
+                int y2 = circuit->buses[right].lly; //(int)( 1.0 * ( circuit->buses[right].lly + circuit->buses[right].ury ) / 2 );
+                return (y1 > y2); // || ((y1 == y2) && (x1 < x2));
+                });
+
+        for(auto& busid : sorted)
+        {
+            
+            Bus* curbus = &ckt->buses[busid];
+            printf("%s (%d %d) (%d %d)\n", curbus->name.c_str(), curbus->llx, curbus->lly, curbus->urx, curbus->ury);
+        }
+        for(auto& busid : sorted){
+            ObstacleAwareBusRouting(busid);
+
+        }
+
+    }
+    else
+    {
+        GenBackbone();
+
+        TopologyMapping3D();
+
+        CreateClips();
+        SolveILP_v2();
+        PostGlobalRouting();
+        TrackAssign();
+
+        MappingMultipin2Seg();
+        MappingPin2Wire();
+        Cut();
+        for(int i =0; i < ckt->buses.size(); i++)
+            PinAccess(i);
+    
+        Cut();
+    }
+    
+
+
+
+
+
+
+}
+
+
+
+bool OABusRouter::Router::ObstacleAwareBusRouting(int busid)
+{
+    // Cost Metrics
+    int DEPTH_COST = 1000;
+    int VIA_COST = 1000;
+    int SPACING_VIOLATION = 100000;
+    int WIRE_EXPAND = 10000;
+
+    // Variables
+    int i, j, wireid;
+    int nummultipins, numwires, numpins;
+    int numlayers, numbits, cost;
+    int x1, y1, x2, y2, x, y;
+    int llx, lly, urx, ury;
+    int l1, l2, curDir, dist;
+    int bitid, trackid, l, seq, width;
+    int maxWidth;
+    int xs[2], ys[2];
+    bool pin;
+    bool vertical_arrange1;
+    bool vertical_arrange2;
+    bool vertical;
+    bool solution = true;
+    typedef PointBG pt;
+    typedef SegmentBG seg;
+    typedef BoxBG box;
+    typedef tuple<int,int,int> ituple;
+
+
+    Bus* curbus;
+    Bit* curbit;
+    Pin* curpin;
+    Wire* curwire, *targetwire;
+    MultiPin* curmultipin;
+    Track* curtrack;
+    Segment* curseg;
+    SegRtree* trackrtree;
+
+
+    curbus = &ckt->buses[busid];
+    numbits = curbus->numBits;
+    // only two pin net
+    if(curbus->numPinShapes > 2) 
+        return false;
+
+
+    printf("start routing %s\n", curbus->name.c_str());
+
+    MultiPin *mp1, *mp2;
+    mp1 = &ckt->multipins[curbus->multipins[0]];
+    mp2 = &ckt->multipins[curbus->multipins[1]];
+
+    if(multipin2llx[mp1->id] < multipin2llx[mp2->id])
+    {
+        mp1 = &ckt->multipins[curbus->multipins[0]];
+        mp2 = &ckt->multipins[curbus->multipins[1]];
+    }
+    else
+    {
+        mp1 = &ckt->multipins[curbus->multipins[1]];
+        mp2 = &ckt->multipins[curbus->multipins[0]];
+    }
+
+    vector<int> sorted1 = mp1->pins;
+    vector<int> sorted2 = mp2->pins;
+    Circuit* circuit = ckt;
+
+    if(multipin2lly[mp1->id] < multipin2lly[mp2->id])
+    {
+        if(mp1->align == VERTICAL)
+            sort(sorted1.begin(), sorted1.end(), [&,circuit](int left, int right){
+                    return circuit->pins[left].lly > circuit->pins[right].lly; });
+        else
+            sort(sorted1.begin(), sorted1.end(), [&,circuit](int left, int right){
+                    return circuit->pins[left].llx > circuit->pins[right].llx; });
+    
+        if(mp2->align == VERTICAL)
+            sort(sorted2.begin(), sorted2.end(), [&,circuit](int left, int right){
+                    return circuit->pins[left].lly > circuit->pins[right].lly; });
+        else
+            sort(sorted2.begin(), sorted2.end(), [&,circuit](int left, int right){
+                    return circuit->pins[left].llx > circuit->pins[right].llx; });
+    }
+    else
+    {
+        if(mp1->align == VERTICAL)
+            sort(sorted1.begin(), sorted1.end(), [&,circuit](int left, int right){
+                    return circuit->pins[left].lly < circuit->pins[right].lly; });
+        else
+            sort(sorted1.begin(), sorted1.end(), [&,circuit](int left, int right){
+                    return circuit->pins[left].llx < circuit->pins[right].llx; });
+    
+        if(mp2->align == VERTICAL)
+            sort(sorted2.begin(), sorted2.end(), [&,circuit](int left, int right){
+                    return circuit->pins[left].lly < circuit->pins[right].lly; });
+        else
+            sort(sorted2.begin(), sorted2.end(), [&,circuit](int left, int right){
+                    return circuit->pins[left].llx < circuit->pins[right].llx; });
+    }
+
+
+
+
+    bool isRef = true;
+    int maxDepth = INT_MAX;
+    int bound;
+    vector<int> setP;   // Pins
+    vector<int> setT;   // Routing topologies
+    vector<int> tracelNum;  // trace layer number
+    vector<int> traceDir;   // trace direction
+    //vector<int> tracePts;
+    Pin *pin1, *pin2;
+    trackrtree = &rtree.track;
+
+    for(i=0; i < numbits; i++)
+    {
+    
+
+        pin1 = &ckt->pins[mp1->pins[i]];
+        pin2 = &ckt->pins[mp2->pins[i]];
+        bitid = curbus->bits[i];
+
+        if(pin1->llx > pin2->lly)
+            swap(pin1, pin2);
+
+        //pin1 = &ckt->pins[sorted1[i]];//&ckt->pins[mp1->pins[i]];
+        //pin2 = &ckt->pins[sorted2[i]];//&ckt->pins[mp2->pins[i]];
+        //bitid = ckt->bitHashMap[pin1->bitName];
+
+        printf("start (%d %d) (%d %d) M%d \n", pin1->llx, pin1->lly, pin1->urx, pin1->ury, pin1->l);
+        printf("end   (%d %d) (%d %d) M%d \n", pin2->llx, pin2->lly, pin2->urx, pin2->ury, pin2->l);
+
+
+        vertical_arrange1 = (mp1->align == VERTICAL) ? true : false;
+        vertical_arrange2 = (mp2->align == VERTICAL) ? true : false;
+
+        // routing p1 and p2
+        //
+        
+
+        box pinbox1, pinbox2;
+
+        if(mp1->align == VERTICAL)
+        {
+            int pinlx = pin1->llx;
+            int pinux = pin1->urx;
+            int pinly = pin1->lly - (int)( 1.0*curbus->width[pin1->l] / 2 );
+            int pinuy = pin1->ury + (int)( 1.0*curbus->width[pin1->l] / 2 );
+            pinbox1 = box(pt(pinlx, pinly), pt(pinux, pinuy));    
+        }
+        else
+        {
+            int pinlx = pin1->llx - (int)( 1.0*curbus->width[pin1->l] / 2 );
+            int pinux = pin1->urx + (int)( 1.0*curbus->width[pin1->l] / 2 );
+            int pinly = pin1->lly;
+            int pinuy = pin1->ury;
+            pinbox1 = box(pt(pinlx, pinly), pt(pinux, pinuy));    
+        }
+
+        if(mp2->align == VERTICAL)
+        {
+            int pinlx = pin2->llx;
+            int pinux = pin2->urx;
+            int pinly = pin2->lly - (int)( 1.0*curbus->width[pin2->l] / 2 );
+            int pinuy = pin2->ury + (int)( 1.0*curbus->width[pin2->l] / 2 );
+            pinbox2 = box(pt(pinlx, pinly), pt(pinux, pinuy));    
+        }
+        else
+        {
+            int pinlx = pin2->llx - (int)( 1.0*curbus->width[pin2->l] / 2 );
+            int pinux = pin2->urx + (int)( 1.0*curbus->width[pin2->l] / 2 );
+            int pinly = pin2->lly;
+            int pinuy = pin2->ury;
+            pinbox2 = box(pt(pinlx, pinly), pt(pinux, pinuy));    
+        }
+        
+
+
+
+        //
+        seg elem;
+        int dep;
+        int e1, e2, t1, t2;
+        int c1, c2;
+        int xDest, yDest;
+        int minElem = INT_MAX;
+        int minCost = INT_MAX;
+        bool hasMinElem = false;
+        bool destination;
+        vector<int> backtrace(rtree.elemindex, -1);
+        vector<int> depth(rtree.elemindex, -1);
+        vector<int> elemCost(rtree.elemindex, INT_MAX);
+        vector<int> iterPtx(rtree.elemindex, -1);
+        vector<int> iterPty(rtree.elemindex, -1);
+        vector<int> lastPtx(rtree.elemindex, -1);
+        vector<int> lastPty(rtree.elemindex, -1);
+        vector<seg> element(rtree.elemindex);
+        vector<pair<seg, int>> queries;
+
+        // Priority Queue
+        auto cmp = [](const ituple &left, const ituple &right){
+            return (get<1>(left) + get<2>(left) > get<1>(right) + get<2>(right));
+        };
+        priority_queue<ituple , vector<ituple>, decltype(cmp)> PQ(cmp);
+
+        queries.clear();
+        trackrtree->query(bgi::intersects(pinbox1), back_inserter(queries));
+
+
+        // Initial candidate
+        for(auto& it : queries)
+        {
+            e1 = it.second;
+            t1 = rtree.trackid(e1);
+            l1 = rtree.layer(e1);
+            maxWidth = rtree.width(e1);
+
+            // width constraint
+            if(maxWidth < curbus->width[l1])
+                continue;
+
+
+            // condition
+            if(vertical_arrange1 == ckt->is_vertical(l1))
+                continue;
+            
+            //if(used.find(t1) != used.end()) 
+            //    continue;
+
+            if(abs(pin1->l - l1) > 1) 
+                continue;
+
+            // visit
+            //printf("element %d\n", e1);
+            backtrace[e1] = e1;
+            element[e1] = it.first;
+            depth[e1] = 0;
+
+            // get point
+            lpt(element[e1], x1, y1);
+            upt(element[e1], x2, y2);
+
+            // Find iterating point of e1
+            if(pin1->l != l1)
+            {
+                for(auto& it2 : queries)
+                {
+                    e2 = it2.second;
+                    if(rtree.layer(e2) == pin1->l)
+                    {
+                        if(rtree.direction(e1) == VERTICAL)
+                        {
+                            iterPtx[e1] = rtree.offset(e1);
+                            iterPty[e1] = rtree.offset(e2);
+                        }
+                        else
+                        {
+                            iterPtx[e1] = rtree.offset(e2);
+                            iterPty[e1] = rtree.offset(e1);
+                        }
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                if(bg::intersects(pt(x1,y1), pinbox1))
+                {
+                    iterPtx[e1] = x1;
+                    iterPty[e1] = y1;
+                }
+                else if(bg::intersects(pt(x2,y2), pinbox1))
+                {
+                    iterPtx[e1] = x2;
+                    iterPty[e1] = y2;
+                }
+                else
+                {
+                    iterPtx[e1] = rtree.vertical(e1) ? x1 : (int)((bg::get<0,0>(pinbox1) + bg::get<1,0>(pinbox1))/2);
+                    iterPty[e1] = rtree.vertical(e1) ? (int)((bg::get<0,1>(pinbox1) + bg::get<1,1>(pinbox1))/2) : y1;
+                }
+            }
+
+
+            c1 = VIA_COST * abs(pin1->l - l1);
+            c2 = 0; //2* (int)(bg::distance(pinbox2, pt(iterPtx[e1], iterPty[e1])));
+            
+            // if arrives at the destination
+            if(abs(pin2->l-l1) < 2 && bg::intersects(element[e1], pinbox2))
+            {
+                lpt(element[e1], x1, y1);
+                upt(element[e1], x2, y2);
+
+
+                // Via insertion or intersects point
+                int xoffset, yoffset;
+                if(pin2->l != l1)
+                {
+                    int minOffset;
+                    int minDist = INT_MAX;
+                    vector<int> &offsets = ckt->layers[pin2->l].trackOffsets;
+                    vector<int>::iterator lower, upper;
+                    vertical = rtree.vertical(e1);
+
+                    if(vertical){
+                        lower = lower_bound(offsets.begin(), offsets.end(), pin2->lly);
+                        upper = upper_bound(offsets.begin(), offsets.end(), pin2->ury);
+                        xoffset = x1;
+                    }else{
+                        lower = lower_bound(offsets.begin(), offsets.end(), pin2->llx);
+                        upper = upper_bound(offsets.begin(), offsets.end(), pin2->urx);
+                        yoffset = y1;
+                    }
+
+
+                    while(lower != upper)
+                    {
+                        yoffset = (vertical)? *lower : yoffset;
+                        xoffset = (vertical)? xoffset : *lower;
+                        lower++;
+                        dist = abs(iterPtx[e1] - xoffset) + abs(iterPty[e1] - yoffset);
+
+                        if(dist < minDist)
+                        {
+                            minOffset = (vertical) ? yoffset : xoffset;
+                            minDist = dist;
+                        }
+                    }
+
+                    yoffset = (vertical)? minOffset : yoffset;
+                    xoffset = (vertical)? xoffset : minOffset;
+
+                }
+                else
+                {
+                    if(bg::intersects(pt(x1, y1), pinbox2))
+                    {
+                        xoffset = x1;
+                        yoffset = y1;
+                    }
+                    else if(bg::intersects(pt(x2, y2), pinbox2))
+                    {
+                        xoffset = x2;
+                        yoffset = y2;
+                    }
+                    else
+                    {
+                        xoffset = rtree.vertical(e1) ? x1 : (int)((bg::get<0,0>(pinbox2) + bg::get<1,0>(pinbox2))/2);
+                        yoffset = rtree.vertical(e1) ? (int)((bg::get<0,1>(pinbox2) + bg::get<1,1>(pinbox2))/2) : y1;
+                        //xoffset = rtree.vertical(e1) ? x1 : (int)(bg::get<0,0>(pinbox2) + 0.5);
+                        //yoffset = rtree.vertical(e1) ? (int)(bg::get<0,1>(pinbox2) + 0.5) : y1;
+                    }
+                }
+
+                // end point of path
+                lastPtx[e1] = xoffset;
+                lastPty[e1] = yoffset;
+                xs[0] = min(iterPtx[e1], lastPtx[e1]);
+                xs[1] = max(iterPtx[e1], lastPtx[e1]);
+                ys[0] = min(iterPty[e1], lastPty[e1]);
+                ys[1] = max(iterPty[e1], lastPty[e1]);
+                width = curbus->width[l1];
+                vertical = rtree.vertical(e1);
+
+                if(rtree.spacing_violations(bitid, xs, ys, l1, width, spacing[l1], vertical))
+                    c2 += SPACING_VIOLATION;
+
+
+                if(hasMinElem)
+                {
+                    if(minCost > c1 + c2)
+                    {
+                        minCost = c1 + c2;
+                        minElem = e1;
+                    }
+                }
+                else
+                {
+                    hasMinElem = true;
+                    minElem = e1;
+                    minCost = c1 + c2;
+                }
+            }
+
+            // push into the priority queue
+            PQ.push(make_tuple(e1, c1, c2));
+            elemCost[e1] = c1 + c2;
+        
+        }
+        //
+
+
+        while(PQ.size() > 0)
+        {
+
+            //printf("\n\ncurrent Queue size %d\n", PQ.size());
+            int cost1, cost2;
+            ituple e = PQ.top();
+            PQ.pop();
+
+            e1 = get<0>(e);
+            cost1 = get<1>(e);
+            cost2 = get<2>(e);
+            
+            //printf("MinCost %d CurCost %d\n", minCost, cost1 + cost2);
+            // 
+            if(hasMinElem && (e1 == minElem))
+                break;
+            
+
+            // routing condition
+            if(maxDepth <= depth[e1])
+            {
+                //printf("current depth %d maxDepth %d\n", depth[e1], maxDepth);
+                continue;
+            }
+
+            t1 = rtree.trackid(e1);
+            l1 = rtree.layer(e1);
+
+
+            // query intersected tracks
+            queries.clear();
+            trackrtree->query(bgi::intersects(element[e1]), back_inserter(queries));
+
+
+            // Intersected available tracks
+            for(auto& it : queries)
+            {
+                e2 = it.second;
+                t2 = rtree.trackid(e2);
+                l2 = rtree.layer(e2);
+                maxWidth = rtree.width(e2);
+                elem = it.first;
+                dep = depth[e1] + 1;
+                destination = false;                
+                // intersection
+                intersection(element[e1], elem, x, y);
+
+                // condition
+                if(abs(l1 - l2) > 1)
+                    continue;
+
+                if(e1 == e2)
+                    continue;
+
+                // width constraint
+                if(maxWidth < curbus->width[l2])
+                    continue;
+
+
+                if(!isRef && tracelNum[dep] != l2)
+                {
+                    // layer condition
+                    if(tracelNum[dep] != l2)
+                        continue;
+                    curDir = routing_direction(iterPtx[e1], iterPty[e1], x, y, rtree.vertical(e1));
+                    // if current routing direction is different,
+                    // don't push into the priority queue
+                    if(traceDir[depth[e1]] != curDir)
+                    {
+                        continue; 
+                    }
+                }
+
+                // condition
+                if((depth[e1] == 0) && 
+                        (x == iterPtx[e2] && y == iterPty[e2]))
+                {
+                    continue;
+                }
+
+
+                // cost
+                c1 = cost1 + abs(iterPtx[e1] - x) + abs(iterPty[e1] - y) + abs(l1-l2) * VIA_COST + DEPTH_COST;
+                c2 = cost2; //2 * (int)(bg::distance(pt(iterPtx[e2], iterPty[e2]), pinbox2));
+                
+                // check spacing violation
+                xs[0] = min(iterPtx[e1], x); //iterPtx[e2]);
+                xs[1] = max(iterPtx[e1], x); //iterPtx[e2]);
+                ys[0] = min(iterPty[e1], y); //iterPty[e2]);
+                ys[1] = max(iterPty[e1], y); //iterPty[e2]);
+                width = curbus->width[l1];
+                vertical = rtree.vertical(e1);
+                
+                if(rtree.spacing_violations(bitid, xs, ys, l1, width, spacing[l1], vertical))
+                    c2 += SPACING_VIOLATION;
+
+                // if destination
+                if(abs(pin2->l-l2) < 2 && bg::intersects(elem, pinbox2))
+                {
+                    destination = true;
+
+                    lpt(elem, x1, y1);
+                    upt(elem, x2, y2);
+                    
+                    // Via insertion or intersects point
+                    int xoffset, yoffset;
+                    if(pin2->l != l2)
+                    {
+                        int minOffset;
+                        int minDist = INT_MAX;
+                        vector<int> &offsets = ckt->layers[pin2->l].trackOffsets;
+                        vector<int>::iterator lower, upper;
+                        vertical = rtree.vertical(e2);
+
+                        if(vertical){
+                            lower = lower_bound(offsets.begin(), offsets.end(), pin2->lly);
+                            upper = upper_bound(offsets.begin(), offsets.end(), pin2->ury);
+                            xoffset = x1;
+                        }else{
+                            lower = lower_bound(offsets.begin(), offsets.end(), pin2->llx);
+                            upper = upper_bound(offsets.begin(), offsets.end(), pin2->urx);
+                            yoffset = y1;
+                        }
+                        
+                        
+                        while(lower != upper)
+                        {
+                            yoffset = (vertical) ? *lower : yoffset;
+                            xoffset = (vertical) ? xoffset : *lower;
+                            lower++;
+                            dist = abs(x - xoffset) + abs(y - yoffset);
+                            
+                            if(dist < minDist)
+                            {
+                                minOffset = (vertical) ? yoffset : xoffset;
+                                minDist = dist;
+                            }
+                        }
+
+                        yoffset = (vertical)? minOffset : yoffset;
+                        xoffset = (vertical)? xoffset : minOffset;
+
+                    }
+                    else
+                    {
+                        if(bg::intersects(pt(x1, y1), pinbox2))
+                        {
+                            xoffset = x1;
+                            yoffset = y1;
+                        }
+                        else if(bg::intersects(pt(x2, y2), pinbox2))
+                        {
+                            xoffset = x2;
+                            yoffset = y2;
+                        }
+                        else
+                        {
+                            xoffset = rtree.vertical(e2) ? x1 : (int)((bg::get<0,0>(pinbox2) + bg::get<1,0>(pinbox2))/2);
+                            yoffset = rtree.vertical(e2) ? (int)((bg::get<0,1>(pinbox2) + bg::get<1,1>(pinbox2))/2) : y1;
+                            //xoffset = rtree.vertical(e2) ? x1 : (int)(bg::get<0,0>(pinbox2) + 0.5);
+                            //yoffset = rtree.vertical(e2) ? (int)(bg::get<0,1>(pinbox2) + 0.5) : y1;
+                        }
+                    }
+                    
+                    // end point of path
+                    lastPtx[e2] = xoffset;
+                    lastPty[e2] = yoffset;
+                   
+                    // condition(routing direction)
+                    //if(i!=0)
+                    if(!isRef)
+                    {
+                        curDir = routing_direction(x, y, xoffset, yoffset, rtree.vertical(e2));
+                        // if current routing direction is different,
+                        // don't push into the priority queue
+                        if(traceDir[dep] != curDir)
+                            continue;
+                    }
+                    
+                    
+                    // check spacing violation
+                    xs[0] = min(x, xoffset);
+                    ys[0] = min(y, yoffset);
+                    xs[1] = max(x, xoffset);
+                    ys[1] = max(y, yoffset);
+                    width = curbus->width[l2];
+                    vertical = rtree.vertical(e2);
+
+                    if(rtree.spacing_violations(bitid, xs, ys, l2, width, spacing[l2], vertical))
+                        c2 += SPACING_VIOLATION;
+               
+
+                }
+                // if destination
+ 
+
+                if(elemCost[e2] < c1 + c2)
+                    continue;
+
+                element[e2] = elem;
+                depth[e2] = dep;
+                backtrace[e2] = e1;
+                iterPtx[e2] = x;
+                iterPty[e2] = y;
+                elemCost[e2] = c1 + c2;
+
+                if(destination)
+                {
+                    if(hasMinElem)
+                    {
+                        if(minCost > c1 + c2)
+                        {
+                            minCost = c1 + c2;
+                            minElem = e2;
+                        }
+                    }
+                    else
+                    {
+                        hasMinElem = true;
+                        minCost = c1 + c2;
+                        minElem = e2;
+                    }
+                }
+
+                PQ.push(make_tuple(e2, c1, c2));
+            }
+            //
+        }
+
+
+        if(hasMinElem)
+        {
+            cout << "arrival..." << endl;
+            e2 = minElem;
+            l2 = rtree.layer(e2);
+            
+            //if(i==0)
+            if(isRef)
+            {
+                maxDepth = depth[e2];
+                curDir = routing_direction(iterPtx[e2], iterPty[e2], lastPtx[e2], lastPty[e2], rtree.vertical(e2));
+                tracelNum.insert(tracelNum.begin(), l2);
+                traceDir.insert(traceDir.begin(), curDir);
+            }
+
+            int w1, w2;
+            xs[0] = min(lastPtx[e2], iterPtx[e2]);
+            ys[0] = min(lastPty[e2], iterPty[e2]);
+            xs[1] = max(lastPtx[e2], iterPtx[e2]);
+            ys[1] = max(lastPty[e2], iterPty[e2]);
+            seq = i;
+            trackid = rtree.trackid(e2);
+            pin = true;
+
+            w2 = CreateWire(bitid, trackid, xs, ys, l2, seq, pin)->id;
+            wires[w2].intersection[PINTYPE] = { lastPtx[e2], lastPty[e2] };
+            pin2wire[pin2->id] = w2;
+            wire2pin[w2] = pin2->id;
+            
+            while(backtrace[e2] != e2)
+            {
+                // Iterating
+                e1 = backtrace[e2];
+                x1 = iterPtx[e1];
+                y1 = iterPty[e1];
+                x2 = iterPtx[e2];
+                y2 = iterPty[e2];
+                l1 = rtree.layer(e1);
+                vertical = rtree.vertical(e1);
+
+                //if(i==0)
+                if(isRef)
+                {
+                    tracelNum.insert(tracelNum.begin(), l1);
+                    traceDir.insert(traceDir.begin(), routing_direction(x1, y1, x2, y2, vertical)); 
+                }
+
+                xs[0] = min(x1, x2);
+                ys[0] = min(y1, y2);
+                xs[1] = max(x1, x2);
+                ys[1] = max(y1, y2);
+                pin = (e1 == backtrace[e1]) ? true : false;
+                trackid = rtree.trackid(e1);
+                seq = i;
+
+                w1 = CreateWire(bitid, trackid, xs, ys, l1, seq, pin)->id;
+                
+                if(pin)
+                {
+                    pin2wire[pin1->id] = w1;
+                    wire2pin[w1] = pin1->id;
+                    wires[w1].intersection[PINTYPE] = {x1, y1};
+                }
+
+
+                SetNeighbor(&wires[w1], &wires[w2], x2, y2);
+
+                w2 = w1;
+                e2 = e1;
+            }
+
+            //if(i==0)
+            if(isRef)
+            {
+                printf("trace layer num -> {");
+                for(auto& it : tracelNum)
+                {
+                    printf(" %d", it);
+                }
+                printf(" }\n");
+                printf("trace direction -> {");
+                for(auto& it : traceDir)
+                {
+                    if(it == Direction::Point)
+                        printf(" Point");
+                    if(it == Direction::Left)
+                        printf(" Left");
+                    if(it == Direction::Right)
+                        printf(" Right");
+                    if(it == Direction::Down)
+                        printf(" Down");
+                    if(it == Direction::Up)
+                        printf(" Up");
+                    if(it == Direction::T_Junction)
+                        printf(" T-junction");
+                }
+                printf(" }\n\n");
+            }
+        }
+        else
+        {
+            cout << "No solution..." << endl;
+            if(isRef)
+            {
+                solution = false;
+                break;
+            }
+            /*
+            printf("maxDepth %d\n", maxDepth);
+            printf("trace layer num -> {");
+            for(auto& it : tracelNum)
+            {
+                printf(" %d", it);
+            }
+            printf(" }\n");
+            printf("trace direction -> {");
+            for(auto& it : traceDir)
+            {
+                if(it == Direction::Point)
+                    printf(" Point");
+                if(it == Direction::Left)
+                    printf(" Left");
+                if(it == Direction::Right)
+                    printf(" Right");
+                if(it == Direction::Down)
+                    printf(" Down");
+                if(it == Direction::Up)
+                    printf(" Up");
+                if(it == Direction::T_Junction)
+                    printf(" T-junction");
+            }
+            printf(" }\n\n");
+            */
+        }
+        //
+        isRef = false;
+    }
+
+    printf("\n\n\n");
+    return solution; 
+
+
+
+}
+
+
 
 
 void OABusRouter::Router::ObstacleAwareRouting(int treeid)

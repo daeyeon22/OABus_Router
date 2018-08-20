@@ -3,7 +3,6 @@
 
 #define DEBUG_RTREE
 
-
 bool OABusRouter::Wire::leaf()
 {
     return intersection.size() < 2;
@@ -201,6 +200,11 @@ SegRtree* OABusRouter::Router::GetTrackRtree()
 {
     return &rtree.track;
 }
+
+int OABusRouter::Rtree::width(int elemid)
+{
+    return containers[elem2track[elemid]].width;
+}
 int OABusRouter::Rtree::layer(int elemid)
 {
     return containers[elem2track[elemid]].l; //trackNuml[elemid];
@@ -234,6 +238,22 @@ int OABusRouter::Rtree::track_direction(int trackid)
 int OABusRouter::Rtree::track_layer(int trackid)
 {
     return containers[trackid].l;
+}
+
+int OABusRouter::Rtree::track_width(int trackid)
+{
+    return containers[trackid].width;
+}
+
+
+bool OABusRouter::Rtree::vertical(int elemid)
+{
+    return containers[elem2track[elemid]].vertical;
+}
+
+bool OABusRouter::Rtree::track_vertical(int trackid)
+{
+    return containers[trackid].vertical;
 }
 
 IntervalSetT OABusRouter::Rtree::track_empty(int trackid)
@@ -307,6 +327,56 @@ bool OABusRouter::Rtree::intersects(int x[], int y[], int l)
    obstacle[l].query(bgi::intersects(box(pt(x[0], y[0]), pt(x[1], y[1]))), back_inserter(queries));
    return queries.size() > 0;
 }
+
+
+
+void OABusRouter::Rtree::design_ruled_area(int x[], int y[], int width, int spac, bool vertical)
+{   
+    if(vertical)
+    {   
+        x[0] -= ((int)(1.0*width / 2) + spac);
+        x[1] += ((int)(1.0*width / 2) + spac);
+        y[0] -= spac;
+        y[1] += spac;
+    }
+    else
+    {   
+        y[0] -= ((int)(1.0*width / 2) + spac);
+        y[1] += ((int)(1.0*width / 2) + spac);
+        x[0] -= spac;
+        x[1] += spac;
+    }
+} 
+
+
+bool OABusRouter::Rtree::spacing_violations(int bitid, int x[], int y[], int l, int width, int spacing, bool vertical)
+{
+    //printf("before (%d %d) (%d %d)\n", x[0], y[0], x[1], y[1]);
+    design_ruled_area(x, y, width, spacing, vertical);
+    //printf("after  (%d %d) (%d %d)\n", x[0], y[0], x[1], y[1]);
+
+    vector<pair<box,int>> queries;
+    box area(pt(x[0], y[0]), pt(x[1], y[1]));
+    obstacle[l].query(bgi::intersects(area) , back_inserter(queries));
+    //printf("#intersects %d\n", queries.size());
+    for(auto& it : queries)
+    {
+        if(bg::touches(it.first , area))
+            continue;
+
+        if(it.second == OBSTACLE)
+            return true;
+        
+        Wire* curwire = &rou->wires[it.second];
+        if(curwire->bitid != bitid)
+            return true;
+    }
+
+    return false;
+}
+
+
+
 
 bool OABusRouter::Rtree::spacing_violations(int bitid, int x[], int y[], int l)
 {
@@ -385,6 +455,8 @@ void OABusRouter::Router::InitRtree()
         curct->offset = curT->offset;
         curct->l = curT->l;
         curct->vertical = ckt->is_vertical(curT->l);
+        curct->width = curT->width;
+
 
         x1 = curT->llx;
         y1 = curT->lly;
@@ -420,7 +492,7 @@ void OABusRouter::Router::InitRtree()
             curct = &rtree.containers[trackid];
 
             curct->empty -= (curct->vertical)?
-                IntervalT::closed(y1, y2) : IntervalT::closed(x1, x2);
+                IntervalT::open(y1, y2) : IntervalT::open(x1, x2);
         }
     }
 
@@ -442,7 +514,7 @@ void OABusRouter::Router::InitRtree()
             curct = &rtree.containers[trackid];
 
             curct->empty -= (curct->vertical)?
-                IntervalT::closed(y1, y2) : IntervalT::closed(x1, x2);
+                IntervalT::open(y1, y2) : IntervalT::open(x1, x2);
         }
     }
 

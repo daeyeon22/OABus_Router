@@ -10,17 +10,7 @@
 //#define DEBUG_VIA
 #define DEBUG_MAP
 
-void OABusRouter::Router::RouteAll()
-{
-    for(int i=0; i < ckt->buses.size(); i++)
-    {
-        cout << "current busid : " << i << endl;
-        PinAccess(i);
-    }
 
-
-
-}
 
 void OABusRouter::Router::MappingMultipin2Seg()
 {

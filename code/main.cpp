@@ -87,14 +87,27 @@ int main(int argc, char** argv){
     //cout << "Initialize" << endl;
     //ckt->Init();
     
-    cout << "Generate Backbone" << endl;
-    rou->GenBackbone();
+    //cout << "Generate Backbone" << endl;
+    //rou->GenBackbone();
     //ckt->GenBackbone_v2();
    
     //ckt->RoutingPoint();
     //cout << "Generate Plot file" << endl;
     //ckt->GenPlot();
 
+
+    rou->RouteAll();
+
+    /*
+    for(int i=0; i < ckt->buses.size(); i++)
+    {
+        if(rou->ObstacleAwareBusRouting(i))
+            printf("%s -> routing success\n", ckt->buses[i].name.c_str());
+        else
+            printf("%s -> routing fail\n", ckt->buses[i].name.c_str());
+    }
+    */
+    /*
     cout << "Topology Mapping 3D" << endl;
     rou->TopologyMapping3D();
 
@@ -136,6 +149,7 @@ int main(int argc, char** argv){
     cout << "Cutting" << endl;
     rou->Cut();
 
+    */
 
     cout << "Create Path" << endl;
     ckt->CreatePath();
@@ -146,10 +160,10 @@ int main(int argc, char** argv){
     
     
     cout << "Write def & lef file" << endl;
-    ckt->def_write();
-    ckt->lef_write();
+    //ckt->def_write();
+    //ckt->lef_write();
     ckt->out_write(outputFileName);
-    ckt->debug();
+    //ckt->debug();
 
     cout << "End program" << endl;
     return 0;

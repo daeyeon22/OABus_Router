@@ -11,8 +11,9 @@ namespace br = OABusRouter;
 
 static string plotdir = "./plot/";
 static string plotall = "./plot/bus_all.svg";
-static bool show_track = false;
+static bool show_track = true;
 static bool maze = false;
+static double scale = 1.0;
 
 void OABusRouter::Router::Plot()
 {
@@ -50,6 +51,9 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
     int llx, lly, urx, ury, curl, l1, l2;
     int col, row; 
     int wireid;
+    double stroke_width = 5.0;
+    double circle_radius = 200;
+
     bool isVertical;
     //char* fileName = plotall.c_str();
 
@@ -64,14 +68,19 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
     layoutWidth = ckt->width;
     layoutHeight = ckt->height;
 
+    stroke_width *= sqrt(sqrt(layoutWidth*layoutHeight) / 100000);
+    circle_radius *= sqrt(sqrt(layoutWidth*layoutHeight) / 100000);
+
+
+
 
 #ifdef DEBUG
     printf("Layout (%8d %8d) (%8d %8d)\n", layoutOffsetX, layoutOffsetY, layoutOffsetX + layoutWidth, layoutOffsetY + layoutHeight);
     
 #endif
 
-    Dimensions dimensions(0.5*layoutWidth, 0.5*layoutHeight);
-    Document doc(fileName, Layout(dimensions, Layout::BottomLeft, 0.5));
+    Dimensions dimensions(scale*layoutWidth, scale*layoutHeight);
+    Document doc(fileName, Layout(dimensions, Layout::BottomLeft, scale));
 
     Color colors[]
         = { Color::Red, Color::Orange, Color::Yellow, Color::Green, Color::Blue, Color::Purple, Color::Black };
@@ -90,7 +99,7 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
     urx = layoutWidth;
     ury = layoutHeight;
 
-    Polygon border(Color::White, Stroke(5,Color::Black));
+    Polygon border(Color::White, Stroke(stroke_width,Color::Black));
     border << Point(llx,lly) << Point(llx, ury) << Point(urx,ury) << Point(urx, lly);
     doc << border;
     //doc << Rectangle(Point(0,0), layoutWidth, layoutHeight, Color::White);
@@ -116,7 +125,7 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         lly = 0;
         ury = layoutHeight;
 
-        doc << Line(Point(llx,lly), Point(urx,ury), Stroke(5, Color::Black));
+        doc << Line(Point(llx,lly), Point(urx,ury), Stroke(stroke_width, Color::Black));
 #ifdef DEBUG_GLOBAL
         printf("Line (%8d %8d) (%8d %8d)\n", llx, lly, urx, ury);
 #endif
@@ -133,7 +142,7 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         lly = yoffset + layoutOffsetY;
         ury = yoffset + layoutOffsetY;
 
-        doc << Line(Point(llx,lly), Point(urx,ury), Stroke(5, Color::Black));
+        doc << Line(Point(llx,lly), Point(urx,ury), Stroke(stroke_width, Color::Black));
 #ifdef DEBUG_GLOBAL
         printf("Line (%8d %8d) (%8d %8d)\n", llx, lly, urx, ury);
 #endif
@@ -164,7 +173,7 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         lly = obs->lly + layoutOffsetY;
         urx = obs->urx + layoutOffsetX;
         ury = obs->ury + layoutOffsetY;
-        Polygon poly(Fill(Color::Black, 0.3), Stroke(5, Color::Black));
+        Polygon poly(Fill(colors[obs->l], 0.7), Stroke(stroke_width, Color::Red));
         poly << Point(llx,lly) << Point(llx,ury) << Point(urx, ury) << Point(urx, lly);
         doc << poly;
 
@@ -183,7 +192,7 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
                 lly = (int)(bg::get<0,1>(it) +0.5) + layoutOffsetY;
                 urx = (int)(bg::get<1,0>(it) +0.5) + layoutOffsetX;
                 ury = (int)(bg::get<1,1>(it) +0.5) + layoutOffsetY;
-                doc << Line(Point(llx, lly), Point(urx, ury), Stroke(10,colors[curl]));
+                doc << Line(Point(llx, lly), Point(urx, ury), Stroke(2*stroke_width,colors[curl]));
             }
 
         }
@@ -202,7 +211,7 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
                 urx = grid->urx(gcellid) + layoutOffsetX;
                 ury = grid->ury(gcellid) + layoutOffsetY;
                 curl = rou->grid[gcellid]->l;
-                Polygon poly(Fill(colors[curl], 0.3), Stroke(5, Color::Black));
+                Polygon poly(Fill(colors[curl], 0.3), Stroke(stroke_width, Color::Black));
                 poly << Point(llx,lly) << Point(llx,ury) << Point(urx, ury) << Point(urx, lly);
                 doc << poly;
             }
@@ -247,7 +256,7 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
                 textOffsetY = (int)(1.0*(ury-lly)/2 + 0.5);
 
 
-                Polygon poly(Fill(colors[curl], 0.3), Stroke(5, Color::Black));
+                Polygon poly(Fill(colors[curl], 0.3), Stroke(stroke_width, Color::Black));
                 poly << Point(llx,lly) << Point(llx,ury) << Point(urx, ury) << Point(urx, lly);
                 doc << poly;
 
@@ -270,7 +279,7 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
                         centerX = p.x[0] + layoutOffsetX;
                         centerY = p.y[0] + layoutOffsetY;
                         curl = p.l;
-                        doc << Circle(Point(centerX, centerY), 150.0, colors[curl], Stroke(10, Color::Black));
+                        doc << Circle(Point(centerX, centerY), circle_radius, colors[curl], Stroke(2*stroke_width, Color::Black));
                     }
                     else
                     {
@@ -294,7 +303,7 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
                             ury += (int)(1.0*width/2);
                         }
 
-                        Polygon poly(colors[curl], Stroke(10, Color::Black));
+                        Polygon poly(colors[curl], Stroke(2*stroke_width, Color::Black));
                         poly << Point(llx,lly) << Point(llx,ury) << Point(urx, ury) << Point(urx, lly);
                         doc << poly;
                     }
@@ -368,14 +377,14 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         textOffsetY = (int)(1.0*(ury-lly)/2 + 0.5);
 
 
-        Polygon poly(colors[curl], Stroke(5, Color::Black));
+        Polygon poly(colors[curl], Stroke(stroke_width, Color::Black));
         poly << Point(llx,lly) << Point(llx,ury) << Point(urx, ury) << Point(urx, lly);
         doc << poly;
         //doc << Rectangle(Point(llx,lly), (urx-llx), (ury-lly), colors[curl]);
 #ifdef DEBUG_PIN
         printf("Rect (%8d %8d) (%8d %8d)\n", llx, lly, urx, ury);
 #endif
-        doc << Text(Point(textOffsetX, textOffsetY), content, Fill(), Font(300));
+        //doc << Text(Point(textOffsetX, textOffsetY), content, Fill(), Font(300));
     }
 
 

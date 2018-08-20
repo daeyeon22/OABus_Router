@@ -7,9 +7,18 @@
 #include <algorithm>
 #include <tuple>
 #include <boost/functional/hash.hpp>
-
+#include <boost/geometry.hpp>
 // Util functions
 
+
+namespace bg = boost::geometry;
+typedef bg::model::point<float,2,bg::cs::cartesian> pt;
+typedef bg::model::segment<pt> seg;
+
+extern void lpt(seg s, int &x, int &y);
+extern void upt(seg s, int &x, int &y);
+extern bool intersects(seg s1, seg s2);
+extern bool intersection(seg s1, seg s2, int &x, int &y);
 
 
 extern size_t GetHashKey(std::pair<std::string,int> &value);
