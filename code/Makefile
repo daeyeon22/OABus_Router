@@ -37,7 +37,7 @@ FLUTESRC 	= $(FLUTEDIR)/neighbors.o $(FLUTEDIR)/mst2.o \
 
 SRC			= func.o main.o parser.o route.o init.o maze.o\
 			  rsmt.o ilp.o util.o rtree.o track.o writer.o\
-			  pin_access.o cut.o
+			  pin_access.o cut.o rip.o
 
 CPLEXLIBS       = -L$(CPLEXDIR)/../lib/$(SYSTEM)/$(LIBFORMAT) -lilocplex -lcplex
 CONCERTLIBS     = -L$(CONCERTDIR)/../lib/$(SYSTEM)/$(LIBFORMAT) -lconcert -lm -pthread -fopenmp -static-libstdc++ -std=c++11
@@ -89,6 +89,9 @@ maze.o: maze.cpp route.h
 cut.o: cut.cpp route.h
 	$(CXX) $(CFLAGS) -c -o $@ $<  
 
+rip.o: rip.cpp route.h
+	$(CXX) $(CFLAGS) -c -o $@ $<  
+	
 #RSMT.o: RSMT.cpp flute.h circuit.h global.h
 #	$(CXX) $(CFLAGS) -c -o $@ $<  
 

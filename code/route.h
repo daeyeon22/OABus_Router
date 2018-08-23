@@ -20,6 +20,7 @@
 #define VERTICAL 111 
 #define PINTYPE 1212
 #define OBSTACLE -1232
+#define NOT_ASSIGN 3391
 
 #ifndef DTYPE       // Data type used by FLUTE
 #define DTYPE int
@@ -284,8 +285,7 @@ namespace OABusRouter
         {}
 
         // Initialize function
-        void CreateGCs();
-        void InitGcellCap(int l, int dir, vector<int> &offsets);
+        void initialize_gcell_cap(int l, int dir, vector<int> &offsets);
 
 
         // member functions
@@ -323,6 +323,20 @@ namespace OABusRouter
         IntervalSetT empty;
         vector<seg> segs;
         vector<int> elems;
+
+        Container() {}
+
+        
+        Container(const Container& ct) :
+            trackid(ct.trackid),
+            offset(ct.offset),
+            l(ct.l),
+            width(ct.width),
+            vertical(ct.vertical),
+            empty(ct.empty),
+            segs(ct.segs),
+            elems(ct.elems) {}
+
     };
 
 
@@ -352,6 +366,19 @@ namespace OABusRouter
             elem2track.set_empty_key(INT_MAX);
         }
 
+
+        // Copy
+        Rtree(const Rtree& rt) :
+            elemindex(rt.elemindex),
+            track(rt.track),
+            containers(rt.containers),
+            elem2track(rt.elem2track),
+            wire(rt.wire),
+            obstacle(rt.obstacle) {}
+
+
+        // helper function
+        void intersection(box pin, int l1,  seg elem, int l2, int &x, int &y); 
         bool insert_element(int trackid, int x[], int y[], int l, bool remove); 
         bool update_wire(int wireid, int x[], int y[], int l, bool remove);
         bool intersects(int x[], int y[], int l);
@@ -389,15 +416,28 @@ namespace OABusRouter
         bool assign;
         bool vertical;
 
-        Segment(int id = INT_MAX,
-                int x1 = INT_MAX, 
-                int y1 = INT_MAX,
-                int x2 = INT_MAX,
-                int y2 = INT_MAX,
-                int l = INT_MAX, 
-                int bw = INT_MAX,
-                bool assign = false, 
-                bool vertical = false) :
+        
+        Segment():
+            id(INT_MAX),
+            x1(INT_MAX),
+            y1(INT_MAX),
+            x2(INT_MIN),
+            y2(INT_MIN),
+            l(INT_MAX),
+            bw(INT_MAX),
+            assign(false),
+            vertical(false)
+        {}
+        
+        Segment(int id,
+                int x1,
+                int y1,
+                int x2,
+                int y2,
+                int l,
+                int bw,
+                bool assign,
+                bool vertical) :
             id(id),
             x1(x1),
             y1(y1),
@@ -480,7 +520,8 @@ namespace OABusRouter
         }
 
         bool leaf();
-
+        void get_info(int b, int t, int x[], int y[], int curl, int s, bool accpin);
+        void add_intersection(int key, pair<int,int> p);
     };
 
     struct Via
@@ -567,26 +608,23 @@ namespace OABusRouter
         }
 
         // Initialize Grid3D
-        void Init();
-        void InitGrid3D();
-        void InitRtree();
-
-        SegRtree* GetTrackRtree();
+        void initialize();
+        void initialize_rtree();
+        void initialize_grid3d();
 
         // Generate Initial Topology for each bus
-        void GenBackbone();
-        void GenStTree(int id, DTYPE x[], DTYPE y[], int l[]);
+        void gen_backbone();
     
         // Mapping 3D
-        void TopologyMapping3D();
+        void topology_mapping3d();
         
         void ObstacleAwareRouting(int treeid);
         
         bool Routing();
         bool ObstacleAwareBusRouting(int busid);
         
-        
-        void PinAccess(int bitid);
+       
+        void pin_access(int bitid);
 
         // ILP
         void CreateClips();
@@ -598,6 +636,12 @@ namespace OABusRouter
         // Detailed
         
         
+        void route_all();
+        void track_assign();
+        void mapping_pin2wire();
+        void mapping_multipin2seg();
+        void cut();
+
         void RouteAll();
         void TrackAssign();
         void CreateVia();
@@ -613,6 +657,21 @@ namespace OABusRouter
         Wire* CreateWire(int bitid, int trackid, int x[], int y[], int l, int seq, bool pin);
         bool ValidUpdate(int wireid, int x[], int y[]);
         bool UpdateWire(int wireid, int x[], int y[]);
+    
+    
+        int get_congested_bus(int busid);
+        
+        void rip_up(int busid);
+        void intersection_pin(int pinx[], int piny[], int l1, int wirex[], int wirey[], int l2, int iterx, int itery, int &x, int &y);
+        
+        
+        bool route_bus(int busid);
+        bool route_twopin_net(int busid, int m1, int m2, vector<Segment>& tp);
+        bool route_multipin_to_tp(int busid, int m, vector<Segment>& tp);
+   
+        bool reroute(int busid);
+
+        void update_net_tp(vector<Segment>& tp);
     };
 
 

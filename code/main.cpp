@@ -70,87 +70,13 @@ int main(int argc, char** argv){
     //exit(0);
 #endif
 
-   
-    //ckt->Printall();
-
-    //exit(0);
 
     cout << "Initialize" << endl;
-    //ckt->Init();
-    //rou->InitInterval();
-  
-    rou->Init();
-    //rou->InitRtree();
-    //rou->InitGrid3D();
-    
-    
-    //cout << "Initialize" << endl;
-    //ckt->Init();
-    
-    //cout << "Generate Backbone" << endl;
-    //rou->GenBackbone();
-    //ckt->GenBackbone_v2();
-   
-    //ckt->RoutingPoint();
-    //cout << "Generate Plot file" << endl;
-    //ckt->GenPlot();
+    rou->initialize();
 
 
-    rou->RouteAll();
-
-    /*
-    for(int i=0; i < ckt->buses.size(); i++)
-    {
-        if(rou->ObstacleAwareBusRouting(i))
-            printf("%s -> routing success\n", ckt->buses[i].name.c_str());
-        else
-            printf("%s -> routing fail\n", ckt->buses[i].name.c_str());
-    }
-    */
-    /*
-    cout << "Topology Mapping 3D" << endl;
-    rou->TopologyMapping3D();
-
-
-    //cout << "Solve ILP" << endl;
-    //rou->SolveILP();
-    //<< endl;
-    //ckt->InitRoutingDirection();
-
-    cout << "Create Clips" << endl;
-    rou->CreateClips();
-
-
-    cout << "Solve ILP v2" << endl;
-    rou->SolveILP_v2();
-
-
-    cout << "Post Global Routing" << endl;
-    rou->PostGlobalRouting();
-
-    //exit(0);
-    cout << "TrackAssign" << endl;
-    rou->TrackAssign();
-
-
-    cout << "Create Via" << endl;
-    //rou->CreateVia();
-
-    cout << "Mapping multipin to segment, pin to wire" << endl;
-    rou->MappingMultipin2Seg();
-    rou->MappingPin2Wire();
-
-    cout << "Cutting" << endl;
-    rou->Cut();
-    
-    cout << "Pin access" << endl;
-    rou->RouteAll();
-
-    cout << "Cutting" << endl;
-    rou->Cut();
-
-    */
-
+    cout << "Route all" << endl;
+    rou->route_all();
     cout << "Create Path" << endl;
     ckt->CreatePath();
     cout << "Create Plot" << endl;
@@ -160,10 +86,7 @@ int main(int argc, char** argv){
     
     
     cout << "Write def & lef file" << endl;
-    //ckt->def_write();
-    //ckt->lef_write();
     ckt->out_write(outputFileName);
-    //ckt->debug();
 
     cout << "End program" << endl;
     return 0;

@@ -29,7 +29,7 @@ bool OABusRouter::MultiPin::vertical_arrange()
     return (maxury - minlly) > (maxurx - minllx);
 }
 
-void OABusRouter::Router::PinAccess(int busid)
+void OABusRouter::Router::pin_access(int busid)
 {
     
     // Cost Metrics

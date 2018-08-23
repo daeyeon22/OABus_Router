@@ -74,7 +74,7 @@ bool OABusRouter::Router::UpdateWire(int wireid, int x[], int y[])
         ys[1] = curwire->y2 + (int)(1.0*curwire->width / 2);
     }
    
-    rtree.update_wire(wireid, xs, ys, curwire->l, true);
+    rtree.update_wire(curwire->bitid, xs, ys, curwire->l, true);
     
     
     
@@ -99,16 +99,16 @@ bool OABusRouter::Router::UpdateWire(int wireid, int x[], int y[])
         ys[1] = curwire->y2 + (int)(1.0*curwire->width / 2);
     }
 
-    rtree.update_wire(wireid, xs, ys, curwire->l, false);
+    rtree.update_wire(curwire->bitid, xs, ys, curwire->l, false);
     
     rtree.insert_element(curwire->trackid, x, y, curwire->l, true);
     
     return true;
 }
 
+
 OABusRouter::Wire* OABusRouter::Router::CreateWire(int bitid, int trackid, int x[], int y[], int l, int seq, bool pin)
 {
-    
     Wire w;
     w.id = wires.size();
     w.x1 = x[0];
@@ -126,13 +126,13 @@ OABusRouter::Wire* OABusRouter::Router::CreateWire(int bitid, int trackid, int x
     w.via = (x[0]==x[1] && y[0]==y[1]) ? true : false;
     wires.push_back(w);
 
+
     // add into the bit and tree
     ckt->bits[w.bitid].wires.push_back(w.id);
     rsmt[rsmt.treeID[w.busid]]->wires.push_back(w.id);
 
     // rtree update for track
     rtree.insert_element(trackid, x, y, l, true);
-    
     // rtree update for wire
     int xs[2], ys[2];
     if(w.vertical)
@@ -150,7 +150,7 @@ OABusRouter::Wire* OABusRouter::Router::CreateWire(int bitid, int trackid, int x
         ys[1] = y[1] + (int)(1.0*w.width / 2);
     }
     
-    rtree.update_wire(w.id, xs, ys, w.l, false);
+    rtree.update_wire(bitid, xs, ys, w.l, false);
 
     return &wires[w.id];
 }
@@ -195,11 +195,98 @@ void OABusRouter::Router::SetNeighbor(Wire* w1, Wire* w2, int x, int y)
     w2->intersection[w1->id] = {x,y};
 }
 
-
-SegRtree* OABusRouter::Router::GetTrackRtree()
+void OABusRouter::Router::intersection_pin(int pinx[], int piny[], int l1,  int wirex[], int wirey[], int l2, int iterx, int itery, int &x, int &y)
 {
-    return &rtree.track;
+    typedef PointBG pt;
+    typedef SegmentBG seg;
+    typedef BoxBG box;
+
+    bool vertical = ckt->is_vertical(l2);
+    if(l1 != l2)
+    {
+        int minOffset;
+        int minDist = INT_MAX;
+        int dist;
+        vector<int> &offsets = ckt->layers[l1].trackOffsets;
+        vector<int>::iterator lower, upper;
+
+        if(vertical){
+            lower = lower_bound(offsets.begin(), offsets.end(), piny[0]);
+            upper = upper_bound(offsets.begin(), offsets.end(), piny[1]);
+            x = wirex[0];
+        }else{
+            lower = lower_bound(offsets.begin(), offsets.end(), pinx[0]);
+            upper = upper_bound(offsets.begin(), offsets.end(), pinx[1]);
+            y = wirey[0];
+        }
+
+
+        if(iterx == -1 && itery == -1)
+        {
+            y = (vertical)? *lower : y;
+            x = (vertical)? x : *lower;
+        }
+        else
+        {
+            while(lower != upper)
+            {
+                y = (vertical)? *lower : y;
+                x = (vertical)? x : *lower;
+                lower++;
+                dist = abs(iterx - x) + abs(itery - y);
+
+                if(dist < minDist)
+                {
+                    minOffset = (vertical) ? y : x;
+                    minDist = dist;
+                }
+            }
+
+            y = (vertical)? minOffset : y;
+            x = (vertical)? x : minOffset;
+        }
+    }
+    else
+    {
+        box pin(pt(pinx[0], piny[0]), pt(pinx[1], piny[1]));
+        if(bg::intersects(pt(wirex[0], wirey[0]), pin))
+        {
+            x = wirex[0];
+            y = wirey[0];
+        }
+        else if(bg::intersects(pt(wirex[1], wirey[1]), pin))
+        {
+            x = wirex[1];
+            y = wirey[1];
+        }
+        else
+        {
+            if(iterx == -1 && itery == -1)
+            {
+                x = vertical ? wirex[0] : (int)(1.0*(pinx[0] + pinx[1])/2);
+                y = vertical ? (int)(1.0*(piny[0] + piny[1])/2) : wirey[0];
+            }
+            else
+            {
+                int dist1 = vertical ? abs(itery - piny[0]) : abs(iterx - pinx[0]);
+                int dist2 = vertical ? abs(itery - piny[1]) : abs(iterx - pinx[1]);
+                if(dist1 < dist2)
+                {
+                    x = vertical? wirex[0] : pinx[0];
+                    y = vertical? piny[0] : wirey[0];
+                }
+                else
+                {
+                    x = vertical? wirex[0] : pinx[1];
+                    y = vertical? piny[1] : wirey[0];
+                }
+            }
+        }
+    }   
+
+
 }
+
 
 int OABusRouter::Rtree::width(int elemid)
 {
@@ -272,7 +359,6 @@ bool OABusRouter::Rtree::insert_element(int trackid, int x[], int y[], int l, bo
     typedef SegmentBG seg;
     typedef PointBG pt;
     typedef BoxBG box;
-
     Container* curct;
     seg s;
     curct = &containers[trackid];
@@ -312,12 +398,12 @@ bool OABusRouter::Rtree::insert_element(int trackid, int x[], int y[], int l, bo
     return true;
 }
 
-bool OABusRouter::Rtree::update_wire(int wireid, int x[], int y[], int l, bool remove)
+bool OABusRouter::Rtree::update_wire(int bitid, int x[], int y[], int l, bool remove)
 {
     if(remove)
-        obstacle[l].remove({ box(pt(x[0], y[0]), pt(x[1], y[1])), wireid } );
+        obstacle[l].remove({ box(pt(x[0], y[0]), pt(x[1], y[1])), bitid } );
     else
-        obstacle[l].insert({ box(pt(x[0], y[0]), pt(x[1], y[1])), wireid } );
+        obstacle[l].insert({ box(pt(x[0], y[0]), pt(x[1], y[1])), bitid } );
     return true;
 }
 
@@ -351,14 +437,11 @@ void OABusRouter::Rtree::design_ruled_area(int x[], int y[], int width, int spac
 
 bool OABusRouter::Rtree::spacing_violations(int bitid, int x[], int y[], int l, int width, int spacing, bool vertical)
 {
-    //printf("before (%d %d) (%d %d)\n", x[0], y[0], x[1], y[1]);
     design_ruled_area(x, y, width, spacing, vertical);
-    //printf("after  (%d %d) (%d %d)\n", x[0], y[0], x[1], y[1]);
 
     vector<pair<box,int>> queries;
     box area(pt(x[0], y[0]), pt(x[1], y[1]));
     obstacle[l].query(bgi::intersects(area) , back_inserter(queries));
-    //printf("#intersects %d\n", queries.size());
     for(auto& it : queries)
     {
         if(bg::touches(it.first , area))
@@ -367,8 +450,7 @@ bool OABusRouter::Rtree::spacing_violations(int bitid, int x[], int y[], int l, 
         if(it.second == OBSTACLE)
             return true;
         
-        Wire* curwire = &rou->wires[it.second];
-        if(curwire->bitid != bitid)
+        if(it.second != bitid)
             return true;
     }
 
@@ -390,162 +472,12 @@ bool OABusRouter::Rtree::spacing_violations(int bitid, int x[], int y[], int l)
         }
         else
         {
-            Wire* curwire = &rou->wires[it.second];
-            if(curwire->bitid != bitid)
+            if(it.second != bitid)
                 return true;
         }
     }
 
     return false;
 }
-
-
-void OABusRouter::Router::InitRtree()
-//CreateTrackRtree()
-{
-    int numTracks, numObstacles, numLayers, numPins, tid, curl;
-    int trackid, l; 
-    int x1, y1, x2, y2, i, dir;
-    int offset;
-    int& elemindex = rtree.elemindex;
-    bool isVertical;
-    SegmentBG curS;
-    Track* curT;
-    Pin* curpin;
-    Obstacle* curobs;
-    SegRtree* curRtree;
-    Container* curct;
-
-    typedef SegmentBG seg;
-    typedef PointBG pt;
-    typedef BoxBG box;
-
-
-    //curRtree = GetTrackRtree();
-    curRtree = &rtree.track;
-    numTracks = ckt->tracks.size(); //interval.numtracks;
-    numObstacles = ckt->obstacles.size();
-    numLayers = ckt->layers.size();
-    numPins = ckt->pins.size();
-    elemindex=0;
-
-#ifdef DEBUG_RTREE
-    if(numTracks > ckt->tracks.size())
-    {
-        printf("Invalid #tracks %d %d\n", numTracks, ckt->tracks.size());
-        exit(0);
-    }
-#endif
-
-    // Initialize Intervals.
-    
-    vector<SegRtree> trackrtree(numLayers);
-    rtree.containers = vector<Container>(numTracks);
-    //
-    rtree.wire = vector<BoxRtree>(numLayers);
-    rtree.obstacle = vector<BoxRtree>(numLayers);
-
-    //
-    for(i=0; i < numTracks; i++)
-    {
-        curT = &ckt->tracks[i];
-        trackid = curT->id;
-        curct = &rtree.containers[trackid];
-        curct->trackid = trackid;
-        curct->offset = curT->offset;
-        curct->l = curT->l;
-        curct->vertical = ckt->is_vertical(curT->l);
-        curct->width = curT->width;
-
-
-        x1 = curT->llx;
-        y1 = curT->lly;
-        x2 = curT->urx;
-        y2 = curT->ury;
-        l = curT->l;
-
-        seg s(pt(x1, y1), pt(x2, y2));
-        trackrtree[l].insert({s, trackid});
-
-        curct->empty += (curct->vertical) ?
-            IntervalT::open(y1, y2) : IntervalT::open(x1, x2);
-    }
-    
-    // obstacle
-    for(i=0; i < numObstacles; i++)
-    {
-        curobs = &ckt->obstacles[i];
-        x1 = curobs->llx;
-        y1 = curobs->lly;
-        x2 = curobs->urx;
-        y2 = curobs->ury;
-        l = curobs->l;
-
-        box b(pt(x1,y1), pt(x2,y2));
-        // add into the obstacle tree
-        rtree.obstacle[l].insert({b, OBSTACLE});
-        vector<pair<seg, int>> queries;
-        trackrtree[l].query(bgi::intersects(b), back_inserter(queries));
-        for(auto& it : queries)
-        {
-            trackid = it.second;
-            curct = &rtree.containers[trackid];
-
-            curct->empty -= (curct->vertical)?
-                IntervalT::open(y1, y2) : IntervalT::open(x1, x2);
-        }
-    }
-
-    for(i=0; i < numPins; i++)
-    {
-        curpin = &ckt->pins[i];
-        x1 = curpin->llx;
-        y1 = curpin->lly;
-        x2 = curpin->urx;
-        y2 = curpin->ury;
-        l = curpin->l;
-
-        box b(pt(x1,y1), pt(x2,y2));
-        vector<pair<seg, int>> queries;
-        trackrtree[l].query(bgi::intersects(b), back_inserter(queries));
-        for(auto& it : queries)
-        {
-            trackid = it.second;
-            curct = &rtree.containers[trackid];
-
-            curct->empty -= (curct->vertical)?
-                IntervalT::open(y1, y2) : IntervalT::open(x1, x2);
-        }
-    }
-
-
-    
-    
-    
-    for(i=0; i < numTracks; i++)
-    {
-        curct = &rtree.containers[i];
-        IntervalSetT::iterator it = curct->empty.begin();
-        while(it != curct->empty.end())
-        {
-            x1 = curct->vertical ? curct->offset : it->lower();
-            x2 = curct->vertical ? curct->offset : it->upper();
-            y1 = curct->vertical ? it->lower() : curct->offset;
-            y2 = curct->vertical ? it->upper() : curct->offset;
-            seg s(pt(x1,y1), pt(x2,y2));
-            curct->segs.push_back(s);
-            curct->elems.push_back(elemindex);
-
-            curRtree->insert({s, elemindex});
-
-            rtree.elem2track[elemindex] = curct->trackid;
-            elemindex++;
-            it++;
-        }
-    }
-}
-
-
-
 
 

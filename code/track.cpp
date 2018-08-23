@@ -12,7 +12,7 @@
 
 
 
-void OABusRouter::Router::MappingMultipin2Seg()
+void OABusRouter::Router::mapping_multipin2seg()
 {
     int i, j, x, y;
     
@@ -145,7 +145,8 @@ void OABusRouter::Router::MappingMultipin2Seg()
     }
 }
 
-void OABusRouter::Router::MappingPin2Wire()
+
+void OABusRouter::Router::mapping_pin2wire()
 {
     int i, j, mpid, segid, wireid, pinid;
     int numMultipins, numPins, numWires;
@@ -415,7 +416,7 @@ void OABusRouter::Router::SpacingAwareTrackAssign()
 */
 
 
-void OABusRouter::Router::TrackAssign()
+void OABusRouter::Router::track_assign()
 {
     //this->grid.print();
     //exit(0);

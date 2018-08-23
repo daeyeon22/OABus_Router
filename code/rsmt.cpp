@@ -13,7 +13,7 @@ void FluteNormal(int d, DTYPE x[], DTYPE y[], int acc, float coeffV, Tree *t);
 
 
 
-void OABusRouter::Router::GenBackbone()
+void OABusRouter::Router::gen_backbone()
 {
     enum Dir
     {

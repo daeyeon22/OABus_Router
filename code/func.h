@@ -15,6 +15,7 @@ namespace bg = boost::geometry;
 typedef bg::model::point<float,2,bg::cs::cartesian> pt;
 typedef bg::model::segment<pt> seg;
 
+extern int manhatan_distance(int x1, int y1, int x2, int y2);
 extern void lpt(seg s, int &x, int &y);
 extern void upt(seg s, int &x, int &y);
 extern bool intersects(seg s1, seg s2);
