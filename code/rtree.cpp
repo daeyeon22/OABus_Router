@@ -1,7 +1,9 @@
 #include "route.h"
 #include "circuit.h"
 
-#define DEBUG_RTREE
+//#define DEBUG_RTREE
+//#define DEBUG_CREATE_WIRE
+
 
 bool OABusRouter::Wire::leaf()
 {
@@ -129,8 +131,12 @@ OABusRouter::Wire* OABusRouter::Router::CreateWire(int bitid, int trackid, int x
 
     // add into the bit and tree
     ckt->bits[w.bitid].wires.push_back(w.id);
-    rsmt[rsmt.treeID[w.busid]]->wires.push_back(w.id);
+    //rsmt[rsmt.treeID[w.busid]]->wires.push_back(w.id);
+#ifdef DEBUG_CREATE_WIRE
+    printf("Created Wire (%d %d) (%d %d) M%d\n",
+            w.x1, w.y1, w.x2, w.y2, w.l);
 
+#endif
     // rtree update for track
     rtree.insert_element(trackid, x, y, l, true);
     // rtree update for wire
@@ -441,6 +447,22 @@ bool OABusRouter::Rtree::spacing_violations(int bitid, int x[], int y[], int l, 
 
     vector<pair<box,int>> queries;
     box area(pt(x[0], y[0]), pt(x[1], y[1]));
+    
+
+    // Design boundary spacing violations
+    int db[4] = { ckt->originX, ckt->originY, ckt->originX + ckt->width, ckt->originY + ckt->height };
+    seg s1( pt(db[0], db[1]), pt(db[0], db[3]) );
+    seg s2( pt(db[2], db[1]), pt(db[2], db[3]) );
+    seg s3( pt(db[0], db[1]), pt(db[2], db[1]) );
+    seg s4( pt(db[0], db[3]), pt(db[2], db[3]) );
+
+    if(bg::intersects(s1, area) || bg::intersects(s2, area) || 
+       bg::intersects(s3, area) || bg::intersects(s4, area))
+        return true;
+
+    
+    
+    // Wire to wire spacing violations
     obstacle[l].query(bgi::intersects(area) , back_inserter(queries));
     for(auto& it : queries)
     {
@@ -458,14 +480,111 @@ bool OABusRouter::Rtree::spacing_violations(int bitid, int x[], int y[], int l, 
 }
 
 
+bool OABusRouter::Rtree::compactness(int numbits, int mx[], int my[], int x,  int y, int l, int align, int direction, int width, int spacing)
+{
+    enum Direction
+    {
+        Left,
+        Right,
+        Up,
+        Down,
+        Point,
+        // target wire routing topologies
+        T_Junction,
+        EndPointLL,
+        EndPointUR
+    };
+
+    int xs[2], ys[2];
+
+    if(align == VERTICAL)
+    {
+        xs[0] = x;
+        xs[1] = x;
+        ys[0] = my[0];
+        ys[1] = my[1];
+        
+        if(direction == Direction::Left)
+            xs[0] -= numbits*(width + spacing);
+        if(direction == Direction::Right)
+            xs[1] += numbits*(width + spacing);
+    }
+    else
+    {
+        xs[0] = mx[0];
+        xs[1] = mx[1];
+        ys[0] = y;
+        ys[1] = y;
+        
+        if(direction == Direction::Down)
+            ys[0] -= numbits*(width + spacing);
+        if(direction == Direction::Up)
+            ys[1] += numbits*(width + spacing);       
+
+    }
+
+
+#ifdef DEBUG_COMPACTNESS
+    bool hasSpacingViolation = spacing_violations(-1, xs, ys, l);
+    if(hasSpacingViolation)
+    {
+        switch(direction){
+            case Direction::Left:
+                printf("Left");
+                break;
+
+            case Direction::Right:
+                printf("Right");
+                break;
+
+            case Direction::Down:
+                printf("Down");
+                break;
+
+            case Direction::Up:
+                printf("Up");
+                break;
+
+            default:
+                break;
+        } 
+        printf("\nmultipin bound (%d %d) (%d %d)\ncurrent iterating (%d %d)\n", mx[0], my[0], mx[1], my[1], x, y);
+        printf("check area (%d %d) (%d %d)", xs[0], ys[0], xs[1], ys[1]);
+        printf(" -> violations...");
+        printf("\n\n");
+    }
+#endif
+
+    return !spacing_violations(-1, xs, ys, l);
+}
+
+
+
 
 
 bool OABusRouter::Rtree::spacing_violations(int bitid, int x[], int y[], int l)
 {
+    box area(pt(x[0], y[0]), pt(x[1], y[1])); 
+    // Design boundary spacing violations
+    int db[4] = { ckt->originX, ckt->originY, ckt->originX + ckt->width, ckt->originY + ckt->height };
+    seg s1( pt(db[0], db[1]), pt(db[0], db[3]) );
+    seg s2( pt(db[2], db[1]), pt(db[2], db[3]) );
+    seg s3( pt(db[0], db[1]), pt(db[2], db[1]) );
+    seg s4( pt(db[0], db[3]), pt(db[2], db[3]) );
+
+    if(bg::intersects(s1, area) || bg::intersects(s2, area) || 
+       bg::intersects(s3, area) || bg::intersects(s4, area))
+        return true;
+
+
+
     vector<pair<box,int>> queries;
-    obstacle[l].query(bgi::overlaps(box(pt(x[0], y[0]), pt(x[1], y[1]))), back_inserter(queries));
+    obstacle[l].query(bgi::intersects(area), back_inserter(queries));
     for(auto& it : queries)
     {
+        if(bg::touches(it.first , area))
+            continue;
+        
         if(it.second == OBSTACLE)
         {
             return true;

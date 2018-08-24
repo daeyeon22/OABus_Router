@@ -1,11 +1,10 @@
 
 #include "circuit.h"
 #include "route.h"
-//#include "util.h"
-//#define DEBUG_MP
+#include "mymeasure.h"
 
 using namespace std;
-
+static CMeasure measure;
 
 // Static variables
 OABusRouter::Circuit* OABusRouter::Circuit::instance = nullptr;
@@ -33,7 +32,11 @@ int main(int argc, char** argv){
     char* inputFileName;
     char* outputFileName;
     int numThreads;
+    measure.start_clock();
 
+
+
+    
     for(int i=1; i < argc; i++){
         if(i+1 != argc){
             if(strncmp(argv[i], "-input", 6) == 0){
@@ -57,38 +60,22 @@ int main(int argc, char** argv){
         cout << "Fail to read " << inputFileName << endl;
     }
 
-#ifdef DEBUG_MP
-    for(int i=0; i < ckt->multipins.size(); i++) {
-        OABusRouter::MultiPin* mp = &ckt->multipins[i];
-        cout << mp->id << endl;
-        cout << ckt->buses[mp->busid].name << endl;
-        
-        cout << ckt->layers[mp->l].name << endl;
-        cout << mp->pins.size() << " " << ckt->buses[mp->busid].numBits << endl;
-        cout << " - - - - - - - - " << endl;
-    }
-    //exit(0);
-#endif
-
-
     cout << "Initialize" << endl;
     rou->initialize();
-
-
     cout << "Route all" << endl;
     rou->route_all();
     cout << "Create Path" << endl;
     ckt->CreatePath();
     cout << "Create Plot" << endl;
     rou->Plot();
-
-    
-    
-    
     cout << "Write def & lef file" << endl;
     ckt->out_write(outputFileName);
 
     cout << "End program" << endl;
+
+    measure.stop_clock("All");
+    measure.print_clock();
+
     return 0;
 }
 

@@ -8,7 +8,7 @@
 #define INVALID_FILE_FORMAT 200
 
 
-#define DEBUG_PARSER
+//#define DEBUG_PARSER
 
 
 void OABusRouter::Circuit::Printall()

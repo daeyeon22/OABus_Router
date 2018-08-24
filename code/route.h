@@ -347,7 +347,9 @@ namespace OABusRouter
         typedef SegmentBG seg;
         typedef PointBG pt;
         typedef BoxBG box;
+       
         
+
         // rtree for track
         int elemindex;
         SegRtree track; // element index -> track index
@@ -384,6 +386,7 @@ namespace OABusRouter
         bool intersects(int x[], int y[], int l);
         bool spacing_violations(int bitid, int x[], int y[], int l);
         bool spacing_violations(int bitid, int x[], int y[], int l, int width, int spacing, bool vertical);
+        bool compactness(int numbits, int mx[], int my[], int x, int y, int l, int align, int dir, int width, int spacing);
         void design_ruled_area(int x[], int y[], int width, int spacing, bool vertical);
         int layer(int elemid);
         int trackid(int elemid);

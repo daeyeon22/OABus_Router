@@ -4,7 +4,7 @@
 #include "./flute/flute.h"
 #include "./flute/global.h"
 
-#define DEBUG_RSMT
+//#define DEBUG_RSMT
 
 namespace br = OABusRouter;
 int orderx(const void *a, const void *b);

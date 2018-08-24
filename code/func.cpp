@@ -23,6 +23,7 @@ void upt(seg s, int &x, int &y)
     y = (int)(bg::get<1,1>(s) + 0.5);
 }
 
+
 bool intersects(seg s1, seg s2)
 {
     return bg::intersects(s1, s2);

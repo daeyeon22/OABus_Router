@@ -1,7 +1,7 @@
 #include "route.h"
 #include "circuit.h"
 //#define DEBUG_CUT
-#define DEBUG_PATH
+//#define DEBUG_PATH
 
 void OABusRouter::Router::cut()
 {

@@ -25,10 +25,10 @@ def ExecuteCommand( curCmd ):
 
 
 if len(sys.argv) <=2:
-    print "usage:   ./run.py <benchname or number> <# Threads>"
-    print "Example: "
-    print "         ./run.py 4 1"
-    print "         ./run.py example_2 1"
+    print("usage:   ./run.py <benchname or number> <# Threads>")
+    print("Example: ")
+    print("         ./run.py 4 1")
+    print("         ./run.py example_2 1")
     sys.exit(1)
 
 
