@@ -56,22 +56,13 @@ main.o: main.cpp circuit.h
 parser.o: parser.cpp circuit.h func.h
 	$(CXX) $(CFLAGS) -c -o $@ $<
 
-route.o: route.cpp route.h circuit.h
-	$(CXX) $(CFLAGS) -c -o $@ $<  
-
-rsmt.o: rsmt.cpp route.h circuit.h
-	$(CXX) $(CFLAGS) -c -o $@ $<  
-
-ilp.o: ilp.cpp ilp.h circuit.h route.h
+route.o: route.cpp route.h circuit.h rtree.h
 	$(CXX) $(CFLAGS) -c -o $@ $<  
 
 writer.o: writer.cpp circuit.h route.h
 	$(CXX) $(CFLAGS) -c -o $@ $<
 
-pin_access.o: pin_access.cpp circuit.h route.h
-	$(CXX) $(CFLAGS) -c -o $@ $<
-
-rtree.o: rtree.cpp circuit.h route.h
+rtree.o: rtree.cpp rtree.h circuit.h route.h
 	$(CXX) $(CFLAGS) -c -o $@ $<  
 
 util.o: util_v2.cpp circuit.h route.h 
@@ -80,10 +71,10 @@ util.o: util_v2.cpp circuit.h route.h
 track.o: track.cpp circuit.h route.h
 	$(CXX) $(CFLAGS) -c -o $@ $<  
 
-init.o: init.cpp circuit.h
+init.o: init.cpp circuit.h route.h rtree.h
 	$(CXX) $(CFLAGS) -c -o $@ $<  
 
-maze.o: maze.cpp route.h
+maze.o: maze.cpp route.h rtree.h
 	$(CXX) $(CFLAGS) -c -o $@ $<  
 
 cut.o: cut.cpp route.h
@@ -94,6 +85,16 @@ rip.o: rip.cpp route.h
 	
 mymeasure.o: mymeasure.cpp mymeasure.h
 	$(CXX) $(CFLAGS) -c -o $@ $<  
+
+rsmt.o: rsmt.cpp route.h circuit.h
+	$(CXX) $(CFLAGS) -c -o $@ $<  
+
+ilp.o: ilp.cpp ilp.h circuit.h route.h
+	$(CXX) $(CFLAGS) -c -o $@ $<  
+
+pin_access.o: pin_access.cpp circuit.h route.h
+	$(CXX) $(CFLAGS) -c -o $@ $<
+
 
 #RSMT.o: RSMT.cpp flute.h circuit.h global.h
 #	$(CXX) $(CFLAGS) -c -o $@ $<  

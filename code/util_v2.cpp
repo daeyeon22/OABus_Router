@@ -184,9 +184,11 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
     {
         for(trackid=0; trackid < numTracks; trackid++)
         {
-            br::Container* curct = &rou->rtree.containers[trackid];
-            curl = curct->l;
-            for(auto& it : curct->segs)
+            br::Interval* interval = rou->rtree_t.get_interval(trackid);
+            
+            //br::Container* curct = &rou->rtree.containers[trackid];
+            curl = interval->l; //curct->l;
+            for(auto& it : interval->segs)
             {
                 llx = (int)(bg::get<0,0>(it) +0.5) + layoutOffsetX;
                 lly = (int)(bg::get<0,1>(it) +0.5) + layoutOffsetY;

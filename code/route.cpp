@@ -345,7 +345,7 @@ void OABusRouter::Router::topology_mapping3d()
         SegRtree sRtree;
         Segment* curS, *tarS;
         //Bus* curBus;
-        vector<SegmentValT> queries;
+        vector<pair<SegmentBG,int>> queries;
         dense_hash_map<int,int>     segNuml;
         segNuml.set_empty_key(INT_MAX);
         //bw = bitwidth[busid];
@@ -396,7 +396,7 @@ void OABusRouter::Router::topology_mapping3d()
                         // Rtree
                         SegmentBG segbg(PointBG(segx1, segy1), PointBG(segx2, segy2));
                         segNuml[segid] = segl;
-                        sRtree.insert(SegmentValT(segbg, segid));
+                        sRtree.insert({segbg, segid});
                     }
 
                 }
@@ -436,7 +436,7 @@ void OABusRouter::Router::topology_mapping3d()
                         // Rtree
                         SegmentBG segbg(PointBG(segx1, segy1), PointBG(segx2, segy2));
                         segNuml[segid] = segl;
-                        sRtree.insert(SegmentValT(segbg, segid));
+                        sRtree.insert({segbg, segid});
                     }
 
                 }
@@ -480,7 +480,7 @@ void OABusRouter::Router::topology_mapping3d()
             seg1 = SegmentBG(PointBG(segx1, segy1), PointBG(segx2, segy2));
             
             //
-            sRtree.remove(SegmentValT(seg1, s1));
+            sRtree.remove({seg1, s1});
             sRtree.query(bgi::intersects(seg1), back_inserter(queries));
             
             numQ = queries.size();

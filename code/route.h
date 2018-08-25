@@ -15,6 +15,7 @@
 #include <boost/icl/interval_base_map.hpp>
 #include <boost/geometry.hpp>
 
+#include "rtree.h"
 
 #define HORIZONTAL 222
 #define VERTICAL 111 
@@ -26,6 +27,7 @@
 #define DTYPE int
 #endif
 
+
 #define rou OABusRouter::Router::shared()
 
 using namespace std;
@@ -34,28 +36,19 @@ namespace bi = boost::icl;
 namespace bg = boost::geometry;
 namespace bgi = boost::geometry::index;
 
-//namespace bi = boost::icl;
-
 // For Interval tree library
 typedef set<int> IDSetT;
 typedef bi::interval_map<int,IDSetT> IntervalMapT;
 typedef bi::interval<int> IntervalT;
 typedef bi::interval_set<int> IntervalSetT;
 typedef bi::discrete_interval<int> DiscreteIntervalT;
-
-
 // Boost geometries
 typedef bg::model::point<float,2, bg::cs::cartesian> PointBG;
 typedef bg::model::segment<PointBG> SegmentBG;
 typedef bg::model::box<PointBG> BoxBG;
-typedef pair<PointBG,int> PointValT;
-typedef pair<SegmentBG,int> SegmentValT;
-typedef pair<BoxBG,int> BoxValT;
-
-typedef bgi::rtree<PointValT, bgi::rstar<16>> PointRtree;
-typedef bgi::rtree<SegmentValT, bgi::rstar<16>> SegRtree;
-typedef bgi::rtree<BoxValT, bgi::rstar<16>> BoxRtree;
-
+typedef bgi::rtree<pair<PointBG, int>, bgi::rstar<16>> PointRtree;
+typedef bgi::rtree<pair<SegmentBG, int>, bgi::rstar<16>> SegRtree;
+typedef bgi::rtree<pair<BoxBG, int>, bgi::rstar<16>> BoxRtree;
 
 namespace OABusRouter
 {
@@ -104,8 +97,6 @@ namespace OABusRouter
             n2(INT_MAX) 
         {}
     };
-
-
 
 
 
@@ -185,27 +176,7 @@ namespace OABusRouter
     };
 
 
-   
-    struct Interval
-    {
-        int numtracks;
-    
-        vector<IntervalSetT> empty;
-        vector<IntervalMapT> assign;
-        dense_hash_map<int,int> offset;
-        dense_hash_map<int,int> layer;
-        dense_hash_map<int,bool> is_vertical;
-
-        Interval()
-        {
-            offset.set_empty_key(INT_MAX);
-            layer.set_empty_key(INT_MAX);
-            is_vertical.set_empty_key(INT_MAX);
-        }
-    };
-
-
-    
+       
     struct RSMT
     {
         
@@ -388,7 +359,7 @@ namespace OABusRouter
         bool spacing_violations(int bitid, int x[], int y[], int l);
         bool spacing_violations(int bitid, int x[], int y[], int l, int width, int spacing, bool vertical);
         bool compactness(int numbits, int mx[], int my[], int x, int y, int l, int align, int dir, int width, int spacing);
-        void design_ruled_area(int x[], int y[], int width, int spacing, bool vertical);
+        //void design_ruled_area(int x[], int y[], int width, int spacing, bool vertical);
         int layer(int elemid);
         int trackid(int elemid);
         int direction(int elemid);
@@ -565,8 +536,8 @@ namespace OABusRouter
         RSMT        rsmt;
         Grid3D      grid;
         Rtree       rtree;
-        Interval    interval;
-
+        TrackRtree      rtree_t;
+        ObstacleRtree   rtree_o;
 
 
         // Created Segments
@@ -574,6 +545,7 @@ namespace OABusRouter
         vector<Junction>        junctions;
         vector<Wire>            wires;
         vector<Via>             vias;
+
 
 
         // Hash map
@@ -615,7 +587,7 @@ namespace OABusRouter
         void initialize();
         void initialize_rtree();
         void initialize_grid3d();
-
+        void initialize_rtree_new();
         // Generate Initial Topology for each bus
         void gen_backbone();
     
@@ -645,6 +617,12 @@ namespace OABusRouter
         void mapping_pin2wire();
         void mapping_multipin2seg();
         void cut();
+
+
+        int create_wire(int bitid, int trackid, int x[], int y[], int l, int seq, bool pin);
+        bool set_neighbor(int w1, int w2, int x, int y);
+        bool get_intersection(int w1, int w2, int &x, int &y);
+
 
         void RouteAll();
         void TrackAssign();
