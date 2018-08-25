@@ -294,6 +294,32 @@ void OABusRouter::Router::intersection_pin(int pinx[], int piny[], int l1,  int 
 }
 
 
+bool OABusRouter::Rtree::intersection(int t1, int t2, int& x, int&y)
+{
+    if(abs(track_layer(t1) - track_layer(t2)) != 1)
+    {
+        return false;
+    }
+
+    if(track_vertical(t1) && !track_vertical(t2))
+    {
+        x = track_offset(t1);
+        y = track_offset(t2);
+    }
+    else if(!track_vertical(t1) && track_vertical(t2))
+    {
+        x = track_offset(t2);
+        y = track_offset(t1);
+    }
+    else
+    {
+        return false;
+    }
+
+    return true;
+}
+
+
 int OABusRouter::Rtree::width(int elemid)
 {
     return containers[elem2track[elemid]].width;
@@ -584,16 +610,10 @@ bool OABusRouter::Rtree::spacing_violations(int bitid, int x[], int y[], int l)
     {
         if(bg::touches(it.first , area))
             continue;
-        
         if(it.second == OBSTACLE)
-        {
             return true;
-        }
-        else
-        {
-            if(it.second != bitid)
-                return true;
-        }
+        if(it.second != bitid)
+            return true;
     }
 
     return false;

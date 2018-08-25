@@ -50,6 +50,10 @@ if len(sys.argv) > 3:
 else:
     exeEval = False
 
+if len(sys.argv) > 4:
+    exeGprof = (sys.argv[4] == "runtime")
+else:
+    exeGprof = False
 
 #print curTime
 
@@ -60,6 +64,10 @@ ExecuteCommand(exeStr)
 evalStr = "%s/%s %s/%s.input %s/%s.out | tee %s/%s.eval" % (evalpos, evaluator, dirpos, benchName, outpos, benchName, logpos, benchName)
 if exeEval == True:
     ExecuteCommand(evalStr)
+
+gprofStr = "gprof %s gmon.out > ./gprof/%s_result.txt" % (binaryName, benchName)
+if exeGprof == True:
+    ExecuteCommand(gprofStr)
 
 
 

@@ -339,6 +339,7 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
     int numwires, numpins;
     int numbits, cost;
     int x1, y1, x2, y2, x, y;
+    int ptx, pty;
     int llx, lly, urx, ury;
     int l1, l2, curDir, dist;
     int bitid, trackid, l, seq;
@@ -448,12 +449,7 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
                 pin1->llx, pin1->lly, pin1->urx, pin1->ury,
                 pin2->llx, pin2->lly, pin2->urx, pin2->ury);
 #endif
-        /*
-        printf("p1 (%d %d) (%d %d) -> ", pin1->llx, pin1->lly, pin1->urx, pin1->ury);
-        cout << bg::dsv(pinbox1) << endl;
-        printf("p2 (%d %d) (%d %d) -> ", pin2->llx, pin2->lly, pin2->urx, pin2->ury);
-        cout << bg::dsv(pinbox2) << endl;
-        */
+
         // variables
         seg elem;
         int dep;
@@ -465,14 +461,34 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
         int minCost = INT_MAX;
         bool hasMinElem = false;
         bool destination;
+        /*
+        int* elemCost = new int[localrtree.elemindex];
+        memset(elemCost, INT_MAX-1, localrtree.elemindex * sizeof(int));
+        */
+        vector<int> elemCost(localrtree.elemindex, INT_MAX);
+        dense_hash_map<int,int> backtrace;
+        dense_hash_map<int,int> depth;
+        dense_hash_map<int,int> iterPtx;
+        dense_hash_map<int,int> iterPty;
+        dense_hash_map<int,int> lastPtx;
+        dense_hash_map<int,int> lastPty;
+        dense_hash_map<int,seg> element;
+        backtrace.set_empty_key(INT_MAX);
+        depth.set_empty_key(INT_MAX);
+        iterPtx.set_empty_key(INT_MAX);
+        iterPty.set_empty_key(INT_MAX);
+        lastPtx.set_empty_key(INT_MAX);
+        lastPty.set_empty_key(INT_MAX);
+        element.set_empty_key(INT_MAX);
+        /*
         vector<int> backtrace(localrtree.elemindex, -1);
         vector<int> depth(localrtree.elemindex, -1);
-        vector<int> elemCost(localrtree.elemindex, INT_MAX);
         vector<int> iterPtx(localrtree.elemindex, -1);
         vector<int> iterPty(localrtree.elemindex, -1);
         vector<int> lastPtx(localrtree.elemindex, -1);
         vector<int> lastPty(localrtree.elemindex, -1);
         vector<seg> element(localrtree.elemindex);
+        */
         vector<pair<seg, int>> queries;
 
         // Priority Queue
@@ -695,8 +711,10 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
                     lpt(elem, x1, y1);
                     upt(elem, x2, y2);
                     into_array(x1, x2, y1, y2, wirex, wirey);
-                    intersection_pin(pin2x, pin2y, pin2->l, wirex, wirey, l2, x, y, lastPtx[e2], lastPty[e2]); 
-                   
+                    //intersection_pin(pin2x, pin2y, pin2->l, wirex, wirey, l2, x, y, lastPtx[e2], lastPty[e2]); 
+                    intersection_pin(pin2x, pin2y, pin2->l, wirex, wirey, l2, x, y, ptx, pty); //lastPtx[e2], lastPty[e2]); 
+                    lastPtx[e2] = ptx;
+                    lastPty[e2] = pty;
                     //if(isRef)
                     //{
                     
@@ -909,6 +927,7 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
         }
         //
         isRef = false;
+        //delete[] elemCost;
     }
     
    
@@ -1023,7 +1042,7 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
     int numwires, numpins;
     int numbits, cost;
     int x1, y1, x2, y2, x, y;
-   
+    int ptx, pty; 
     int llx, lly, urx, ury;
     int l1, l2, curDir, dist;
     int bitid, trackid, l, seq;
@@ -1105,9 +1124,6 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
         Segment target = PQ1.top();
         PQ1.pop();
        
-
-
-
         vector<Segment> topology;
         vector<Wire> created;
         // element { local id, local id } 
@@ -1199,14 +1215,34 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
             int minCost = INT_MAX;
             bool hasMinElem = false;
             bool destination;
+            /*
+            int* elemCost = new int[localrtree.elemindex];
+            memset(elemCost, INT_MAX-1, localrtree.elemindex * sizeof(int));
+            */
+            dense_hash_map<int,int> backtrace;
+            dense_hash_map<int,int> depth;
+            dense_hash_map<int,int> iterPtx;
+            dense_hash_map<int,int> iterPty;
+            dense_hash_map<int,int> lastPtx;
+            dense_hash_map<int,int> lastPty;
+            dense_hash_map<int,seg> element;
+            backtrace.set_empty_key(INT_MAX);
+            depth.set_empty_key(INT_MAX);
+            iterPtx.set_empty_key(INT_MAX);
+            iterPty.set_empty_key(INT_MAX);
+            lastPtx.set_empty_key(INT_MAX);
+            lastPty.set_empty_key(INT_MAX);
+            element.set_empty_key(INT_MAX);
+            vector<int> elemCost(localrtree.elemindex, INT_MAX);
+            /*
             vector<int> backtrace(localrtree.elemindex, -1);
             vector<int> depth(localrtree.elemindex, -1);
-            vector<int> elemCost(localrtree.elemindex, INT_MAX);
             vector<int> iterPtx(localrtree.elemindex, -1);
             vector<int> iterPty(localrtree.elemindex, -1);
             vector<int> lastPtx(localrtree.elemindex, -1);
             vector<int> lastPty(localrtree.elemindex, -1);
             vector<seg> element(localrtree.elemindex);
+            */
             vector<pair<seg, int>> queries;
 
             auto cmp2 = [](const ituple &left, const ituple &right){
@@ -1395,7 +1431,10 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                     {
                         destination = true;
 
-                        intersection(elem, wireseg, lastPtx[e2], lastPty[e2]);
+                        //intersection(elem, wireseg, lastPtx[e2], lastPty[e2]);
+                        intersection(elem, wireseg, ptx, pty); //
+                        lastPtx[e2] = ptx;
+                        lastPty[e2] = pty;
                         into_array(min(x, lastPtx[e2]), max(x, lastPtx[e2]), min(y, lastPty[e2]), max(y, lastPty[e2]), xs, ys);
                         vertical = localrtree.vertical(e2);
                         if(!isRef)
@@ -1633,7 +1672,10 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
             }
             //
             isRef = false;
+            
+            //delete[] elemCost;
         }
+        //
         
         
         if(solution)

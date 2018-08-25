@@ -42,7 +42,7 @@ SRC			= func.o main.o parser.o route.o init.o maze.o\
 CPLEXLIBS       = -L$(CPLEXDIR)/../lib/$(SYSTEM)/$(LIBFORMAT) -lilocplex -lcplex
 CONCERTLIBS     = -L$(CONCERTDIR)/../lib/$(SYSTEM)/$(LIBFORMAT) -lconcert -lm -pthread -fopenmp -static-libstdc++ -std=c++11
 
-DEBUG = -g -gstrict-dwarf -gdwarf-2
+DEBUG = -g -gstrict-dwarf -gdwarf-2 -pg
 
 
 $(EXE): $(FLUTESRC) $(SRC) 

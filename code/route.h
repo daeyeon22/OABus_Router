@@ -380,6 +380,7 @@ namespace OABusRouter
 
 
         // helper function
+        bool intersection(int t1, int t2, int& x, int& y);
         void intersection(box pin, int l1,  seg elem, int l2, int &x, int &y); 
         bool insert_element(int trackid, int x[], int y[], int l, bool remove); 
         bool update_wire(int wireid, int x[], int y[], int l, bool remove);
