@@ -61,7 +61,8 @@ int main(int argc, char** argv){
     }
 
     cout << "Initialize" << endl;
-    rou->initialize();
+    ckt->initialize();
+    //rou->initialize();
     cout << "Route all" << endl;
     rou->route_all();
     cout << "Create Path" << endl;

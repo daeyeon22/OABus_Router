@@ -92,6 +92,9 @@ void OABusRouter::Circuit::CreatePath()
 
     for(int i=0; i < buses.size(); i++)
     {
+        if(!ckt->buses[i].assign)
+            continue;
+
         int k=0;
         while(true)
         {
@@ -154,7 +157,7 @@ void OABusRouter::Circuit::CreatePath()
 
 
 
-                printf("intersection size : %d\n", intersection.size());
+                //printf("intersection size : %d\n", intersection.size());
                 /*
                 for(auto& it : w1->intersection)
                 {
@@ -175,7 +178,6 @@ void OABusRouter::Circuit::CreatePath()
                     
                     if(it.first == PINTYPE)
                     {
-                        
                         pinid = rou->wire2pin[w1->id];
                         if(pins[pinid].l != w1->l)
                         {
@@ -189,26 +191,24 @@ void OABusRouter::Circuit::CreatePath()
                             paths.push_back(p);
                         }
                     }else{
-
-
-                        printf("(%d %d) -> %d\n", x,y,it.first);
+                        //printf("(%d %d) -> %d\n", x,y,it.first);
                         wireid = it.first;
                         w2 = &rou->wires[wireid];
-                        if(w1->l == w2->l) continue;
-
                         if(!visit[wireid])
                         {
-
                             visit[wireid] = true;
-                            Path p;
-                            p.x[0] = x;
-                            p.x[1] = x;
-                            p.y[0] = y;
-                            p.y[1] = y;
-                            p.l = min(w1->l, w2->l);
-                            p.via = true;
                             s.push(wireid);
-                            paths.push_back(p);
+                            if(w2->l != w1->l)
+                            {
+                                Path p;
+                                p.x[0] = x;
+                                p.x[1] = x;
+                                p.y[0] = y;
+                                p.y[1] = y;
+                                p.l = min(w1->l, w2->l);
+                                p.via = true;
+                                paths.push_back(p);
+                            }
                         }
                     }
                 }

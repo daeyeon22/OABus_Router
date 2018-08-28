@@ -7,11 +7,101 @@ using namespace OABusRouter;
 
 
 
+void OABusRouter::Circuit::initialize()
+{
+    typedef BoxBG box;
+    typedef PointBG pt;
+    int i, j, k, l;
+    int numpins, numbits, numbuses;
+    Bus* curbus;
+    Bit* curbit;
+    Pin* curpin;
+    numbuses = buses.size();
+    for(i=0; i < numbuses; i++)
+    {
+        curbus = &buses[i];
+        numpins = curbus->numPinShapes;
+        numbits = curbus->numBits;
+        vector<vector<int>> unused_pins(numbits);
+
+        for(j=0; j < numbits; j++)
+            unused_pins[j] = bits[curbus->bits[j]].pins;
+
+        for(j=0; j < numpins; j++)
+        {
+            MultiPin mp;
+            mp.id = multipins.size();
+            mp.busid = curbus->id;
+
+            for(k=0; k < numbits; k++)
+            {
+                curbit = &bits[curbus->bits[k]];
+                curpin = &pins[curbit->pins[j]];
+                //
+                rou->pin2bit[curpin->id] = curbit->id;
+                if(k==0)
+                {
+                    mp.l = curpin->l;
+                    mp.llx = curpin->llx;
+                    mp.lly = curpin->lly;
+                    mp.urx = curpin->urx;
+                    mp.ury = curpin->ury;
+                    mp.pins.push_back(curpin->id);
+                }
+                else
+                {
+                    vector<int> &sorted = unused_pins[k];
+                    box mpbb(pt(mp.llx, mp.lly), pt(mp.urx, mp.ury));
+                    l = mp.l;
+                    if(sorted.size() > 1)
+                    {
+                        sort(sorted.begin(), sorted.end(), [&,this, mpbb,l](int left, int right){
+                                Pin* p1 = &this->pins[left];
+                                Pin* p2 = &this->pins[right];
+                                float dist1 = (p1->l != l) ? FLT_MAX : bg::distance(mpbb, box(pt(p1->llx,p1->lly), pt(p1->urx, p1->ury)));
+                                float dist2 = (p2->l != l) ? FLT_MAX : bg::distance(mpbb, box(pt(p2->llx,p2->lly), pt(p2->urx, p2->ury))); 
+                                return dist1 < dist2;
+                                });
+                    }
+                    curpin = &pins[sorted[0]];
+                    mp.llx = min(curpin->llx, mp.llx); 
+                    mp.lly = min(curpin->lly, mp.lly); 
+                    mp.urx = max(curpin->urx, mp.urx); 
+                    mp.ury = max(curpin->ury, mp.ury); 
+                    mp.pins.push_back(sorted[0]);
+                    sorted.erase(sorted.begin());
+                }
+            }
+            
+            if(abs(mp.urx - mp.llx) > abs(mp.ury - mp.lly))
+                mp.align = HORIZONTAL;
+            else
+                mp.align = VERTICAL;
+
+            if(mp.align == layers[mp.l].direction)
+                mp.needVia = true;
+
+            curbus->multipins.push_back(mp.id);
+            multipins.push_back(mp);
+            //
+            rou->multipin2llx[mp.id] = mp.llx;
+            rou->multipin2lly[mp.id] = mp.lly;
+            rou->multipin2urx[mp.id] = mp.urx;
+            rou->multipin2ury[mp.id] = mp.ury;
+        }
+    }
+
+    rou->initialize_rtree_new();
+    rou->initialize_grid3d();
+}
+
+
 
 void OABusRouter::Router::initialize()
 {
     for(auto& mp : ckt->multipins)
     {
+        /*
         int llx, lly, urx, ury;
         llx = INT_MAX;
         lly = INT_MAX;
@@ -25,12 +115,12 @@ void OABusRouter::Router::initialize()
             urx = max(urx, curpin->urx);
             ury = max(ury, curpin->ury);
         }
+        */
 
-
-        multipin2llx[mp.id] = llx;
-        multipin2lly[mp.id] = lly;
-        multipin2urx[mp.id] = urx;
-        multipin2ury[mp.id] = ury;
+        multipin2llx[mp.id] = mp.llx;
+        multipin2lly[mp.id] = mp.lly;
+        multipin2urx[mp.id] = mp.urx;
+        multipin2ury[mp.id] = mp.ury;
     }
 
     //initialize_rtree();

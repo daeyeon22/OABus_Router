@@ -385,9 +385,9 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                         
 
                         // MultiPin vector initialize
-                        vector<MultiPin> mps(bus.numPinShapes);
-                        for(int i=0; i < bus.numPinShapes; i++)
-                            mps[i].busid = bus.id;
+                        //vector<MultiPin> mps(bus.numPinShapes);
+                        //for(int i=0; i < bus.numPinShapes; i++)
+                        //    mps[i].busid = bus.id;
 
                         // Width Information
                         if(!getline(inputFile,line)) throw READ_FAILED;
@@ -477,6 +477,7 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                                 
                                 this->pins.push_back(pin);
 
+                                /*
                                 mps[pin_count].pins.push_back(pin.id);
                                 if( mps[pin_count].l == INT_MAX )
                                     mps[pin_count].l = pin.l;
@@ -484,9 +485,11 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                                     assert(mps[pin_count].l == pin.l);
 
                                 pin_count++;
+                                */
                             }
                         }
 
+                        /*
                         // multi pin id mapping & store in ckt->multipins
                         for(int i=0; i < bus.numPinShapes; i++) {
                             mps[i].id = this->multipins.size();
@@ -505,6 +508,7 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                             bus.multipins.push_back(mps[i].id);
                             this->multipins.push_back(mps[i]);
                         }
+                        */
                         this->buses.push_back(bus);
                         this->busHashMap[bus.name] = bus.id;
                     

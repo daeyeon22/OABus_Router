@@ -261,13 +261,19 @@ namespace OABusRouter
         int id;
         int busid;
         int l;
-        vector<int> pins;
+        int llx, lly;
+        int urx, ury;
         int align;
         bool needVia;
+        vector<int> pins;
         MultiPin() :
             id(INT_MAX),
             busid(INT_MAX),
             l(INT_MAX),
+            llx(INT_MAX),
+            lly(INT_MAX),
+            urx(INT_MIN),
+            ury(INT_MIN),
             align(INT_MAX),
             needVia(false) {}
 
@@ -275,11 +281,15 @@ namespace OABusRouter
             id(mp.id),
             busid(mp.busid),
             l(mp.l),
+            llx(mp.llx),
+            lly(mp.lly),
+            urx(mp.urx),
+            ury(mp.ury),
             align(mp.align),
-            needVia(mp.needVia) 
-            {
-                pins.insert(pins.end(), mp.pins.begin(), mp.pins.end());
-            }
+            needVia(mp.needVia),
+            pins(mp.pins)
+        {}
+            
         void print();
         bool vertical_arrange();
     };
@@ -313,17 +323,21 @@ namespace OABusRouter
         vector<int> wires;
         vector<int> vias;
         vector<Path> paths;
+        bool assign;
         //Rect boundary();
 
         Bit() : 
             id(INT_MAX), 
             name(INIT_STR), 
-            busName(INIT_STR) {}
+            busName(INIT_STR),
+            assign(false)
+        {}
 
         Bit(const Bit& b) :
             id(b.id),
             name(b.name),
-            busName(b.busName)
+            busName(b.busName),
+            assign(b.assign)
         {
             pins.insert(pins.end(), b.pins.begin(), b.pins.end());
         }
@@ -343,7 +357,8 @@ namespace OABusRouter
         vector<int> bits;
         vector<int> multipins;
         dense_hash_map<int,int> width;
-        
+
+        bool assign;
         //HashMap;
 
         Bus() : 
@@ -354,7 +369,8 @@ namespace OABusRouter
             lly(INT_MAX),
             urx(INT_MIN),
             ury(INT_MIN),
-            name(INIT_STR)
+            name(INIT_STR),
+            assign(false)
         {
             width.set_empty_key(INT_MAX); // INIT_STR);
         }
@@ -370,7 +386,9 @@ namespace OABusRouter
             name(b.name),
             bits(b.bits),
             multipins(b.multipins),
-            width(b.width) {} 
+            width(b.width),
+            assign(b.assign)
+        {} 
 
         void print();
     };
@@ -511,6 +529,8 @@ namespace OABusRouter
         void debug();
 
         // init.cpp 
+        void initialize();
+
         void Init();
         void InitTrack();
         void Getpitch();

@@ -557,6 +557,7 @@ namespace OABusRouter
         dense_hash_map<int,int> via2bus;
         dense_hash_map<int,int> multipin2seg;
         dense_hash_map<int,int> pin2wire;
+        dense_hash_map<int,int> pin2bit;
 
         dense_hash_map<int,int> multipin2llx;
         dense_hash_map<int,int> multipin2lly;
@@ -571,6 +572,7 @@ namespace OABusRouter
             spacing.set_empty_key(INT_MAX);
             multipin2seg.set_empty_key(INT_MAX);
             pin2wire.set_empty_key(INT_MAX);
+            pin2bit.set_empty_key(INT_MAX);
             seg2bus.set_empty_key(INT_MAX);
             junc2bus.set_empty_key(INT_MAX);
             via2bus.set_empty_key(INT_MAX);
@@ -650,6 +652,7 @@ namespace OABusRouter
         bool route_bus(int busid);
         bool route_twopin_net(int busid, int m1, int m2, vector<Segment>& tp);
         bool route_multipin_to_tp(int busid, int m, vector<Segment>& tp);
+        void sort_pins_routing_sequence(int m1, int m2, vector<int>& sorted1, vector<int>& sorted2);
    
         bool reroute(int busid);
 
