@@ -31,6 +31,7 @@ int main(int argc, char** argv){
 
     char* inputFileName;
     char* outputFileName;
+    string benchName;
     int numThreads;
     measure.start_clock();
 
@@ -41,6 +42,14 @@ int main(int argc, char** argv){
         if(i+1 != argc){
             if(strncmp(argv[i], "-input", 6) == 0){
                 inputFileName = argv[++i];   
+                string tmp = inputFileName;
+                tmp = tmp.substr(0, tmp.find_last_of("."));
+                benchName = tmp.substr(tmp.find_last_of("/")+1, tmp.size());
+
+                //size_t found1 = tmp.find_last_of("/");
+                //size_t found2 = tmp.find_last_of(".");
+                //cout << found1 << " " << found2 << endl;
+                //benchName = tmp.substr(0,found2);//tmp.substr(found1+1,found2);
             }
             if(strncmp(argv[i], "-threads", 8) == 0){
                 numThreads = atoi(argv[++i]);
@@ -52,9 +61,10 @@ int main(int argc, char** argv){
     }
 
 
-    cout << "Input     : " << inputFileName << endl;
-    cout << "Output    : " << outputFileName << endl;
-    cout << "# threads : " << numThreads << endl;
+    cout << "Input      : " << inputFileName << endl;
+    cout << "Output     : " << outputFileName << endl;
+    cout << "Bench      : " << benchName << endl;
+    cout << "# threads  : " << numThreads << endl;
 
     if(!ckt->read_iccad2018(inputFileName)){
         cout << "Fail to read " << inputFileName << endl;
@@ -66,9 +76,9 @@ int main(int argc, char** argv){
     cout << "Route all" << endl;
     rou->route_all();
     cout << "Create Path" << endl;
-    ckt->CreatePath();
+    ckt->create_path();
     cout << "Create Plot" << endl;
-    rou->Plot();
+    rou->create_plot(benchName.c_str());
     cout << "Write def & lef file" << endl;
     ckt->out_write(outputFileName);
 

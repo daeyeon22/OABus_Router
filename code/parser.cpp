@@ -11,7 +11,7 @@
 //#define DEBUG_PARSER
 
 
-void OABusRouter::Circuit::Printall()
+void OABusRouter::Circuit::print_all()
 {
     printf("DESIGN BOUNDAY (%d %d) (%d %d)\n\n", originX, originY, originX + width, originY + height);
     

@@ -53,328 +53,6 @@ typedef bgi::rtree<pair<BoxBG, int>, bgi::rstar<16>> BoxRtree;
 namespace OABusRouter
 {
 
-    struct TreeNode
-    {
-        int id;             // index
-        int n;              // parent node
-        int x, y, l;        // 
-        bool steiner;       // TRUE if Steiner point
-        vector<int> neighbor;
-        vector<int> edge;
-
-        TreeNode() :
-            id(INT_MAX),
-            n(INT_MAX),
-            x(INT_MAX),
-            y(INT_MAX),
-            l(INT_MAX),
-            steiner(false)
-        {}
-        
-        TreeNode(const TreeNode& node) :
-            id(node.id),
-            n(node.n),
-            x(node.x),
-            y(node.y),
-            l(node.l),
-            steiner(node.steiner),
-            neighbor(node.neighbor),
-            edge(node.edge)
-        {}
-
-    
-    };
-
-    struct TreeEdge
-    {
-        int length;         // manhatan distance
-        int n1;             // node1
-        int n2;             // node2
-        
-        TreeEdge() : 
-            length(INT_MAX),
-            n1(INT_MAX),
-            n2(INT_MAX) 
-        {}
-    };
-
-
-
-    struct StTree
-    {
-        //int index;
-        int id;
-        int deg;
-        int numNodes;
-        int numEdges;
-        int length;
-        bool assign;
-
-        vector<TreeNode> nodes;
-        vector<TreeEdge> edges;
-        vector<int> segs;
-        vector<int> junctions;
-        vector<int> gcells;
-
-        vector<int> wires;
-        vector<int> vias;
-
-        dense_hash_map<int,int> node2multipin;
-
-        StTree() :
-            id(INT_MAX),
-            deg(INT_MAX),
-            numNodes(INT_MAX),
-            numEdges(INT_MAX),
-            length(INT_MAX),
-            assign(false)
-        {
-            node2multipin.set_empty_key(INT_MAX);
-        }
-
-        StTree(const StTree& tree) :
-            id(tree.id),
-            deg(tree.deg),
-            numNodes(tree.numNodes),
-            numEdges(tree.numEdges),
-            length(tree.length),
-            assign(tree.assign),
-            nodes(tree.nodes),
-            edges(tree.edges),
-            segs(tree.segs),
-            junctions(tree.junctions),
-            node2multipin(tree.node2multipin)
-        {}
-
-        void print();
-
-    };
-
-    struct Gcell
-    {
-        int id;                     // index
-        int x, y, l;                // index for x,y,z axis
-        int cap;                    // edge capacitance
-        int direction;
-       
-        set<int> resources;         // 
-
-        //IntervalSetT available;
-
-        
-        Gcell() :
-            id(INT_MAX),
-            x(INT_MAX),
-            y(INT_MAX),
-            l(INT_MAX),
-            cap(INT_MIN),
-            direction(INT_MAX)
-        {     
-        }
-
-        void print();
-    };
-
-
-       
-    struct RSMT
-    {
-        
-        //vector<int> indices;
-        vector<StTree> trees;
-        dense_hash_map<int,int> treeID;  // Map bus -> tree index
-        dense_hash_map<int,int> busID;
-
-        // Default Constructor
-        RSMT()
-        {
-            treeID.set_empty_key(INT_MAX);
-            busID.set_empty_key(INT_MAX);
-        }
-
-        // 
-        StTree* operator[] (int index)
-        {
-            return &trees[treeID[index]];
-        }
-        
-        // Create RSMT and Push into vector
-        void CreateTree(int id, int d, int ids[], DTYPE x[], DTYPE y[], DTYPE l[], int acc, float coeffV);
-        int GetBusID(int treeid);
-        int GetTreeID(int busid);
-    
-    };
-
-    struct Grid3D
-    {
-        int numCols;
-        int numRows;
-        int numLayers;
-        int GCELL_WIDTH;
-        int GCELL_HEIGHT;
-        int xoffset;            // grid offset x (llx)
-        int yoffset;            // grid offset y (lly)
-        int width, height;
-
-        vector<Gcell> gcells;
-        vector<int> offsetxs;   // gcell offset x
-        vector<int> offsetys;   // gcell offset y
-        
-        dense_hash_map<int,int> direction;
-
-
-        // Default constructor
-        Grid3D(int nc=0, int nr=0, int nl=0, 
-                int gw=0, int gh=0, int xos=0, 
-                int yos=0, int wd=0, int hg=0):
-            numCols(nc),
-            numRows(nr),
-            numLayers(nl),
-            GCELL_WIDTH(gw),
-            GCELL_HEIGHT(gh),
-            xoffset(xos),
-            yoffset(yos),
-            width(wd),
-            height(hg)
-        {
-            direction.set_empty_key(INT_MAX);
-        }
-
-        // Copy constructor
-        Grid3D(const Grid3D& grid):
-            numCols(grid.numCols),
-            numRows(grid.numRows),
-            numLayers(grid.numLayers),
-            GCELL_WIDTH(grid.GCELL_WIDTH),
-            GCELL_HEIGHT(grid.GCELL_HEIGHT),
-            xoffset(grid.xoffset),
-            yoffset(grid.yoffset),
-            gcells(grid.gcells),
-            direction(grid.direction),
-            width(grid.width),
-            height(grid.height)
-        {}
-
-        // Initialize function
-        void initialize_gcell_cap(int l, int dir, vector<int> &offsets);
-
-
-        // member functions
-        int GetIndex(int col, int row, int layer);
-        int GetOffset_x(int col);
-        int GetOffset_y(int row);
-        int GetColum(int crd);
-        int GetRow(int crd);
-        int Capacity(int col, int row, int layer);
-        int llx(int gcellid);
-        int lly(int gcellid);
-        int urx(int gcellid);
-        int ury(int gcellid);
-
-        void print();
-
-        Gcell* operator [] (int index)
-        {
-            return &gcells[index];   
-        }
-
-    };
-   
-    struct Container
-    {
-        typedef SegmentBG seg;
-        typedef PointBG pt;
-        
-        int trackid;
-        int offset;
-        int l;
-        int width;
-        bool vertical;
-
-        IntervalSetT empty;
-        vector<seg> segs;
-        vector<int> elems;
-
-        Container() {}
-
-        
-        Container(const Container& ct) :
-            trackid(ct.trackid),
-            offset(ct.offset),
-            l(ct.l),
-            width(ct.width),
-            vertical(ct.vertical),
-            empty(ct.empty),
-            segs(ct.segs),
-            elems(ct.elems) {}
-
-    };
-
-
-
-    
-    struct Rtree
-    {
-        typedef SegmentBG seg;
-        typedef PointBG pt;
-        typedef BoxBG box;
-       
-        
-
-        // rtree for track
-        int elemindex;
-        SegRtree track; // element index -> track index
-        vector<Container> containers;
-        dense_hash_map<int,int> elem2track;
-        
-
-        // rtree for wire
-        vector<BoxRtree> wire; // element index == wire index
-        vector<BoxRtree> obstacle; 
-        
-        
-        Rtree()
-        {
-            elemindex = 0;
-            elem2track.set_empty_key(INT_MAX);
-        }
-
-
-        // Copy
-        Rtree(const Rtree& rt) :
-            elemindex(rt.elemindex),
-            track(rt.track),
-            containers(rt.containers),
-            elem2track(rt.elem2track),
-            wire(rt.wire),
-            obstacle(rt.obstacle) {}
-
-
-        // helper function
-        bool intersection(int t1, int t2, int& x, int& y);
-        void intersection(box pin, int l1,  seg elem, int l2, int &x, int &y); 
-        bool insert_element(int trackid, int x[], int y[], int l, bool remove); 
-        bool update_wire(int wireid, int x[], int y[], int l, bool remove);
-        bool intersects(int x[], int y[], int l);
-        bool spacing_violations(int bitid, int x[], int y[], int l);
-        bool spacing_violations(int bitid, int x[], int y[], int l, int width, int spacing, bool vertical);
-        bool compactness(int numbits, int mx[], int my[], int x, int y, int l, int align, int dir, int width, int spacing);
-        //void design_ruled_area(int x[], int y[], int width, int spacing, bool vertical);
-        int layer(int elemid);
-        int trackid(int elemid);
-        int direction(int elemid);
-        int offset(int elemid);
-        int width(int elemid);
-        bool vertical(int elemid);
-        int track_offset(int trackid);
-        int track_layer(int trackid);
-        int track_direction(int trackid);
-        int track_width(int trackid);
-        bool track_vertical(int trackid);
-        IntervalSetT track_empty(int trackid);
-    };
-
-
     struct Segment
     {
         int id;
@@ -387,7 +65,6 @@ namespace OABusRouter
         vector<int> neighbor;   // segment id
         vector<int> wires;      // segment id 
                                 // sorted increasing sequence
-
         bool assign;
         bool vertical;
 
@@ -421,7 +98,8 @@ namespace OABusRouter
             l(l),
             bw(bw),
             assign(assign),
-            vertical(vertical) {}
+            vertical(vertical)
+        {}
 
         Segment(const Segment& s) :
             id(s.id),
@@ -435,41 +113,11 @@ namespace OABusRouter
             neighbor(s.neighbor),
             wires(s.wires), 
             assign(s.assign),
-            vertical(s.vertical) {}
+            vertical(s.vertical)
+        {}
 
 
     };
-
-
-    struct Junction
-    {
-        int id;
-        int x, y;
-        int l1, l2;
-        int s1, s2;
-        int bw;
-
-        Junction() :
-            id(INT_MAX),
-            x(INT_MAX),
-            y(INT_MAX),
-            l1(INT_MAX),
-            l2(INT_MAX),
-            s1(INT_MAX),
-            s2(INT_MAX),
-            bw(INT_MAX) {}
-
-        Junction(const Junction& j) :
-            id(j.id), 
-            x(j.x),
-            y(j.y),
-            l1(j.l1),
-            l2(j.l2),
-            s1(j.s1),
-            s2(j.s2),
-            bw(j.bw) {}
-    };
-
 
     struct Wire
     {
@@ -533,16 +181,16 @@ namespace OABusRouter
       public:
         static Router* shared();
 
-        RSMT        rsmt;
-        Grid3D      grid;
-        Rtree       rtree;
+        //RSMT        rsmt;
+        //Grid3D      grid;
+        //Rtree       rtree;
         TrackRtree      rtree_t;
         ObstacleRtree   rtree_o;
 
 
         // Created Segments
         vector<Segment>         segs;
-        vector<Junction>        junctions;
+        //vector<Junction>        junctions;
         vector<Wire>            wires;
         vector<Via>             vias;
 
@@ -587,76 +235,67 @@ namespace OABusRouter
 
         // Initialize Grid3D
         void initialize();
-        void initialize_rtree();
-        void initialize_grid3d();
+        //void initialize_rtree();
+        //void initialize_grid3d();
         void initialize_rtree_new();
         // Generate Initial Topology for each bus
-        void gen_backbone();
+        //void gen_backbone();
     
         // Mapping 3D
-        void topology_mapping3d();
+        //void topology_mapping3d();
         
-        void ObstacleAwareRouting(int treeid);
+        //void ObstacleAwareRouting(int treeid);
         
-        bool Routing();
-        bool ObstacleAwareBusRouting(int busid);
-        
-       
-        void pin_access(int bitid);
+        //bool Routing();
+        //bool ObstacleAwareBusRouting(int busid);
+        //void pin_access(int bitid);
 
         // ILP
-        void CreateClips();
-        void SolveILP();
-        void SolveILP_v2();
-        void PostGlobalRouting();
+        //void CreateClips();
+        //void SolveILP();
+        //void SolveILP_v2();
+        //void PostGlobalRouting();
 
 
         // Detailed
-        
-        
-        void route_all();
-        void track_assign();
-        void mapping_pin2wire();
-        void mapping_multipin2seg();
-        void cut();
+        //void track_assign();
+        //void mapping_pin2wire();
+        //void mapping_multipin2seg();
+        //void cut();
 
 
-        int create_wire(int bitid, int trackid, int x[], int y[], int l, int seq, bool pin);
-        bool set_neighbor(int w1, int w2, int x, int y);
-        bool get_intersection(int w1, int w2, int &x, int &y);
-
-
-        void RouteAll();
-        void TrackAssign();
-        void CreateVia();
-        void MappingPin2Wire();
-        void MappingMultipin2Seg();
-        void Cut();
-        // Make Plot
-        void Plot();
-
-        void SetNeighbor(Wire* w1, Wire* w2, int x, int y);
-        bool Intersection(Wire* w1, Wire* w2, int &x, int &y);
-        
-        Wire* CreateWire(int bitid, int trackid, int x[], int y[], int l, int seq, bool pin);
-        bool ValidUpdate(int wireid, int x[], int y[]);
-        bool UpdateWire(int wireid, int x[], int y[]);
-    
-    
         int get_congested_bus(int busid);
-        
+        int create_wire(int bitid, int trackid, int x[], int y[], int l, int seq, bool pin);
+
+
+        //void RouteAll();
+        //void TrackAssign();
+        //void CreateVia();
+        //void MappingPin2Wire();
+        //void MappingMultipin2Seg();
+        //void Cut();
+        // Make Plot
+        void route_all();
         void rip_up(int busid);
         void intersection_pin(int pinx[], int piny[], int l1, int wirex[], int wirey[], int l2, int iterx, int itery, int &x, int &y);
+        void sort_pins_routing_sequence(int m1, int m2, vector<int>& sorted1, vector<int>& sorted2);
+        void update_net_tp(vector<Segment>& tp);
+        void create_plot(const char* benchName);
+        void local_search_area(int m1, int m2, int count, int ll[], int ur[]);
+        //void SetNeighbor(Wire* w1, Wire* w2, int x, int y);
+        //bool Intersection(Wire* w1, Wire* w2, int &x, int &y);
         
-        
+        //Wire* CreateWire(int bitid, int trackid, int x[], int y[], int l, int seq, bool pin);
+        //bool ValidUpdate(int wireid, int x[], int y[]);
+        //bool UpdateWire(int wireid, int x[], int y[]);
+    
         bool route_bus(int busid);
         bool route_twopin_net(int busid, int m1, int m2, vector<Segment>& tp);
         bool route_multipin_to_tp(int busid, int m, vector<Segment>& tp);
-        void sort_pins_routing_sequence(int m1, int m2, vector<int>& sorted1, vector<int>& sorted2);
-   
         bool reroute(int busid);
-
-        void update_net_tp(vector<Segment>& tp);
+        bool set_neighbor(int w1, int w2, int x, int y);
+        bool get_intersection(int w1, int w2, int &x, int &y);
+        bool t_junction_available(int busid, int x[], int y[], int l);
     };
 
 

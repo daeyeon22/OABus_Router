@@ -523,20 +523,10 @@ namespace OABusRouter
         void lef_write(string filename);
         void out_write(string filename);
 
-        // pin_aceess.cpp
-        void pin_access();
-        void pin_access(string busName);
-        void debug();
-
         // init.cpp 
         void initialize();
-
-        void Init();
-        void InitTrack();
-        void Getpitch();
-        void CreatePath();
-        
-        void Printall();
+        void create_path();
+        void print_all();
 
         bool is_vertical(int l){ return layers[l].is_vertical(); }
 

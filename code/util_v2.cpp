@@ -15,7 +15,7 @@ static bool show_track = true;
 static bool maze = false;
 static double scale = 1.0;
 
-void OABusRouter::Router::Plot()
+void OABusRouter::Router::create_plot(const char* benchName)
 {
 
     cout << "Create plots..." << endl;
@@ -27,12 +27,12 @@ void OABusRouter::Router::Plot()
     {
         Bus* curB = &ckt->buses[i];
         string filename;
-        filename = plotdir + curB->name + ".svg";
-        CreateBusPlot(false, curB->id, filename.c_str());
+        filename = plotdir + benchName + "/" +  curB->name + ".svg";
+        create_bus_plot(false, curB->id, filename.c_str());
     }
 
-    string filename = plotdir + "bus_all.svg";
-    CreateBusPlot(true, 0, filename.c_str());
+    string filename = plotdir + benchName + "/" + "bus_all.svg";
+    create_bus_plot(true, 0, filename.c_str());
 
 
 
@@ -42,7 +42,7 @@ void OABusRouter::Router::Plot()
 
 
 
-void CreateBusPlot(bool all, int busid, const char* fileName)
+void create_bus_plot(bool all, int busid, const char* fileName)
 {
 
     int layoutOffsetX, layoutOffsetY, layoutWidth, layoutHeight;
@@ -104,50 +104,6 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
     doc << border;
     //doc << Rectangle(Point(0,0), layoutWidth, layoutHeight, Color::White);
 
-
-    // Grid3D
-    br::Grid3D* grid = &rou->grid;
-    numRows = grid->numRows;
-    numCols = grid->numCols;
-    numLayers = grid->numLayers;
-    GW = grid->GCELL_WIDTH;
-    GH = grid->GCELL_HEIGHT;
-
-
-    // Grid3D lines
-    for(col=0; col<numCols; col++)
-    {
-        xoffset = grid->GetOffset_x(col);//offsetxs[col];
-        llx = xoffset + layoutOffsetX;
-        urx = xoffset + layoutOffsetX;
-        //lly = layoutOffsetY;
-        //ury = layoutOffsetY + layoutHeight;
-        lly = 0;
-        ury = layoutHeight;
-
-        doc << Line(Point(llx,lly), Point(urx,ury), Stroke(stroke_width, Color::Black));
-#ifdef DEBUG_UTIL
-        printf("Line (%8d %8d) (%8d %8d)\n", llx, lly, urx, ury);
-#endif
-    
-    }
-
-    for(row=0; row<numRows; row++)
-    {
-        yoffset = grid->GetOffset_y(row);//offsetys[row];
-        //llx = layoutOffsetX;
-        //urx = layoutOffsetX + layoutWidth;
-        llx = 0;
-        urx = layoutWidth;
-        lly = yoffset + layoutOffsetY;
-        ury = yoffset + layoutOffsetY;
-
-        doc << Line(Point(llx,lly), Point(urx,ury), Stroke(stroke_width, Color::Black));
-#ifdef DEBUG_UTIL
-        printf("Line (%8d %8d) (%8d %8d)\n", llx, lly, urx, ury);
-#endif
-    }
-
     int obsid, pinid, bitid, segid, viaid, trackid;
     int numObs, numBuses, numPins, numBits, numSegs, numWires, numVias, numTracks;
     int centerX, centerY;
@@ -200,65 +156,56 @@ void CreateBusPlot(bool all, int busid, const char* fileName)
         }
 
     }
-
-    if(maze)
+       
+    for(int i=0; i < numBuses; i++)
     {
-     
-    }
-    else
-    {
+        target = (i == busid)?true:false;
+        if(!all && !target) continue;   
 
-        
-        for(int i=0; i < numBuses; i++)
+        for(auto& it : ckt->buses[i].bits)
         {
-            target = (i == busid)?true:false;
-            if(!all && !target) continue;   
- 
-            for(auto& it : ckt->buses[i].bits)
+            bitid = it;
+            for(auto& p : ckt->bits[bitid].paths)
             {
-                bitid = it;
-                for(auto& p : ckt->bits[bitid].paths)
+                if(p.via)
                 {
-                    if(p.via)
-                    {
-                        centerX = p.x[0] + layoutOffsetX;
-                        centerY = p.y[0] + layoutOffsetY;
-                        curl = p.l;
-                        doc << Circle(Point(centerX, centerY), circle_radius, colors[curl], Stroke(2*stroke_width, Color::Black));
-                    }
-                    else
-                    {
-                        llx = p.x[0] + layoutOffsetX;
-                        lly = p.y[0] + layoutOffsetY;
-                        urx = p.x[1] + layoutOffsetX;
-                        ury = p.y[1] + layoutOffsetY;
-                        curl = p.l;
-                        int width = ckt->buses[i].width[curl];
-
-
-                        if(llx == urx)
-                        {
-                            llx -= (int)(1.0*width/2);
-                            urx += (int)(1.0*width/2);
-                        }
-
-                        if(lly == ury)
-                        {
-                            lly -= (int)(1.0*width/2);
-                            ury += (int)(1.0*width/2);
-                        }
-
-                        Polygon poly(colors[curl], Stroke(2*stroke_width, Color::Black));
-                        poly << Point(llx,lly) << Point(llx,ury) << Point(urx, ury) << Point(urx, lly);
-                        doc << poly;
-                    }
-
+                    centerX = p.x[0] + layoutOffsetX;
+                    centerY = p.y[0] + layoutOffsetY;
+                    curl = p.l;
+                    doc << Circle(Point(centerX, centerY), circle_radius, colors[curl], Stroke(2*stroke_width, Color::Black));
                 }
-            }
+                else
+                {
+                    llx = p.x[0] + layoutOffsetX;
+                    lly = p.y[0] + layoutOffsetY;
+                    urx = p.x[1] + layoutOffsetX;
+                    ury = p.y[1] + layoutOffsetY;
+                    curl = p.l;
+                    int width = ckt->buses[i].width[curl];
 
+
+                    if(llx == urx)
+                    {
+                        llx -= (int)(1.0*width/2);
+                        urx += (int)(1.0*width/2);
+                    }
+
+                    if(lly == ury)
+                    {
+                        lly -= (int)(1.0*width/2);
+                        ury += (int)(1.0*width/2);
+                    }
+
+                    Polygon poly(colors[curl], Stroke(2*stroke_width, Color::Black));
+                    poly << Point(llx,lly) << Point(llx,ury) << Point(urx, ury) << Point(urx, lly);
+                    doc << poly;
+                }
+
+            }
         }
 
     }
+
     // Bus
 
     for(pinid=0; pinid < numPins; pinid++)

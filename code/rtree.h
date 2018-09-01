@@ -188,7 +188,7 @@ namespace OABusRouter
         // member functions
         bool insert_obstacle(int bitid, int x[], int y[], int l, bool remove);
         bool spacing_violations(int bitid, int x[], int y[], int l, int width, int spacing, bool vertical);
-        bool compactness(int numbits, int mx[], int my[], int x, int y, int l, int align, int dir, int width, int spacing);
+        bool compactness(int numbits, int mx[], int my[], int x, int y, int l1, int l2, int align, int dir, int width, int spacing);
         bool spacing_violations_ndr(int bitid, int x[], int y[], int l);
     };
 };
