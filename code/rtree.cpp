@@ -1,6 +1,7 @@
 #include "rtree.h"
 #include "route.h"
 #include "circuit.h"
+#include "func.h"
 
 //#define DEBUG_RTREE
 //#define DEBUG_CREATE_WIRE
@@ -270,6 +271,67 @@ bool OABusRouter::ObstacleRtree::spacing_violations_ndr(int bitid, int x[], int 
     return false;
 }
 
+
+
+bool OABusRouter::Router::routability_check(int m, int t, int dir)
+{
+    enum Direction
+    {
+        Left,
+        Right,
+        Up,
+        Down
+    };
+
+    int l, numbits;
+    int t_offset;
+    int lower, upper;
+    MultiPin* mp = &ckt->multipins[m];
+    Layer* layer = &ckt->layers[l];
+    l = rtree_t.get_layer(t);
+    numbits = mp->pins.size();
+    t_offset = rtree_t.get_offset_t(t);
+
+
+    vector<int> offsets;
+    offsets.insert(offsets.end(), layer->offsets.begin(), layer->offsets.end());
+    sort(offsets.begin(), offsets.end());
+    
+    cout << "offsets size   : " << offsets.size();
+    cout << "current offset : " << t_offset << endl;
+    if(dir == Direction::Up || dir == Direction::Right)
+    {
+        lower = t_offset;
+        upper = *offsets.end(); 
+        //lower = GetLowerBound(offsets, t_offset) + 1;
+        //upper = offsets.size();
+    }
+    
+    if(dir == Direction::Down || dir == Direction::Left)
+    {
+        lower = *offsets.begin();
+        upper = t_offset;
+        //lower = 0;
+        //upper = GetUpperBound(offsets, t_offset);
+    }
+
+
+
+    cout << "available track : " << upper - lower << endl;
+    if(numbits > upper-lower)
+    {
+        return false;
+    }
+    else
+    {
+        int required = numbits*(spacing[l] + ckt->buses[mp->busid].width[l]);
+        if(required < abs(upper-lower))
+        {
+            return false;
+        }
+        return true;
+    }
+}
 
 
 

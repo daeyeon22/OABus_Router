@@ -459,16 +459,19 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
     //Rtree localrtree(rtree);
     mp1 = &ckt->multipins[m1];
     mp2 = &ckt->multipins[m2];
+
+            
+    if(multipin2llx[mp1->id] > multipin2llx[mp2->id])
+    {
+        swap(mp1, mp2);
+        swap(m1,m2);
+    }
+    /*
     sort_pins_routing_sequence(m1, m2, sorted1, sorted2);
-    
-    //if(multipin2llx[mp1->id] > multipin2llx[mp2->id])
-    //    swap(mp1, mp2);
+    */
     curbus = &ckt->buses[busid];
     numbits = curbus->numBits;
     width = curbus->width;
-    align1 = mp1->align;
-    align2 = mp2->align;
-
     int visit_count=0;
     int failed_count=0;
     cout << "====================" << endl;
@@ -486,18 +489,31 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
         printf("HORIZONTAL");
     printf("\n");
 
-    for(i=0; i < numbits; i++)
-    {
-#ifdef DEBUG_ROUTE_TWOPIN_NET
-        printf("p%d -> p%d seq %d bitid %d\n", mp1->pins[i], mp2->pins[i], i, curbus->bits[i]);
-#endif
-        sequence[mp1->pins[i]] = i;
-    }
-
     int iterCount=0;
+    bool maximum_search_area = false;
+    bool swapped = false;
 
-    while(iterCount++ < MAX_ITERATION_COUNT)
+    while(iterCount++ < 4)
     {
+        if(iterCount % 2 == 0)
+        {
+            swap(mp1, mp2);
+            swap(m1,m2);
+        }
+        sort_pins_routing_sequence(m1, m2, sorted1, sorted2);
+        align1 = mp1->align;
+        align2 = mp2->align;
+        for(i=0; i < numbits; i++)
+        {
+#ifdef DEBUG_ROUTE_TWOPIN_NET
+            printf("p%d -> p%d seq %d bitid %d\n", mp1->pins[i], mp2->pins[i], i, curbus->bits[i]);
+#endif
+            sequence[mp1->pins[i]] = i;
+        }
+
+
+       
+        
         // get copied rtree
         tp.clear();
         int maxDepth = INT_MAX;
@@ -514,15 +530,28 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
         ObstacleRtree local_rtree_o(rtree_o);
         
         // local search area
-        local_search_area(m1, m2, iterCount, local_area_ll, local_area_ur);
+        if((int)(1.0 * iterCount / 2) > 1)
+        {
+            local_area_ll[0] = ckt->originX;
+            local_area_ll[1] = ckt->originY;
+            local_area_ur[0] = ckt->originX + ckt->width;
+            local_area_ur[1] = ckt->originY + ckt->height;
+        }
+        else
+        {
+            local_search_area(m1, m2, iterCount, local_area_ll, local_area_ur);
+        }
+        /*
         if(local_area_ll[0] == ckt->originX && local_area_ur[0] == ckt->originX + ckt->width
                 && local_area_ll[1] == ckt->originY && local_area_ur[1] == ckt->originY + ckt->height)
         {
-            iterCount = MAX_ITERATION_COUNT;
+            maximum_search_area = true;
+
+            //iterCount = MAX_ITERATION_COUNT-1;
         }
-        
-        printf("local search area (%d %d) (%d %d)\n", local_area_ll[0], local_area_ll[1],
-                local_area_ur[0], local_area_ur[1]);
+        */
+        //printf("local search area (%d %d) (%d %d)\n", local_area_ll[0], local_area_ll[1],
+        //        local_area_ur[0], local_area_ur[1]);
         solution = true;
 
         for(i=0; i < numbits; i++)
@@ -629,18 +658,24 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
                 
                 // width constraint
                 if(maxWidth < width[l1])
+                {
                     continue;
-                
+                }
                 // condition
                 if(vertical_arrange1 == ckt->is_vertical(l1))
+                {
                     continue;
+                }
 
                 if(abs(pin1->l - l1) > 1) 
+                {
                     continue;
+                }
 
                 if(abs(pin1->l != l1) && !bg::intersects(orig1, it.first))
+                {
                     continue;
-
+                }
 
                 // visit
                 backtrace[e1] = e1;         // e1 is root
@@ -751,11 +786,18 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
                     elem = it.first;
                     dep = depth[e1] + 1;
                     destination = false;                
+
+                    if(e1 == e2)
+                        continue;
+                    
                     // intersection
                     intersection(element[e1], elem, x, y);
                     // cost
                     c1 = cost1 + manhatan_distance(iterPtx[e1], iterPty[e1], x, y) + abs(l1-l2) * VIA_COST + DEPTH_COST;
                     c2 = cost2; 
+                    
+                    
+
 
                     // local area
                     if(!is_inside(x, y, local_area_ll, local_area_ur))
@@ -768,8 +810,8 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
                     if(abs(l1 - l2) > 1)
                         continue;
 
-                    if(e1 == e2)
-                        continue;
+
+
 
                     // width constraint
                     if(maxWidth < width[l2])
@@ -820,8 +862,10 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
                                 if(tracePty[dep] > y)
                                     continue;
                             }
-                            c2 += manhatan_distance(tracePtx[dep], tracePty[dep], x, y);
                         }
+                        ////////////
+                        //이거때문에 example_1_3, alpha_1_2결과가 달라짐
+                        c2 += manhatan_distance(tracePtx[dep], tracePty[dep], x, y);
                     }
 
                     // condition
@@ -835,13 +879,16 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
                         {
                             //curDir = routing_direction(iterPtx[e1], iterPty[e1], x, y, localrtree.vertical(e1));
                             curDir = routing_direction(iterPtx[e1], iterPty[e1], x, y, local_rtree_t.is_vertical(e1));
+                            
+                            /////////////////////////////////
+                            //if(!routability_check(m1, t2, curDir))
+                            //    continue;
 
                             if(!local_rtree_o.compactness((numbits-i), mx1, my1, x, y, l1, l2, align1, curDir, width[l2], spacing[l2]))
                                 c2 += NOTCOMPACT;
+                        
                         }
                     }
-
-
                     // check spacing violation
                     into_array(min(iterPtx[e1], x), max(iterPtx[e1], x), min(iterPty[e1], y), max(iterPty[e1], y), xs, ys); 
                     vertical = local_rtree_t.is_vertical(e1);
@@ -857,8 +904,6 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
                         upt(elem, x2, y2);
                         into_array(x1, x2, y1, y2, wirex, wirey);
                         intersection_pin(pin2x, pin2y, pin2->l, wirex, wirey, l2, x, y, ptx, pty); //lastPtx[e2], lastPty[e2]); 
-                        lastPtx[e2] = ptx;
-                        lastPty[e2] = pty;
                         
                         //
                         if(vertical_arrange2 == local_rtree_t.is_vertical(e2))
@@ -868,9 +913,9 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
                         {
                             int tmp = backtrace[e1];
                             prevDir = routing_direction(iterPtx[tmp], iterPty[tmp], iterPtx[e1], iterPty[e1], local_rtree_t.is_vertical(tmp));
-                            curDir = routing_direction(x, y, lastPtx[e2], lastPty[e2], local_rtree_t.is_vertical(e2));
+                            curDir = routing_direction(x, y, ptx, pty, local_rtree_t.is_vertical(e2));
                             if(prevDir != curDir)
-                                curDir = routing_direction(lastPtx[e2], lastPtx[e2], x, y, local_rtree_t.is_vertical(e2));
+                                curDir = routing_direction(ptx, pty, x, y, local_rtree_t.is_vertical(e2));
 
                             if(!local_rtree_o.compactness((numbits-i), mx2, my2, x, y, l1, l2, align2, curDir, width[l1], spacing[l1]))
                                 c2 += NOTCOMPACT;
@@ -880,7 +925,7 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
                         // condition(routing direction)
                         if(!isRef)
                         {
-                            curDir = routing_direction(x, y, lastPtx[e2], lastPty[e2], local_rtree_t.is_vertical(e2));
+                            curDir = routing_direction(x, y, ptx, pty, local_rtree_t.is_vertical(e2));
                             // if current routing direction is different,
                             // don't push into the priority queue
                             if(traceDir[dep] != curDir)
@@ -891,11 +936,14 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
                         }
 
                         // check spacing violation
-                        into_array(min(x, lastPtx[e2]), max(x, lastPtx[e2]), min(y, lastPty[e2]), max(y, lastPty[e2]), xs, ys);
+                        into_array(min(x, ptx), max(x, ptx), min(y, pty), max(y, pty), xs, ys);
                         vertical = local_rtree_t.is_vertical(e2);
 
                         if(local_rtree_o.spacing_violations(bitid, xs, ys, l2, width[l2], spacing[l2], vertical))
                             c2 += SPACING_VIOLATION;
+                        
+                        lastPtx[e2] = ptx;
+                        lastPty[e2] = pty;
                     }
 
 
@@ -1191,6 +1239,8 @@ bool OABusRouter::Router::t_junction_available(int busid, int x[], int y[], int 
     int upper = min(l+1, (int)ckt->layers.size()-1);
     int required, numbits;
     int len_x, len_y;
+    bool vertical1, vertical2;
+    vertical1 = ckt->is_vertical(l);
     dense_hash_map<int,int> width = ckt->buses[busid].width;
     numbits = ckt->buses[busid].numBits;
     len_x = abs(x[0] - x[1]);
@@ -1198,9 +1248,22 @@ bool OABusRouter::Router::t_junction_available(int busid, int x[], int y[], int 
 
     for(;lower <= upper;lower++)
     {
-        required = numbits*(spacing[lower] + width[lower]);
-        if(len_x <= required || len_y <= required)
-            return false;
+        vertical2 = ckt->is_vertical(lower);
+        
+        if(vertical1 != vertical2)
+        {
+            required = numbits*(spacing[lower] + width[lower]);
+            if(vertical1)
+            {
+                if(len_y <= required)
+                    return false;
+            }
+            else
+            {
+                if(len_x <= required)
+                    return false;
+            }
+        }
     }
     return true;
 }
@@ -1504,8 +1567,9 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
 
                     if(isRef)
                     {
-                        //if(!t_junction && curShape == Direction::T_Junction)
-                        //    continue;
+                        if(vertical != target.vertical)
+                            if(!t_junction && curShape == Direction::T_Junction)
+                                continue;
                     }
                     else
                     {
@@ -1568,7 +1632,12 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                 if(e1 == DESTINATION)
                     break;
 
-                if(cost1 != wirelength[e1] || cost2 != penalty[e1])
+                if(elemCost[e1] < cost1 + cost2)
+                {
+                    continue;
+                }
+                /*
+                if(cost1 > wirelength[e1] || cost2 > penalty[e1])
                 {
                     //cout << "different cost!!" << endl;
                     //cout << "cost1 : " << cost1 << endl;
@@ -1576,8 +1645,9 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                     //cout << "cost2 : " << cost2 << endl;
                     //cout << "orig2 : " << penalty[e1] << endl;
                     //exit(0);
-                    //continue;
+                    continue;
                 }
+                */
                 //
                 total_visit_count++;
                 // depth condition
@@ -1611,18 +1681,32 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                     
                     if(abs(l1-l2) > 1)
                         continue;
-         
-                    if(maxWidth < width[l2])
-                    {
-                        cout << "width condtion..." << endl;
-                        continue;
-                    }
+        
+
+
+
+
                     // intersection
                     intersection(element[e1], elem, x, y);
                     // cost
                     c1 = cost1 + manhatan_distance(iterPtx[e1], iterPty[e1], x, y) + abs(l1-l2) * VIA_COST + DEPTH_COST;
                     c2 = cost2;
                     
+                    ///////////////////////////////////
+                    
+                    //if(isRef)
+                    //{
+                    //    printf("candidate (%d %d) (%d %d) M%d dep %d maxWidth %d intersect (%d %d)\n",
+                    //            (int)bg::get<0,0>(elem), (int)bg::get<0,1>(elem), (int)bg::get<1,0>(elem), (int)bg::get<1,1>(elem), l2, dep, maxWidth,
+                    //            x, y);
+                    //}
+                    ///////////////////////////////////
+
+                    if(maxWidth < width[l2])
+                    {
+                        cout << "width condtion..." << endl;
+                        continue;
+                    }
                     // condition
                     if(depth[e1] == 0)
                     {
@@ -1647,41 +1731,54 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                         //curDir = routing_direction(iterPtx[e1], iterPty[e1], x, y, localrtree.vertical(e1));
                         curDir = routing_direction(iterPtx[e1], iterPty[e1], x, y, local_rtree_t.is_vertical(e1));
                         if(traceDir[depth[e1]] != curDir)
-                            continue;
-                    
-                        // wire ordering 
-                        if(tracelx[dep] <= x && x <= traceux[dep])
-                            continue;
-
-                        if(tracely[dep] <= y && y <= traceuy[dep])
+                        {
+                         
                             continue;
                         
-                        if(tracelx[dep] != traceux[dep] && tracely[dep] != traceuy[dep])
-                        {
-
-                            if(tracePtx[dep] == tracelx[dep])
-                            {
-                                if(tracePtx[dep] < x)
-                                    continue;
-                            }
-                            else if(tracePtx[dep] == traceux[dep])
-                            {
-                                if(tracePtx[dep] > x)
-                                    continue;
-                            }
-
-                            if(tracePty[dep] == tracely[dep])
-                            {
-                                if(tracePty[dep] < y)
-                                    continue;
-                            }
-                            else if(tracePty[dep] == traceuy[dep])
-                            {
-                                if(tracePty[dep] > y)
-                                    continue;
-                            }
-                            c2 += manhatan_distance(tracePtx[dep], tracePty[dep], x, y);
                         }
+
+                        //if(curDir == Direction::Point)
+                        //{
+                        //    printf("current direction : Point\n");
+                        //}
+
+
+                        if(curDir != Direction::Point)
+                        {
+                            // wire ordering 
+                            //if(tracelx[dep] <= x && x <= traceux[dep])
+                            //    continue;
+
+                            //if(tracely[dep] <= y && y <= traceuy[dep])
+                            //    continue;
+
+                            if(tracelx[dep] != traceux[dep] && tracely[dep] != traceuy[dep])
+                            {
+
+                                if(tracePtx[dep] == tracelx[dep])
+                                {
+                                    if(tracePtx[dep] < x)
+                                        continue;
+                                }
+                                else if(tracePtx[dep] == traceux[dep])
+                                {
+                                    if(tracePtx[dep] > x)
+                                        continue;
+                                }
+
+                                if(tracePty[dep] == tracely[dep])
+                                {
+                                    if(tracePty[dep] < y)
+                                        continue;
+                                }
+                                else if(tracePty[dep] == traceuy[dep])
+                                {
+                                    if(tracePty[dep] > y)
+                                        continue;
+                                }
+                            }
+                        }
+                        c2 += manhatan_distance(tracePtx[dep], tracePty[dep], x, y);
                     }
                
 
@@ -1697,8 +1794,10 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                         c2 += SPACING_VIOLATION;
 
                     if(elemCost[e2] <= c1 + c2)
+                    {
                         continue;
-                   
+                    }
+
                     element[e2] = elem;
                     depth[e2] = dep;
                     backtrace[e2] = e1;
@@ -1745,15 +1844,15 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                                 cout << endl;
                             }
                        
-                            if(!t_junction && curShape == Direction::T_Junction)
-                            {
-                                printf("intersection (%d %d)\n wire (%d %d) (%d %d) M%d \n target (%d %d) (%d %d) M%d\n",
-                                        ptx, pty, iterPtx[e2], iterPty[e2], ptx, pty, local_rtree_t.get_layer(e2),
-                                        tarwire->x1, tarwire->y1, tarwire->x2, tarwire->y2, tarwire->l);
-                                
-                                continue;
-                            }
                             */
+                            if(local_rtree_t.is_vertical(e2) != target.vertical)
+                                if(!t_junction && curShape == Direction::T_Junction)
+                                {
+                                    //printf("intersection (%d %d)\n wire (%d %d) (%d %d) M%d \n target (%d %d) (%d %d) M%d\n",
+                                    //        ptx, pty, iterPtx[e2], iterPty[e2], ptx, pty, local_rtree_t.get_layer(e2),
+                                    //        tarwire->x1, tarwire->y1, tarwire->x2, tarwire->y2, tarwire->l);
+                                    continue;
+                                }
                         }
                         else
                         //if(!isRef)

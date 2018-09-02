@@ -296,6 +296,8 @@ namespace OABusRouter
         bool set_neighbor(int w1, int w2, int x, int y);
         bool get_intersection(int w1, int w2, int &x, int &y);
         bool t_junction_available(int busid, int x[], int y[], int l);
+        bool routability_check(int m, int t, int dir);
+            
     };
 
 
