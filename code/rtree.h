@@ -143,6 +143,8 @@ namespace OABusRouter
         bool insert_element(int trackid, int x[], int y[], int l, bool remove);
         
         //template <typename A, typename B>
+        void query(int mode, box geo, int l, vector<pair<seg,int>>& queries);
+        void query(int mode, seg geo, int l, vector<pair<seg,int>>& queries);
         void query(int mode, box geometry, int lower, int upper, vector<pair<seg,int>> &queries);
         void query(int mode, seg geometry, int lower, int upper, vector<pair<seg,int>> &queries);
         
