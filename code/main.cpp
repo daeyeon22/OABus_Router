@@ -80,6 +80,8 @@ int main(int argc, char** argv){
     cout << "Create Plot" << endl;
     rou->create_plot(benchName.c_str());
     cout << "Write def & lef file" << endl;
+    ckt->def_write();
+    ckt->lef_write();
     ckt->out_write(outputFileName);
 
     cout << "End program" << endl;
