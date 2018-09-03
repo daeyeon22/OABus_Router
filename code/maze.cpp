@@ -16,7 +16,7 @@
 #define NOTCOMPACT 10000
 #define DESTINATION -12311
 
-#define DEBUG_ROUTE_MP_TO_TP
+//#define DEBUG_ROUTE_MP_TO_TP
 //#define DEBUG_ROUTE_TWOPIN_NET
 //#define DEBUG_MAZE
 // Routing direction
@@ -1500,6 +1500,10 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
 
             for(int k=0; k < 2; k++)
             {
+                minElem = INT_MAX;
+                minCost = INT_MAX;
+                hasMinElem = false;
+
                 queries.clear();
                 if(vertical_align == ckt->is_vertical(curpin->l))
                 {
@@ -1608,7 +1612,7 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                         }
 
                         c1 += manhatan_distance(x, y, iterPtx[e1], iterPty[e1]);
-                        if(!local_rtree_o.spacing_violations(bitid, xs, ys, l1, width[l1], spacing[l1], vertical))
+                        if(local_rtree_o.spacing_violations(bitid, xs, ys, l1, width[l1], spacing[l1], vertical))
                         {
                             c2 += SPACING_VIOLATION;
                         }
@@ -1672,9 +1676,6 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                 // depth condition
                 if(maxDepth <= depth[e1])
                     continue;
-#ifdef DEBUG_ROUTE_MP_TO_TP
-                printf("e %d (%d %d) cost %d dep %d MinElem %d MinCost %d\n", e1, iterPtx[e1], iterPty[e1], cost1 + cost2, depth[e1], minElem, minCost); 
-#endif
                 // 
                 t1 = local_rtree_t.get_trackid(e1);
                 l1 = local_rtree_t.get_layer(e1);
@@ -1688,8 +1689,11 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                 else
                     local_rtree_t.query(QueryMode::Intersects, element[e1], tracelNum[depth[e1]+1], tracelNum[depth[e1]+1], queries);
 
+#ifdef DEBUG_ROUTE_MP_TO_TP
+                printf("e %d (%d %d) cost %d dep %d MinElem %d MinCost %d\n", e1, iterPtx[e1], iterPty[e1], cost1 + cost2, depth[e1], minElem, minCost); 
+                //printf("# intersects segments : %d\n", queries.size());
+#endif
                 
-                printf("# intersects segments : %d\n", queries.size());
                 //
                 for(auto& it : queries)
                 {
@@ -1775,8 +1779,6 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
 
                             if(tracelx[dep] != traceux[dep] && tracely[dep] != traceuy[dep])
                             {
-
-                                /*
                                 if(tracePtx[dep] == tracelx[dep])
                                 {
                                     if(tracePtx[dep] < x)
@@ -1798,8 +1800,7 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                                     if(tracePty[dep] > y)
                                         continue;
                                 }
-                                */
-
+                                /*
                                 bool wire_order_failed = false;
                                 if(tracePtx[dep] == tracelx[dep])
                                 {
@@ -1825,11 +1826,12 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                                 }
                                 if(wire_order_failed)
                                 {
-                                    printf("bound (%d %d) (%d %d) previous (%d %d) current (%d %d)\n",
-                                            tracelx[dep], tracely[dep], traceux[dep], traceuy[dep], tracePtx[dep], tracePty[dep], x, y);
+                                    //printf("bound (%d %d) (%d %d) previous (%d %d) current (%d %d)\n",
+                                    //        tracelx[dep], tracely[dep], traceux[dep], traceuy[dep], tracePtx[dep], tracePty[dep], x, y);
 
                                     continue;
                                 }
+                                */
                             }
                         }
                         //cout << "pass wire ordering" << endl;
@@ -1912,18 +1914,18 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
 
                             if(curShape != lastRoutingShape)
                             {
-                                cout << "different shape" << endl;
+                                //cout << "different shape" << endl;
                                 continue;
                             }
                             if(maxDepth != dep)
                             {
-                                cout << "different depth" << endl;
+                                //cout << "different depth" << endl;
                                 continue;
                             }
                             curDir = routing_direction(x, y, ptx, pty, vertical);
                             if(traceDir[dep] != curDir)
                             {
-                                cout << "different direction" << endl;
+                                //cout << "different direction" << endl;
                                 continue;
                             }
                         }
