@@ -134,6 +134,63 @@ bool OABusRouter::TrackRtree::insert_element(int trackid, int x[], int y[], int 
     return true;
 }
 
+void OABusRouter::TrackRtree::query(int mode, seg geo, int l, vector<pair<seg,int>>& queries)
+{
+    switch(mode)
+    {
+        case QueryMode::Intersects:
+            rtree[l].query(bgi::intersects(geo), back_inserter(queries));
+            break;
+
+        case QueryMode::Overlaps:
+            //rtree[l].query(bgi::overlaps(geo), back_inserter(queries));
+            break;
+
+        case QueryMode::Covered:
+            //rtree[l].query(bgi::covered_by(geo), back_inserter(queries));
+            break;
+
+        case QueryMode::Within:
+            //rtree[l].query(bgi::within(geo), back_inserter(queries));
+            break;
+
+        case QueryMode::Disjoint:
+            //rtree[l].query(bgi::disjoint(geo), back_inserter(queries));
+            break;
+        default:
+            break;
+    }
+}
+
+
+void OABusRouter::TrackRtree::query(int mode, box geo, int l, vector<pair<seg,int>>& queries)
+{
+    switch(mode)
+    {
+        case QueryMode::Intersects:
+            rtree[l].query(bgi::intersects(geo), back_inserter(queries));
+            break;
+
+        case QueryMode::Overlaps:
+            //rtree[l].query(bgi::overlaps(geo), back_inserter(queries));
+            break;
+
+        case QueryMode::Covered:
+            //rtree[l].query(bgi::covered_by(geo), back_inserter(queries));
+            break;
+
+        case QueryMode::Within:
+            //rtree[l].query(bgi::within(geo), back_inserter(queries));
+            break;
+
+        case QueryMode::Disjoint:
+            //rtree[l].query(bgi::disjoint(geo), back_inserter(queries));
+            break;
+        default:
+            break;
+    }
+}
+
 
 void OABusRouter::TrackRtree::query(int mode, seg geo, int lower, int upper, vector<pair<seg, int>> &queries)
 {
