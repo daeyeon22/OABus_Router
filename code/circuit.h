@@ -472,17 +472,6 @@ namespace OABusRouter
         void print();
 
     };
-   
-    struct Contact
-    {
-        int id;
-        Contact() :
-        id(INT_MAX) {}
-
-        Contact(const Contact &con) :
-            id(con.id) {}
-        void print();
-    };
 
     class Circuit
     {
@@ -588,8 +577,6 @@ namespace OABusRouter
         bgBoxT trackToBox(Track& _track);
         poly buffered_track(Track& track);
 
-=======
->>>>>>> dykim
         // init.cpp 
         void initialize();
         void create_path();
