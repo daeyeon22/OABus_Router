@@ -136,6 +136,10 @@ bool OABusRouter::TrackRtree::insert_element(int trackid, int x[], int y[], int 
 
 void OABusRouter::TrackRtree::query(int mode, seg geo, int l, vector<pair<seg,int>>& queries)
 {
+    if(l < 0 || l > rtree.size()-1)
+        return;
+
+    
     switch(mode)
     {
         case QueryMode::Intersects:
@@ -165,6 +169,9 @@ void OABusRouter::TrackRtree::query(int mode, seg geo, int l, vector<pair<seg,in
 
 void OABusRouter::TrackRtree::query(int mode, box geo, int l, vector<pair<seg,int>>& queries)
 {
+    if(l < 0 || l > rtree.size()-1)
+        return;
+    
     switch(mode)
     {
         case QueryMode::Intersects:
