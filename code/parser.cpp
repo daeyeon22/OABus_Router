@@ -8,10 +8,10 @@
 #define INVALID_FILE_FORMAT 200
 
 
-#define DEBUG_PARSER
+//#define DEBUG_PARSER
 
 
-void OABusRouter::Circuit::Printall()
+void OABusRouter::Circuit::print_all()
 {
     printf("DESIGN BOUNDAY (%d %d) (%d %d)\n\n", originX, originY, originX + width, originY + height);
     
@@ -332,7 +332,7 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
 bool OABusRouter::Circuit::getBusInfo(char* fileName){
     ifstream inputFile(fileName);
     string line = "";
-    string delim = " ()<>";
+    string delim = " ()";
     bool flag = false;
 
     typedef boost::tokenizer<boost::char_separator<char>>::iterator tokenIter;
@@ -385,9 +385,9 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                         
 
                         // MultiPin vector initialize
-                        vector<MultiPin> mps(bus.numPinShapes);
-                        for(int i=0; i < bus.numPinShapes; i++)
-                            mps[i].busid = bus.id;
+                        //vector<MultiPin> mps(bus.numPinShapes);
+                        //for(int i=0; i < bus.numPinShapes; i++)
+                        //    mps[i].busid = bus.id;
 
                         // Width Information
                         if(!getline(inputFile,line)) throw READ_FAILED;
@@ -426,7 +426,7 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                                 bit.id = this->bits.size();
                                 bit.busName = bus.name;
                                 bit.name = *++iter;
-                                bit.name = bit.name + "_" + *++iter;
+                                //bit.name = bit.name + "_" + *++iter;
                                 this->bits.push_back(bit);
                                 this->bitHashMap[bit.name] = bit.id;
                                 bitFlag = true;
@@ -477,6 +477,7 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                                 
                                 this->pins.push_back(pin);
 
+                                /*
                                 mps[pin_count].pins.push_back(pin.id);
                                 if( mps[pin_count].l == INT_MAX )
                                     mps[pin_count].l = pin.l;
@@ -484,9 +485,11 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                                     assert(mps[pin_count].l == pin.l);
 
                                 pin_count++;
+                                */
                             }
                         }
 
+                        /*
                         // multi pin id mapping & store in ckt->multipins
                         for(int i=0; i < bus.numPinShapes; i++) {
                             mps[i].id = this->multipins.size();
@@ -505,6 +508,7 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                             bus.multipins.push_back(mps[i].id);
                             this->multipins.push_back(mps[i]);
                         }
+                        */
                         this->buses.push_back(bus);
                         this->busHashMap[bus.name] = bus.id;
                     

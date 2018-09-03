@@ -1,11 +1,10 @@
 
 #include "circuit.h"
 #include "route.h"
-//#include "util.h"
-//#define DEBUG_MP
+#include "mymeasure.h"
 
 using namespace std;
-
+static CMeasure measure;
 
 // Static variables
 OABusRouter::Circuit* OABusRouter::Circuit::instance = nullptr;
@@ -32,12 +31,25 @@ int main(int argc, char** argv){
 
     char* inputFileName;
     char* outputFileName;
+    string benchName;
     int numThreads;
+    measure.start_clock();
 
+
+
+    
     for(int i=1; i < argc; i++){
         if(i+1 != argc){
             if(strncmp(argv[i], "-input", 6) == 0){
                 inputFileName = argv[++i];   
+                string tmp = inputFileName;
+                tmp = tmp.substr(0, tmp.find_last_of("."));
+                benchName = tmp.substr(tmp.find_last_of("/")+1, tmp.size());
+
+                //size_t found1 = tmp.find_last_of("/");
+                //size_t found2 = tmp.find_last_of(".");
+                //cout << found1 << " " << found2 << endl;
+                //benchName = tmp.substr(0,found2);//tmp.substr(found1+1,found2);
             }
             if(strncmp(argv[i], "-threads", 8) == 0){
                 numThreads = atoi(argv[++i]);
@@ -49,94 +61,32 @@ int main(int argc, char** argv){
     }
 
 
-    cout << "Input     : " << inputFileName << endl;
-    cout << "Output    : " << outputFileName << endl;
-    cout << "# threads : " << numThreads << endl;
+    cout << "Input      : " << inputFileName << endl;
+    cout << "Output     : " << outputFileName << endl;
+    cout << "Bench      : " << benchName << endl;
+    cout << "# threads  : " << numThreads << endl;
 
     if(!ckt->read_iccad2018(inputFileName)){
         cout << "Fail to read " << inputFileName << endl;
     }
 
-#ifdef DEBUG_MP
-    for(int i=0; i < ckt->multipins.size(); i++) {
-        OABusRouter::MultiPin* mp = &ckt->multipins[i];
-        cout << mp->id << endl;
-        cout << ckt->buses[mp->busid].name << endl;
-        
-        cout << ckt->layers[mp->l].name << endl;
-        cout << mp->pins.size() << " " << ckt->buses[mp->busid].numBits << endl;
-        cout << " - - - - - - - - " << endl;
-    }
-    //exit(0);
-#endif
-
-   
-    //ckt->Printall();
-
-    //exit(0);
-
     cout << "Initialize" << endl;
-    ckt->Init();
-    rou->InitInterval();
-    rou->InitGrid3D();
-    
-    
-    //cout << "Initialize" << endl;
-    //ckt->Init();
-    
-    cout << "Generate Backbone" << endl;
-    rou->GenBackbone();
-    //ckt->GenBackbone_v2();
-   
-    //ckt->RoutingPoint();
-    //cout << "Generate Plot file" << endl;
-    //ckt->GenPlot();
-
-    cout << "Topology Mapping 3D" << endl;
-    rou->TopologyMapping3D();
-
-
-    //cout << "Solve ILP" << endl;
-    //rou->SolveILP();
-    //<< endl;
-    //ckt->InitRoutingDirection();
-
-    cout << "Create Clips" << endl;
-    rou->CreateClips();
-
-
-    cout << "Solve ILP v2" << endl;
-    rou->SolveILP_v2();
-
-
-    cout << "Post Global Routing" << endl;
-    rou->PostGlobalRouting();
-
-    //exit(0);
-    cout << "TrackAssign" << endl;
-    rou->TrackAssign();
-
-
-    cout << "Create Via" << endl;
-    rou->CreateVia();
-
-    cout << "Mapping multipin to segment, pin to wire" << endl;
-    rou->MappingMultipin2Seg();
-    rou->MappingPin2Wire();
-
-    cout << "Pin access" << endl;
-    rou->RouteAll();
-
+    ckt->initialize();
+    //rou->initialize();
+    cout << "Route all" << endl;
+    rou->route_all();
+    cout << "Create Path" << endl;
+    ckt->create_path();
     cout << "Create Plot" << endl;
-    rou->Plot();
-
-    
+    rou->create_plot(benchName.c_str());
     cout << "Write def & lef file" << endl;
-    ckt->def_write();
-    ckt->lef_write();
-    ckt->debug();
+    ckt->out_write(outputFileName);
 
     cout << "End program" << endl;
+
+    measure.stop_clock("All");
+    measure.print_clock();
+
     return 0;
 }
 

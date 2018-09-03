@@ -261,13 +261,19 @@ namespace OABusRouter
         int id;
         int busid;
         int l;
-        vector<int> pins;
+        int llx, lly;
+        int urx, ury;
         int align;
         bool needVia;
+        vector<int> pins;
         MultiPin() :
             id(INT_MAX),
             busid(INT_MAX),
             l(INT_MAX),
+            llx(INT_MAX),
+            lly(INT_MAX),
+            urx(INT_MIN),
+            ury(INT_MIN),
             align(INT_MAX),
             needVia(false) {}
 
@@ -275,14 +281,38 @@ namespace OABusRouter
             id(mp.id),
             busid(mp.busid),
             l(mp.l),
+            llx(mp.llx),
+            lly(mp.lly),
+            urx(mp.urx),
+            ury(mp.ury),
             align(mp.align),
-            needVia(mp.needVia) 
-            {
-                pins.insert(pins.end(), mp.pins.begin(), mp.pins.end());
-            }
+            needVia(mp.needVia),
+            pins(mp.pins)
+        {}
+            
         void print();
         bool vertical_arrange();
     };
+
+    struct Path
+    {
+        int x[2];
+        int y[2];
+        int l;
+        bool via;
+        Path(){}
+        Path(const Path& p)
+        {
+            x[0] = p.x[0];
+            x[1] = p.x[1];
+            y[0] = p.y[0];
+            y[1] = p.y[1];
+            l = p.l;
+            via = p.via;
+        }
+
+    };
+
 
     struct Bit
     {
@@ -292,17 +322,22 @@ namespace OABusRouter
         vector<int> pins;
         vector<int> wires;
         vector<int> vias;
+        vector<Path> paths;
+        bool assign;
         //Rect boundary();
 
         Bit() : 
             id(INT_MAX), 
             name(INIT_STR), 
-            busName(INIT_STR) {}
+            busName(INIT_STR),
+            assign(false)
+        {}
 
         Bit(const Bit& b) :
             id(b.id),
             name(b.name),
-            busName(b.busName)
+            busName(b.busName),
+            assign(b.assign)
         {
             pins.insert(pins.end(), b.pins.begin(), b.pins.end());
         }
@@ -322,7 +357,8 @@ namespace OABusRouter
         vector<int> bits;
         vector<int> multipins;
         dense_hash_map<int,int> width;
-        
+
+        bool assign;
         //HashMap;
 
         Bus() : 
@@ -333,7 +369,8 @@ namespace OABusRouter
             lly(INT_MAX),
             urx(INT_MIN),
             ury(INT_MIN),
-            name(INIT_STR)
+            name(INIT_STR),
+            assign(false)
         {
             width.set_empty_key(INT_MAX); // INIT_STR);
         }
@@ -349,7 +386,9 @@ namespace OABusRouter
             name(b.name),
             bits(b.bits),
             multipins(b.multipins),
-            width(b.width) {} 
+            width(b.width),
+            assign(b.assign)
+        {} 
 
         void print();
     };
@@ -394,7 +433,9 @@ namespace OABusRouter
             id(con.id) {}
         void print();
     };
-    
+
+
+
     class Circuit
     {
       private:
@@ -482,17 +523,10 @@ namespace OABusRouter
         void lef_write(string filename);
         void out_write(string filename);
 
-        // pin_aceess.cpp
-        void pin_access();
-        void pin_access(string busName);
-        void debug();
-
         // init.cpp 
-        void Init();
-        void InitTrack();
-        void Getpitch();
-
-        void Printall();
+        void initialize();
+        void create_path();
+        void print_all();
 
         bool is_vertical(int l){ return layers[l].is_vertical(); }
 
