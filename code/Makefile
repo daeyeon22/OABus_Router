@@ -18,15 +18,15 @@ LINKCFLAGS = $(CFLAGS) -static-libstdc++ $(CPLEXLIBS) $(CONCERTLIBS)
 
 
 # source settings.
-SRCHASH 	= /home/tool/sparsehash/include
-BOOST 		= /home/tool/boost/install/1.63.0/include
-CPLEXDIR 	= /home/tool/IBM/ILOG/127/cplex/include
-CONCERTDIR 	= /home/tool/IBM/ILOG/127/concert/include
+#SRCHASH 	= /home/tool/sparsehash/include
+#BOOST 		= /home/tool/boost/install/1.63.0/include
+#CPLEXDIR 	= /home/tool/IBM/ILOG/127/cplex/include
+#CONCERTDIR 	= /home/tool/IBM/ILOG/127/concert/include
 # source settings.
-# SRCHASH 	= /home/tool/cpplib/sparsehash/install/2.0.3/include
-# BOOST 		= /home/tool/cpplib/boost/install/1.63.0/include
-# CPLEXDIR 	= /home/tool/ibm/install/12.7.0/cplex/include
-# CONCERTDIR 	= /home/tool/ibm/install/12.7.0/concert/include
+ SRCHASH 	= /home/tool/cpplib/sparsehash/install/2.0.3/include
+ BOOST 		= /home/tool/cpplib/boost/install/1.63.0/include
+ CPLEXDIR 	= /home/tool/ibm/install/12.7.0/cplex/include
+ CONCERTDIR 	= /home/tool/ibm/install/12.7.0/concert/include
 
 
 # FLUTE #

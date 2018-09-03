@@ -71,7 +71,10 @@ int main(int argc, char** argv){
     //exit(0);
 #endif
 
-   
+    cout << "Write def & lef file" << endl;
+    ckt->def_write();
+    ckt->lef_write();
+    exit(0); 
     //ckt->Printall();
 
     //exit(0);
@@ -134,9 +137,6 @@ int main(int argc, char** argv){
     //ckt->debug();
     ckt->pin_access();
     
-    cout << "Write def & lef file" << endl;
-    ckt->def_write();
-    ckt->lef_write();
 
     cout << "End program" << endl;
     return 0;
