@@ -195,39 +195,37 @@ void Circuit::lef_write(string file_name) {
 
 void Circuit::out_write(string file_name){ 
 
-    ofstream dot_out(file_name.c_str());
+    FILE* dot_out = fopen(file_name.c_str(), "w");
+    //ofstream dot_out(file_name.c_str());
 
-
-    if(!dot_out.good())
-    {
-        cerr << "out_writer :: cannot open '" << file_name << "' for writing. " << endl;
-#ifdef DEBUG
-        exit(0);
-#endif
-    }
-
-
+    int visit[rou->wires.size()];
+    memset(visit, -1, rou->wires.size());
 
     for(int i=0; i < buses.size(); i++)
     {
         Bus* curB = &buses[i];
-        dot_out << "BUS " << curB->name << endl;
-
+        fprintf(dot_out, "BUS %s\n", curB->name.c_str());
 
         for(int j =0; j < curB->numBits; j++)
         {
             Bit* curBit = &bits[curB->bits[j]];
-            dot_out << "BIT " << curBit->name << endl;
-            int numpath = curBit->wires.size(); 
-
+            fprintf(dot_out, "BIT %s\n", curBit->name.c_str());
+            fprintf(dot_out, "PATH %d\n", curBit->paths.size());
+            for(auto& p : curBit->paths)
+            {
+                if(p.via)
+                    fprintf(dot_out, "%s (%d %d)\n", layers[p.l].name.c_str(), p.x[0], p.y[0]);
+                else
+                    fprintf(dot_out, "%s (%d %d) (%d %d)\n", layers[p.l].name.c_str(), p.x[0], p.y[0], p.x[1], p.y[1]);
+            }
+            fprintf(dot_out, "ENDPATH\n");
+            fprintf(dot_out, "ENDBIT\n");
 
         }
-        dot_out << "ENDBUS" << endl;
+        fprintf(dot_out, "ENDBUS\n");
     }
 
-
-
-
+    fclose(dot_out);
 
     return;
 }

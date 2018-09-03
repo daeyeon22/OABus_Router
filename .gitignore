@@ -20,6 +20,7 @@ code/Makefile
 
 
 Makefile
+*.dat
 *.input
 *.lp
 *.lef
