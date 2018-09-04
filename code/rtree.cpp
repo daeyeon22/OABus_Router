@@ -477,6 +477,17 @@ bool OABusRouter::Router::set_neighbor(int w1, int w2, int x, int y)
 {
     Wire* wire1 = &wires[w1];
     Wire* wire2 = &wires[w2];
+    /////////////////////////////////////////////////////////////////////////////////////////////////////
+    //if(abs(wire1->l - wire2->l) > 1)
+    //{
+    //    cout << "Invalid set neighbor..." << endl;
+    //    printf("current bus : %s\n", ckt->bits[wire1->bitid].name.c_str());
+    //    printf("w%d (%d %d) (%d %d) M%d\n", wire1->id, wire1->x1, wire1->y1, wire1->x2, wire1->y2, wire1->l);
+    //    printf("w%d (%d %d) (%d %d) M%d\n", wire2->id, wire2->x1, wire2->y1, wire2->x2, wire2->y2, wire2->l);
+    //    exit(0);
+    //}
+    /////////////////////////////////////////////////////////////////////////////////////////////////////
+    
     wire1->neighbor.push_back(w2);
     wire2->neighbor.push_back(w1);
     wire1->intersection[w2] = {x,y};

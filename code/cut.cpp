@@ -58,6 +58,7 @@ void OABusRouter::Circuit::create_path()
                 wireid = s.top();
                 s.pop();
                 w1 = &rou->wires[wireid];
+                
                 if(!w1->via)
                 {
                     Path p;
@@ -73,10 +74,23 @@ void OABusRouter::Circuit::create_path()
 
 
                 vector<pair<int,pair<int,int>>> intersection;
-                
-                auto cmp = [](const pair<int, pair<int,int>> &left, const pair<int, pair<int,int>> &right)
+                Router* router = rou;
+                auto cmp = [&,router,wireid,this](const pair<int, pair<int,int>> &left, const pair<int, pair<int,int>> &right)
                 {
-                    return left.second.first < right.second.first || left.second.second < right.second.second;
+                    bool equal = (left.second.first == right.second.first) && (left.second.second == right.second.second);
+                    if(equal)
+                    {
+                        int id1 = left.first;
+                        int id2 = right.first;
+                        int l1, l2;
+                        l1 = (id1 != PINTYPE) ? router->wires[id1].l : this->pins[router->wire2pin[wireid]].l;
+                        l2 = (id2 != PINTYPE) ? router->wires[id2].l : this->pins[router->wire2pin[wireid]].l;
+                        return l1 < l2;
+                    }
+                    else
+                    {
+                        return (left.second.first < right.second.first || left.second.second < right.second.second);
+                    }
                 };
 
                 intersection.insert(intersection.end(), w1->intersection.begin(), w1->intersection.end());
@@ -95,16 +109,33 @@ void OABusRouter::Circuit::create_path()
                 }
                 */
                 sort(intersection.begin(), intersection.end(), cmp);
+#ifdef DEBUG_PATH
+                printf("%s wire%d -> #intersection %d\n",
+                        curpin->bitName.c_str(), w1->id, intersection.size());
+
+                if(w1->intersection.size() != intersection.size())
+                {
+                    cout << w1->intersection.size() << endl;
+                    cout << intersection.size() << endl;
+                    exit(0);
+                }
+#endif
 
                 for(auto& it : intersection)
                 {
-
                     x = it.second.first;
                     y = it.second.second;
                     
                     if(it.first == PINTYPE)
                     {
                         pinid = rou->wire2pin[w1->id];
+#ifdef DEBUG_PATH
+                        printf("%s wire%d (%d %d) (%d %d) M%d connected with pin%d at (%d %d) M%d\n",
+                                curpin->bitName.c_str(),
+                                w1->id, w1->x1, w1->y1, w1->x2, w1->y2, w1->l,
+                                pinid, x, y, pins[pinid].l);
+#endif
+
                         if(pins[pinid].l != w1->l)
                         {
                             Path p;
@@ -122,6 +153,13 @@ void OABusRouter::Circuit::create_path()
                         w2 = &rou->wires[wireid];
                         if(!visit[wireid])
                         {
+#ifdef DEBUG_PATH
+                            printf("%s wire%d (%d %d) (%d %d) M%d connected with wire%d at (%d %d) M%d\n",
+                                curpin->bitName.c_str(),
+                                w1->id, w1->x1, w1->y1, w1->x2, w1->y2, w1->l,
+                                w2->id, x, y, w2->l);
+#endif
+
                             visit[wireid] = true;
                             s.push(wireid);
                             if(w2->l != w1->l)
@@ -135,6 +173,13 @@ void OABusRouter::Circuit::create_path()
                                 p.via = true;
                                 paths.push_back(p);
                             }
+                        }
+                        else
+                        {
+#ifdef DEBUG_PATH
+                           printf("%s wire%d already visited!\n",
+                                   curpin->bitName.c_str(), w2->id);
+#endif
                         }
                     }
                 }
@@ -161,6 +206,18 @@ void OABusRouter::Circuit::create_path()
 #endif
         }
     }
+
+
+#ifdef DEBUG_PATH
+    for(int k=0; k < rou->wires.size(); k++)
+    {
+        if(!visit[k])
+        {
+            printf("wire %d unvisit\n", k);
+            exit(0);
+        }
+    }
+#endif
 
 
 }
