@@ -476,13 +476,13 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
     int failed_count=0;
     cout << "====================" << endl;
     printf("start routing %s\n", curbus->name.c_str());
-    printf("m1 (%d %d) (%d %d) : ", multipin2llx[m1], multipin2lly[m1], multipin2urx[m1], multipin2ury[m1]);
+    printf("multipin1 (%d %d) (%d %d) m%d : ", multipin2llx[m1], multipin2lly[m1], multipin2urx[m1], multipin2ury[m1], mp1->l);
     if(align1 == VERTICAL)
         printf("VERTICAL");
     else
         printf("HORIZONTAL");
     printf(" -> ");
-    printf("m2 (%d %d) (%d %d) : ", multipin2llx[m2], multipin2lly[m2], multipin2urx[m2], multipin2ury[m2]);
+    printf("multipin2 (%d %d) (%d %d) m%d : ", multipin2llx[m2], multipin2lly[m2], multipin2urx[m2], multipin2ury[m2], mp2->l);
     if(align2 == VERTICAL)
         printf("VERTICAL");
     else
@@ -1268,6 +1268,26 @@ bool OABusRouter::Router::t_junction_available(int busid, int x[], int y[], int 
     return true;
 }
 
+
+void OABusRouter::Router::range_of_tj(Segment& target, int ll[], int ur[])
+{
+    bool is_vertical = target.vertical;
+    ll[0] = (is_vertical) ? INT_MAX : INT_MIN;
+    ll[1] = (is_vertical) ? INT_MIN : INT_MAX;
+    ur[0] = (is_vertical) ? INT_MIN : INT_MAX;
+    ur[1] = (is_vertical) ? INT_MAX : INT_MIN;
+    
+    for(int i=0; i < target.wires.size(); i++)
+    {
+        Wire* curw = &wires[target.wires[i]];
+        ll[0] = is_vertical ? min(curw->x1, ll[0]) : max(curw->x1, ll[0]);
+        ll[1] = is_vertical ? max(curw->y1, ll[1]) : min(curw->y1, ll[1]);
+        ur[0] = is_vertical ? max(curw->x2, ur[0]) : min(curw->x2, ur[0]);
+        ur[1] = is_vertical ? min(curw->y2, ur[1]) : max(curw->y2, ur[1]);
+    }
+}
+
+
 bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment> &tp)
 {
 
@@ -1281,6 +1301,7 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
     int l1, l2, curDir, dist;
     int bitid, trackid, l, seq;
     int maxWidth, align;
+    int ll[2], ur[2];
     int xs[2], ys[2];
     int wirex[2], wirey[2];
     int pinx[2], piny[2];
@@ -1288,7 +1309,7 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
     int mx[2], my[2];
     int maxDepth = INT_MAX;
     int count, index;
-
+    int previousShape;
     bool pin;
     bool vertical_align;
     bool vertical;
@@ -1358,12 +1379,33 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
     for(auto seg : tp)
         PQ1.push(seg);
     
-
+    int iterCount=0;
+    bool retry = false;
     while(PQ1.size() > 0)
+    //Segment target;
+    //while(iterCount < PQ1.size()*2) 
     {
-        Segment target = PQ1.top();
+        Segment target  = PQ1.top();
         PQ1.pop();
-       
+
+        //Segment target;
+        /*
+        if(iterCount++ % 2 == 0)
+        { 
+            target = PQ1.top();
+            PQ1.pop();
+            retry = false;
+        }
+        else
+        {
+            if(previousShape != Direction::T_Junction)
+            {
+                
+            }
+
+        }
+        */
+
         printf("\n=========================================\n");
         printf("%s routing to tp start\n", curbus->name.c_str());
         printf("m (%d %d) (%d %d) m%d -> s (%d %d) (%d %d) m%d\n",
@@ -1371,6 +1413,8 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
 
         into_array(target.x1, target.x2, target.y1, target.y2, segx, segy);
         t_junction = t_junction_available(busid, segx, segy, target.l);
+        if(t_junction)
+            range_of_tj(target, ll, ur);
 
         // copy local rtree
         TrackRtree local_rtree_t(rtree_t);
@@ -1438,6 +1482,8 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
             }
         }
 
+
+        
         //
         for(i=0; i < numpins; i++)
         {
@@ -1586,9 +1632,34 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
 
                         if(isRef)
                         {
+                            /*
+                            if(t_junction)
+                            {
+                                if(!is_inside(x, y, ll, ur))
+                                {
+                                    continue;
+                                }
+                            }
+                            else
+                            {
+                                if(vertical != target.vertical && curShape == Direction::T_Junction)
+                                        continue;
+                            }
+                            */
+                            if(curShape == Direction::T_Junction)
+                            {
+                                if(!t_junction)
+                                    continue;
+                                else
+                                    if(!is_inside(x,y,ll,ur))
+                                        continue;
+                            }
+
+                            /*
                             if(vertical != target.vertical)
                                 if(!t_junction && curShape == Direction::T_Junction)
                                     continue;
+                            */
                         }
                         else
                         {
@@ -1656,21 +1727,8 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                     break;
 
                 if(elemCost[e1] < cost1 + cost2)
-                {
                     continue;
-                }
-                /*
-                if(cost1 > wirelength[e1] || cost2 > penalty[e1])
-                {
-                    //cout << "different cost!!" << endl;
-                    //cout << "cost1 : " << cost1 << endl;
-                    //cout << "orig1 : " << wirelength[e1] << endl;
-                    //cout << "cost2 : " << cost2 << endl;
-                    //cout << "orig2 : " << penalty[e1] << endl;
-                    //exit(0);
-                    continue;
-                }
-                */
+
                 //
                 total_visit_count++;
                 // depth condition
@@ -1682,7 +1740,6 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
 
                
                 // query
-                ////
                 queries.clear();
                 if(isRef)
                     local_rtree_t.query(QueryMode::Intersects, element[e1], l1-1, l1+1, queries);
@@ -1690,7 +1747,7 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                     local_rtree_t.query(QueryMode::Intersects, element[e1], tracelNum[depth[e1]+1], tracelNum[depth[e1]+1], queries);
 
 #ifdef DEBUG_ROUTE_MP_TO_TP
-                printf("e %d (%d %d) cost %d dep %d MinElem %d MinCost %d\n", e1, iterPtx[e1], iterPty[e1], cost1 + cost2, depth[e1], minElem, minCost); 
+                //printf("e %d (%d %d) cost %d dep %d MinElem %d MinCost %d\n", e1, iterPtx[e1], iterPty[e1], cost1 + cost2, depth[e1], minElem, minCost); 
                 //printf("# intersects segments : %d\n", queries.size());
 #endif
                 
@@ -1761,22 +1818,8 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                             continue;
                         }
 
-                        //cout << "pass direction" << endl;
-                        //if(curDir == Direction::Point)
-                        //{
-                        //    printf("current direction : Point\n");
-                        //}
-
-
                         if(curDir != Direction::Point)
                         {
-                            // wire ordering 
-                            //if(tracelx[dep] <= x && x <= traceux[dep])
-                            //    continue;
-
-                            //if(tracely[dep] <= y && y <= traceuy[dep])
-                            //    continue;
-
                             if(tracelx[dep] != traceux[dep] && tracely[dep] != traceuy[dep])
                             {
                                 if(tracePtx[dep] == tracelx[dep])
@@ -1867,8 +1910,6 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                     if(abs(tarwire->l - l2) <= 1 && bg::intersects(elem, wireseg))
                     {
 
-
-
                         intersection(elem, wireseg, ptx, pty); //
                         into_array(min(x, ptx), max(x, ptx), min(y, pty), max(y, pty), xs, ys);
                         vertical = local_rtree_t.is_vertical(e2);
@@ -1882,23 +1923,31 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
 
                         if(isRef)
                         {
-                            /*
-                            if(tarwire->l != l2)
+                            if(curShape == Direction::T_Junction)
                             {
-                                printf("intersects!!!\n");
-                                cout << bg::dsv(elem) << endl;
-                                cout << bg::dsv(wireseg) << endl;
-                                cout << "intersection (" << ptx << " " << pty <<")" << endl;
-                                if(curShape == Direction::EndPointLL)
-                                    cout << "EndPointLL" << endl;
-                                else if(curShape == Direction::EndPointUR)
-                                    cout << "EndPOintUR" << endl;
+                                if(!t_junction)
+                                    continue;
                                 else
-                                    cout << "T Junction" << endl;
-                                cout << endl;
+                                    if(!is_inside(ptx,pty,ll,ur))
+                                        continue;
                             }
-                       
+
+
+                            /*                            
+                            if(t_junction)
+                            {
+                                if(!is_inside(x, y, ll, ur))
+                                {
+                                    continue;
+                                }
+                            }
+                            else
+                            {
+                                if(curShape == Direction::T_Junction)
+                                    continue;
+                            }
                             */
+                            /*
                             if(local_rtree_t.is_vertical(e2) != target.vertical)
                                 if(!t_junction && curShape == Direction::T_Junction)
                                 {
@@ -1907,25 +1956,22 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                                     //        tarwire->x1, tarwire->y1, tarwire->x2, tarwire->y2, tarwire->l);
                                     continue;
                                 }
+                                */
                         }
                         else
-                        //if(!isRef)
                         {
 
                             if(curShape != lastRoutingShape)
                             {
-                                //cout << "different shape" << endl;
                                 continue;
                             }
                             if(maxDepth != dep)
                             {
-                                //cout << "different depth" << endl;
                                 continue;
                             }
                             curDir = routing_direction(x, y, ptx, pty, vertical);
                             if(traceDir[dep] != curDir)
                             {
-                                //cout << "different direction" << endl;
                                 continue;
                             }
                         }
@@ -2040,7 +2086,6 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                     l1 = local_rtree_t.get_layer(e1);
                     vertical = local_rtree_t.is_vertical(e1);
                     
-                    
                     //
                     tracelx[depth[e2]] = min(x2, tracelx[depth[e2]]);
                     tracely[depth[e2]] = min(y2, tracely[depth[e2]]);
@@ -2085,8 +2130,6 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                 {
                     printf("=========================================\n");
                     int tmp = minElem;
-
-
                     printf("current pin (%d %d) (%d %d) M%d -> target wire (%d %d) (%d %d) M%d\n",
                             curpin->llx, curpin->lly, curpin->urx, curpin->ury, curpin->l,
                             tarwire->x1, tarwire->y1, tarwire->x2, tarwire->y2, tarwire->l);
@@ -2177,7 +2220,6 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
             //printf("get solution\n");
             dense_hash_map<int,int> local2global;
             local2global.set_empty_key(INT_MAX);
-
             topology = vector<Segment>(maxDepth+1);
 
             for(i=0; i < numbits; i++)
@@ -2193,6 +2235,9 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                     pin = curw->pin;
                     trackid = curw->trackid;
                     bitid = curw->bitid;
+
+                    //curw = CreateWire(bitid, trackid, xs, ys, l, seq, pin);
+                    wireid = create_wire(bitid, trackid, xs, ys, l, seq, pin);
 #ifdef DEBUG_ROUTE_MP_TO_TP
                     curpin = &ckt->pins[curmp->pins[i]];
                     if(count==0)
@@ -2201,18 +2246,16 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                                 curpin->id, curpin->llx, curpin->lly, curpin->urx, curpin->ury, curpin->l);
                     }
 
-                    printf("%s (%d %d) (%d %d) M%d\n",
-                            ckt->bits[bitid].name.c_str(), xs[0], ys[0], xs[1], ys[1], l);
+                    printf("%s w%d (%d %d) (%d %d) M%d\n",
+                            ckt->bits[bitid].name.c_str(), wireid, xs[0], ys[0], xs[1], ys[1], l);
 
                     if(count == maxDepth)
                     {
                         tarwire = &wires[target.wires[i]];
-                        printf("%s (%d %d) (%d %d) M%d\n",
-                                ckt->bits[bitid].name.c_str(), tarwire->x1, tarwire->y1, tarwire->x2, tarwire->y2, tarwire->l);
+                        printf("%s w%d (%d %d) (%d %d) M%d\n",
+                                ckt->bits[bitid].name.c_str(), tarwire->id, tarwire->x1, tarwire->y1, tarwire->x2, tarwire->y2, tarwire->l);
                     }
 #endif
-                    //curw = CreateWire(bitid, trackid, xs, ys, l, seq, pin);
-                    wireid = create_wire(bitid, trackid, xs, ys, l, seq, pin);
                     local2global[index] = wireid;
                     if(count == 0)
                     {
@@ -2228,8 +2271,8 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                     topology[count].l = curw->l;
                     topology[count].vertical = curw->vertical;
                 }
-
             }
+
             for(count = 0; count < maxDepth+1; count++)
                 sort(topology[count].wires.begin(), topology[count].wires.end(), [&,this](int left, int right){
                         return this->wires[left].seq < this->wires[right].seq;
@@ -2241,6 +2284,9 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                 int w2 = local2global[local_edges[i].second];
                 //SetNeighbor(&wires[w1], &wires[w2], local_pts[i].first, local_pts[i].second);
                 set_neighbor(w1, w2, local_pts[i].first, local_pts[i].second);
+#ifdef DEBUG_ROUTE_MP_TO_TP
+                printf("set neighbor w%d w%d (%d %d)\n", w1, w2, local_pts[i].first, local_pts[i].second);
+#endif
             }
 
             for(i=0; i < global_edges.size(); i++)
@@ -2249,12 +2295,19 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                 int w2 = global_edges[i].second;
                 //SetNeighbor(&wires[w1], &wires[w2], global_pts[i].first, global_pts[i].second);
                 set_neighbor(w1, w2, global_pts[i].first, global_pts[i].second);
+#ifdef DEBUG_ROUTE_MP_TO_TP
+                printf("set neighbor w%d w%d (%d %d)\n", w1, w2, global_pts[i].first, global_pts[i].second);
+#endif
             }
 
             tp.insert(tp.end(), topology.begin(), topology.end());
             break;
+        }
+        else
+        {
+            // re try
 
-            //return true;
+
         }
         //
     }

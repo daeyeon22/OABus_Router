@@ -19,7 +19,7 @@
 
 #define HORIZONTAL 222
 #define VERTICAL 111 
-#define PINTYPE 1212
+#define PINTYPE -1212
 #define OBSTACLE -1232
 #define NOT_ASSIGN 3391
 
@@ -282,6 +282,7 @@ namespace OABusRouter
         void update_net_tp(vector<Segment>& tp);
         void create_plot(const char* benchName);
         void local_search_area(int m1, int m2, int count, int ll[], int ur[]);
+        void range_of_tj(Segment& target, int ll[], int ur[]);
         //void SetNeighbor(Wire* w1, Wire* w2, int x, int y);
         //bool Intersection(Wire* w1, Wire* w2, int &x, int &y);
         
