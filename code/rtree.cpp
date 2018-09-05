@@ -1,10 +1,11 @@
+#include "func.h"
 #include "rtree.h"
 #include "route.h"
 #include "circuit.h"
-#include "func.h"
 
 //#define DEBUG_RTREE
 //#define DEBUG_CREATE_WIRE
+
 
 void design_ruled_area(int x[], int y[], int width, int spac, bool vertical)
 {   
@@ -25,7 +26,13 @@ void design_ruled_area(int x[], int y[], int width, int spac, bool vertical)
 } 
 
 
-
+/*
+void into_array(int x1, int x2, int y1, int y2, int x[], int y[]);
+void into_array(int v1, int v2, int v[]);
+void expand_width(int x[], int y[], int width, int vertical);
+void pin_area(int x[], int y[], int align, int width, box& box);
+void design_ruled_area(int x[], int y[], int width, int spacing, bool vertical);
+*/
 bool OABusRouter::Wire::leaf()
 {
     return intersection.size() < 2;

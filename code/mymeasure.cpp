@@ -26,6 +26,13 @@ using namespace std;
 // have not been demand-loaded in, or which are swapped out.
 
 //void CMeasure::process_mem_usage(double& vm_usage, double& resident_set)
+double CMeasure::elapse_time()
+{
+	clock_t cend = clock();
+	double celapsed = (cend - cbegin)/CLOCKS_PER_SEC;
+    return celapsed;
+}
+
 void CMeasure::process_mem_usage(){
 	//vm_usage	  = 0.0;
 	//resident_set = 0.0;

@@ -75,6 +75,9 @@ class CMeasure {
 		void accm_clock_start(string task);
 		void accm_clock_end(string task);
 		void accm_clock_print(string task);
+        
+        double elapse_time();
+
 };
 
 const char* fileNameTrim(const char* fileName);

@@ -2,22 +2,14 @@
 #include <stdlib.h>
 #include <math.h>
 #include <set>
+#include "func.h"
 #include "circuit.h"
 #include "route.h"
-#include "func.h"
 
-
-//#define DEBUG
-
-//#define DEBUG_ROUTE
-//#define DEBUG_GRID
-
-
-
-
-
-
-
+bool OABusRouter::Router::should_stop()
+{
+    return ckt->should_stop();
+}
 
 void OABusRouter::Router::update_net_tp(vector<Segment> &tp)
 {
