@@ -10,7 +10,7 @@ import os
 import sys
 import subprocess as sp
 import time
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Pool
 from datetime import datetime
 
 
@@ -43,8 +43,9 @@ def ReadScore( outputFile ):
 
     return score
 
-def ExecuteBinary(benchName, queue):
+def ExecuteBinary(benchName):
     resultDic = {}
+    benchName = benchName.split('.')[0]
     curTime = datetime.now().strftime('%Y-%m-%d')
     runCommand = "%s -input %s/%s.input -threads %d -output %s/%s.out > %s/%s_%s.log" % (binaryName, dirpos, benchName, numThreads, outpos, benchName, logpos, benchName, curTime)
     startTime = time.time()
@@ -58,12 +59,11 @@ def ExecuteBinary(benchName, queue):
     evalFileName = "%s/%s.eval" % (logpos, benchName)
     score = ReadScore(evalFileName)
 
-    resultDic["Bench"] = benchName
+    resultDic['Bench'] = benchName
     for key, value in score.items():
         resultDic[key] = value
-    resultDic["RT"] = runTime
-
-    queue.put(resultDic)
+    resultDic['RT'] = runTime
+    return resultDic
 
 def ExecuteCommand( curCmd ):
     print( curCmd )
@@ -114,7 +114,11 @@ if __name__ == '__main__':
         benchList.append(benchName)
 
     # multiprocess start
-    q = Queue()
+    pool = Pool(processes=len(benchList))
+    dics = pool.map(ExecuteBinary, [bn for bn in benchList])
+    pool.close()
+
+    """
     for fileName in benchList:
         # remove previous logs    
         benchName = fileName.split('.')[0]
@@ -125,11 +129,12 @@ if __name__ == '__main__':
     # multiprocess join
     for proc in execProcs:
         proc.join()
-
-    keys = ["Bench", "CR", "Ps", "Pf", "cost", "RT"]
+    """
+    
+    keys = ['Bench', 'CR', 'Ps', 'Pf', 'cost', 'RT']
     summary = open("%s/summary_%s.txt" % (logpos, curTime), "w")
 
-    for dic in q:
+    for dic in dics:
         for key in keys:
             if key == 'Bench':
                 summary.write("< %s >\n" % (dic[key]))
@@ -137,6 +142,7 @@ if __name__ == '__main__':
                 summary.write("%4s :    %3.4f(s)\n" % (key, float(dic[key])))
             else:
                 summary.write("%4s :    %7s\n" % (key, dic[key]))
+        summary.write("\n\n")
 
     print("Done")
 

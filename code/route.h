@@ -21,6 +21,7 @@
 #define VERTICAL 111 
 #define PINTYPE -1212
 #define OBSTACLE -1232
+#define WIRETYPE -3319
 #define NOT_ASSIGN 3391
 
 #ifndef DTYPE       // Data type used by FLUTE
@@ -298,9 +299,14 @@ namespace OABusRouter
         bool get_intersection(int w1, int w2, int &x, int &y);
         bool t_junction_available(int busid, int x[], int y[], int l);
         bool routability_check(int m, int t, int dir);
-            
-    };
+        
+        void penalty_cost();
+        void remove_all(int busid);
+        void remove_wire(int wireid);
 
+        bool should_stop();
+
+    };
 
 };
 
