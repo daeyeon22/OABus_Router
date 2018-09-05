@@ -305,6 +305,7 @@ namespace OABusRouter
         void remove_wire(int wireid);
 
         bool should_stop();
+        void construct_bit_rtree(int bitid, BitRtree& bitrtree);
 
     };
 

@@ -166,7 +166,7 @@ void create_bus_plot(bool all, int busid, const char* fileName)
                     centerX = p.x[0] + layoutOffsetX;
                     centerY = p.y[0] + layoutOffsetY;
                     curl = p.l;
-                    doc << Circle(Point(centerX, centerY), circle_radius, colors[curl], Stroke(2*stroke_width, Color::Black));
+                    //doc << Circle(Point(centerX, centerY), circle_radius, colors[curl], Stroke(2*stroke_width, Color::Black));
                 }
                 else
                 {

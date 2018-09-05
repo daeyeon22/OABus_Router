@@ -284,6 +284,31 @@ bool OABusRouter::ObstacleRtree::insert_obstacle(int bitid, int x[], int y[], in
     return true;
 }
 
+bool OABusRouter::ObstacleRtree::short_violation(int bitid, int wirex[], int wirey[], int wl, int tarx[], int tary[], int tl)
+{
+
+    bool hasShort = false;
+    box area(pt(wirex[0], wirey[0]), pt(wirex[1], wirey[1]));
+    if(wl == tl)
+        insert_obstacle(bitid, tarx, tary, tl, true);
+
+
+    vector<pair<box,int>> queries;
+    rtree[wl].query(bgi::intersects(area), back_inserter(queries));
+    for(auto& it : queries)
+    {
+        if(it.second == bitid)
+        {
+            hasShort = true;
+            break;
+        }
+    }
+
+    if(wl == tl)
+        insert_obstacle(bitid, tarx, tary, tl, false);
+    
+    return hasShort;
+}
 
 bool OABusRouter::ObstacleRtree::spacing_violations(int bitid, int x[], int y[], int l, int width, int spacing, bool vertical)
 {
@@ -342,8 +367,78 @@ bool OABusRouter::ObstacleRtree::spacing_violations_ndr(int bitid, int x[], int 
     return false;
 }
 
+bool OABusRouter::BitRtree::short_violation(int x[], int y[], int l, set<int>& except1, set<int>& except2)
+{
+    box area(pt(x[0], y[0]), pt(x[1], y[1]));
+    vector<pair<box,int>> queries;
+    rtree[l].query(bgi::intersects(area), back_inserter(queries));
+    for(auto& it : queries)
+    {
+        int elemid = it.second;
+        if(elem2type[elemid] == PINTYPE)
+        {
+            if(except1.find(elem2pin[elemid]) == except1.end())
+                return true;
+        }
+        
+        if(elem2type[elemid] == WIRETYPE)
+        {
+            if(except2.find(elem2wire[elemid]) == except2.end())
+                return true;
+        }
+    }
+    return false;
+}
 
+void OABusRouter::Router::construct_bit_rtree(int bitid, BitRtree& bitrtree)
+{
+    int i, l, pinid, wireid, elemid, numPins, numWires;
+    int x[2], y[2];
+    bool vertical;
+    bitrtree = BitRtree(ckt->layers.size());
+    Bit* curbit = &ckt->bits[bitid];
+    dense_hash_map<int,int> width = ckt->buses[ckt->busHashMap[curbit->busName]].width;
 
+    numPins = curbit->pins.size();
+    numWires = curbit->wires.size();
+
+    for(i=0; i < numPins; i++)
+    {
+        Pin* curpin = &ckt->pins[curbit->pins[i]];
+        pinid = curpin->id;
+        l = curpin->l;
+        elemid = bitrtree.elems.size();
+
+        box pb(pt(curpin->llx, curpin->lly), pt(curpin->urx, curpin->ury));
+        bitrtree.elems.push_back(pb);
+        bitrtree.rtree[l].insert({pb,elemid});
+        bitrtree.elem2type[elemid] = PINTYPE;
+        bitrtree.elem2pin[elemid] = pinid;
+        bitrtree.elemindex++;
+    }
+
+    /*
+    for(i=0; i < numWires; i++)
+    {
+        Wire* curw = &wires[curbit->wires[i]];
+        wireid = curw->id;
+        l = curw->l;
+        elemid = bitrtree.elems.size();
+        vertical = curw->vertical;
+        x[0] = vertical ? curw->x1 - (int)(1.0*width[l]/2) : curw->x1;
+        x[1] = vertical ? curw->x2 + (int)(1.0*width[l]/2) : curw->x2;
+        y[0] = vertical ? curw->y1 : curw->y1 - (int)(1.0*width[l]/2);
+        y[1] = vertical ? curw->y2 : curw->y2 + (int)(1.0*width[l]/2);
+        
+        box pb(pt(x[0], y[0]), pt(x[1], y[1]));
+        bitrtree.elems.push_back(pb);
+        bitrtree.rtree[l].insert({pb,elemid});
+        bitrtree.elem2type[elemid] = WIRETYPE;
+        bitrtree.elem2wire[elemid] = wireid;
+        bitrtree.elemindex++;
+    }
+    */
+}
 bool OABusRouter::Router::routability_check(int m, int t, int dir)
 {
     enum Direction
@@ -445,6 +540,9 @@ bool OABusRouter::ObstacleRtree::compactness(int numbits, int mx[], int my[], in
     
     return !spacing_violations_ndr(-1, xs, ys, l1) && !spacing_violations_ndr(-1, xs, ys, l2) ? true : false;
 }
+
+
+
 
 int OABusRouter::Router::create_wire(int bitid, int trackid, int x[], int y[], int l, int seq, bool pin)
 {
