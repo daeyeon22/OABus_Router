@@ -18,7 +18,6 @@ static double scale = 1.0;
 void OABusRouter::Router::create_plot(const char* benchName)
 {
 
-    cout << "Create plots..." << endl;
     int i, numBuses;
     numBuses = ckt->buses.size();
 
@@ -33,11 +32,6 @@ void OABusRouter::Router::create_plot(const char* benchName)
 
     string filename = plotdir + benchName + "/" + "bus_all.svg";
     create_bus_plot(true, 0, filename.c_str());
-
-
-
-
-
 }
 
 

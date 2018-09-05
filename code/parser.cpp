@@ -603,27 +603,27 @@ bool OABusRouter::Circuit::read_iccad2018(char* fileName)
 
 
     if(!this->getParam(fileName)){
-        cout << "Fail to get parameters" << endl;
+        cout << "[ERROR] Fail to get parameters" << endl;
         return false;
     }
     
     if(!this->getLayerInfo(fileName)){
-        cout << "Fail to get layer information" << endl;
+        cout << "[ERROR] Fail to get layer information" << endl;
         return false;
     }
 
     if(!this->getTrackInfo(fileName)){
-        cout << "Fail to get track information" << endl;
+        cout << "[ERROR] Fail to get track information" << endl;
         return false;
     }
 
     if(!this->getBusInfo(fileName)){
-        cout << "Fail to get bus information" << endl;
+        cout << "[ERROR] Fail to get bus information" << endl;
         return false;
     }
 
     if(!this->getObstacleInfo(fileName)){
-        cout << "Fail to get obstacle information" << endl;
+        cout << "[ERROR] Fail to get obstacle information" << endl;
         return false;
     }
     
@@ -640,7 +640,7 @@ bool OABusRouter::Circuit::read_iccad2018(char* fileName)
                 });
     }
 
-    cout << "Success parsing" << endl;
+    cout << "[INFO] Success parsing" << endl;
     return true;
 }
 

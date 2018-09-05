@@ -18,8 +18,9 @@ void OABusRouter::Circuit::create_path()
 
     for(int i=0; i < buses.size(); i++)
     {
-        if(!ckt->buses[i].assign)
-            continue;
+        //
+        //if(!ckt->buses[i].assign)
+        //    continue;
 
         int k=0;
         while(true)

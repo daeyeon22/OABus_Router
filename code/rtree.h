@@ -91,6 +91,8 @@ namespace OABusRouter
         vector<SegRtree> rtree;
         vector<Interval> tracks;
         dense_hash_map<int,int> elem2track;
+        dense_hash_map<int,int> elem2wire;
+
 
         TrackRtree()
         {}
@@ -102,13 +104,15 @@ namespace OABusRouter
             rtree = vector<SegRtree>(numlayers);
             tracks = vector<Interval>(numtracks);
             elem2track.set_empty_key(INT_MAX);
+            elem2wire.set_empty_key(INT_MAX);
         }
         
         TrackRtree(const TrackRtree& tr) :
             elemindex(tr.elemindex),
             rtree(tr.rtree),
             tracks(tr.tracks),
-            elem2track(tr.elem2track)
+            elem2track(tr.elem2track),
+            elem2wire(tr.elem2wire)
         {}
 
         SegRtree* operator [] (int l)
@@ -127,6 +131,7 @@ namespace OABusRouter
         }
 
 
+        
         // getter
         int get_trackid(int e);
         int get_width(int e);

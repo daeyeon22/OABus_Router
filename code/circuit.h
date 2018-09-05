@@ -27,6 +27,7 @@
 #include <boost/icl/interval_base_map.hpp>
 
 #include "func.h"
+#include "mymeasure.h"
 //#include "flute.h"
 
 // Dense hash map
@@ -76,6 +77,7 @@ typedef bg::model::linestring<bgPointT> linestring;
 typedef bg::model::multi_linestring<linestring> mlinestring;
 typedef bg::model::polygon<bgPointT> poly;
 typedef bg::model::multi_polygon<poly> mpoly;
+static CMeasure measure;
 
 // Obstacle-Aware On-Track Bus Router
 namespace OABusRouter
@@ -584,6 +586,8 @@ namespace OABusRouter
 
         bool is_vertical(int l){ return layers[l].is_vertical(); }
 
+
+        bool should_stop();
     };
 
 

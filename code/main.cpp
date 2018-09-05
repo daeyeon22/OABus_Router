@@ -1,10 +1,8 @@
 
 #include "circuit.h"
 #include "route.h"
-#include "mymeasure.h"
 
 using namespace std;
-static CMeasure measure;
 
 // Static variables
 OABusRouter::Circuit* OABusRouter::Circuit::instance = nullptr;
@@ -21,7 +19,29 @@ OABusRouter::Router* OABusRouter::Router::shared(){
 //
 
 
+
+bool OABusRouter::Circuit::should_stop()
+{
+    double elapse_time = measure.elapse_time();
+    double runtime_limit = (double)runtime * 60;
+
+    if(elapse_time > 0.8*runtime_limit)
+    {
+        printf("\n");
+        printf("[INFO] elapse time over 80% runtime limit\n");
+        printf("[INFO] Runtime limit   : %.2f\n", runtime_limit);
+        printf("[INFO] Elapse time     : %.2f\n", elapse_time);
+        printf("\n");
+        return true;
+    }
+    else
+        return false;
+}
+
+
 int main(int argc, char** argv){
+    
+    measure.start_clock();
     
     cout << "================================================================" <<endl;
     cout << "    ICCAD 2018 Contest on Obstacle-aware Bus Routing            " <<endl;
@@ -33,7 +53,6 @@ int main(int argc, char** argv){
     char* outputFileName;
     string benchName;
     int numThreads;
-    measure.start_clock();
 
     for(int i=1; i < argc; i++){
         if(i+1 != argc){
@@ -58,30 +77,37 @@ int main(int argc, char** argv){
     }
 
 
+    cout << "< Argument Report >" << endl;
     cout << "Input      : " << inputFileName << endl;
     cout << "Output     : " << outputFileName << endl;
     cout << "Bench      : " << benchName << endl;
     cout << "# threads  : " << numThreads << endl;
+    cout << endl;
 
     if(!ckt->read_iccad2018(inputFileName)){
         cout << "Fail to read " << inputFileName << endl;
     }
 
-    cout << "Initialize" << endl;
+    cout << "[INFO] start Initialize" << endl;
     ckt->initialize();
     //rou->initialize();
-    cout << "Route all" << endl;
+    cout << "[INFO] start route all" << endl;
     rou->route_all();
-    cout << "Create Path" << endl;
-    ckt->create_path();
-    cout << "Create Plot" << endl;
-    rou->create_plot(benchName.c_str());
-    cout << "Write def & lef file" << endl;
-    ckt->def_write();
-    ckt->lef_write();
-    ckt->out_write(outputFileName);
 
-    cout << "End program" << endl;
+    
+    cout << "[INFO] start Create Path" << endl;
+    ckt->create_path();
+    cout << "[INFO] start Create Plot" << endl;
+    rou->create_plot(benchName.c_str());
+    cout << "[INFO] start Write def & lef file" << endl;
+    ckt->out_write(outputFileName);
+    //ckt->def_write();
+    //ckt->lef_write();
+    
+
+    rou->penalty_cost();
+
+    cout << "[INFO] End program" << endl;
 
     measure.stop_clock("All");
     measure.print_clock();

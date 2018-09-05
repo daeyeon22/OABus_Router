@@ -1,7 +1,7 @@
 
+#include "func.h"
 #include "circuit.h"
 #include "route.h"
-#include "func.h"
 #include "rtree.h"
 
 #include <stdlib.h>
@@ -60,9 +60,6 @@ A pop_random(vector<A>& target)
     return value;
 }
 
-
-
-
 int routing_direction(int x1, int y1, int x2, int y2, bool vertical)
 {
     if(vertical)
@@ -99,7 +96,6 @@ void into_array(int x1, int x2, int y1, int y2, int x[], int y[])
 }
 
 
-
 void OABusRouter::Wire::get_info(int b, int t, int x[], int y[], int curl, int s, bool accessPin)
 {
     id = NOT_ASSIGN;
@@ -123,6 +119,7 @@ void OABusRouter::Wire::add_intersection(int key, pair<int,int> p)
     intersection[key] = p;
 }
 
+
 void pin_area(int x[], int y[], int align, int width, box& pb)
 {
     if(align == VERTICAL)
@@ -138,7 +135,6 @@ void pin_area(int x[], int y[], int align, int width, box& pb)
     
     pb = box(pt(x[0], y[0]), pt(x[1], y[1]));
 }
-
 void expand_width(int x[], int y[], int width, bool vertical)
 {
     if(vertical)
@@ -156,7 +152,8 @@ void expand_width(int x[], int y[], int width, bool vertical)
 
 void OABusRouter::Router::route_all()
 {
-
+    int total_buses = ckt->buses.size();
+    int total_success = 0;
     //gen_backbone();
     vector<int> sorted;
     for(auto& b : ckt->buses)
@@ -172,37 +169,53 @@ void OABusRouter::Router::route_all()
                 return (y1 > y2); // || ((y1 == y2) && (x1 < x2));
             });
 
+    cout << "< Sorted Bus Sequence >\n" << endl;
     for(auto& busid : sorted)
     {
         Bus* curbus = &ckt->buses[busid];
         printf("%s (%d %d) (%d %d)\n", curbus->name.c_str(), curbus->llx, curbus->lly, curbus->urx, curbus->ury);
     }
+    cout << endl;
 
 
     for(auto& busid : sorted){
         Bus* curbus = &ckt->buses[busid];
+        
+        // check elapse time and runtime limit
+        if(should_stop())
+        {
+            curbus->assign = false;
+            break;
+        }
+
         if(route_bus(busid))
         {
             curbus->assign = true;
-            printf("%s -> routing success\n", curbus->name.c_str());   
+            //printf("%s -> routing success\n", curbus->name.c_str());   
+            total_success++;
         }
         else
         {
             curbus->assign = false;
-            printf("%s -> routing failed\n", curbus->name.c_str());
+            //remove_all(busid);
+            cout << "[INFO] " << curbus->name << " routing failed" << endl;
+            //printf("%s -> routing failed\n", curbus->name.c_str());
         }
         
     }
 
-    printf("\n======================\n");
-    printf("    # failed tw : %d\n", failed_tw);
-    printf("    # failed tp : %d\n", failed_tp);
-    printf("======================\n");
+    printf("- - - - - - - - - - - - - - - - -\n");
+    printf("[INFO] # failed tw         : %d\n", failed_tw);
+    printf("[INFO] # failed tp         : %d\n", failed_tp);
+    printf("[INFO] # routing success   : %d\n", total_success);
+    printf("[INFO] # routing failed    : %d\n", total_buses - total_success);
+    printf("- - - - - - - - - - - - - - - - -\n");
     
 }
 
 bool OABusRouter::Router::route_bus(int busid)
 {
+    bool routing_success = true;
     int congested;
     int mp1, mp2;
     int numMultipins;
@@ -240,6 +253,14 @@ bool OABusRouter::Router::route_bus(int busid)
     // loop for route_two_pin_net
     while(comb.size() > 0)
     {
+
+        // check elapse time and runtime limit
+        if(should_stop())
+        {
+            routing_success = false;
+            break;
+        }
+
         candi = *comb.begin();
         comb.erase(comb.begin());
         //candi = pop_random(comb);
@@ -257,6 +278,14 @@ bool OABusRouter::Router::route_bus(int busid)
             // route until no remained multipins
             while(mps.size() > 0)
             {
+
+                // check elapse time and runtime limit
+                if(should_stop())
+                {
+                    routing_success = false;
+                    break;
+                }
+                
                 mp1 = pop_random(mps);
                 // route target multipin to net topologies (tp)
                 
@@ -264,13 +293,14 @@ bool OABusRouter::Router::route_bus(int busid)
                 if(!route_multipin_to_tp(busid, mp1, tp))
                 {
                     // rip-up
-                    congested = get_congested_bus(busid);
-                    rip_up(congested);
-                    reroutes.push_back(congested);
+                    //congested = get_congested_bus(busid);
+                    //rip_up(congested);
+                    //reroutes.push_back(congested);
                     // re-try
-                    mps.push_back(mp1);
+                    //mps.push_back(mp1);
+                    //break;
+                    routing_success = false;
                     break;
-                
                 }
                 
                  
@@ -283,19 +313,24 @@ bool OABusRouter::Router::route_bus(int busid)
                 if(!reroute(reroutes[i]))
                 {
                     // do something
-                    return false;
+                    //return false;
+                    routing_success = false;
+                    break;
                 }
             }
 
             // update to global structure
             update_net_tp(tp);
-
+            break;
             // routing success
-            return true;
+            //return true;
         }
     }
+
+    
+
     // routing fail
-    return false;
+    return routing_success;
 }
 
 void OABusRouter::Router::sort_pins_routing_sequence(int m1, int m2, vector<int>& sorted1, vector<int>& sorted2)
@@ -419,6 +454,12 @@ void OABusRouter::Router::local_search_area(int m1, int m2, int count, int ll[],
 
 bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Segment> &tp)
 {
+    // check elapse time and runtime limit
+    if(should_stop())
+    {
+        return false;
+    }
+    
     // Variables
     int i, j, wireid;
     int numwires, numpins;
@@ -475,27 +516,19 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
     width = curbus->width;
     int visit_count=0;
     int failed_count=0;
-    cout << "====================" << endl;
-    printf("start routing %s\n", curbus->name.c_str());
-    printf("multipin1 (%d %d) (%d %d) m%d : ", multipin2llx[m1], multipin2lly[m1], multipin2urx[m1], multipin2ury[m1], mp1->l);
-    if(align1 == VERTICAL)
-        printf("VERTICAL");
-    else
-        printf("HORIZONTAL");
-    printf(" -> ");
-    printf("multipin2 (%d %d) (%d %d) m%d : ", multipin2llx[m2], multipin2lly[m2], multipin2urx[m2], multipin2ury[m2], mp2->l);
-    if(align2 == VERTICAL)
-        printf("VERTICAL");
-    else
-        printf("HORIZONTAL");
-    printf("\n");
-
     int iterCount=0;
     bool maximum_search_area = false;
     bool swapped = false;
 
     while(iterCount++ < 4)
     {
+        // check elapse time and runtime limit
+        if(should_stop())
+        {
+            return false;
+        }
+
+        
         if(iterCount % 2 == 0)
         {
             swap(mp1, mp2);
@@ -512,8 +545,6 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
             sequence[mp1->pins[i]] = i;
         }
 
-
-       
         
         // get copied rtree
         tp.clear();
@@ -542,21 +573,17 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
         {
             local_search_area(m1, m2, iterCount, local_area_ll, local_area_ur);
         }
-        /*
-        if(local_area_ll[0] == ckt->originX && local_area_ur[0] == ckt->originX + ckt->width
-                && local_area_ll[1] == ckt->originY && local_area_ur[1] == ckt->originY + ckt->height)
-        {
-            maximum_search_area = true;
 
-            //iterCount = MAX_ITERATION_COUNT-1;
-        }
-        */
-        //printf("local search area (%d %d) (%d %d)\n", local_area_ll[0], local_area_ll[1],
-        //        local_area_ur[0], local_area_ur[1]);
         solution = true;
 
         for(i=0; i < numbits; i++)
         {
+            // check elapse time and runtime limit
+            if(should_stop())
+            {
+                return false;
+            }
+
             // always pin1 located leftside of pin2
             pin1 = &ckt->pins[sorted1[i]];
             pin2 = &ckt->pins[sorted2[i]];
@@ -748,14 +775,6 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
                 if(elemCost[e1] < cost1 + cost2)
                     continue;
 
-
-                if(isRef)
-                {
-                    //printf("e %d (%d %d) cost %d dep %d\n", e1, iterPtx[e1], iterPty[e1], cost1 + cost2, depth[e1]); //iterPtx[e2], iterPty[e2], elemCost[e2]);
-                }
-                //printf("MinCost %d CurCost %d\n", minCost, cost1 + cost2);
-                // 
-
                 if(hasMinElem)
                 {
                     if(e1 == minElem)
@@ -810,8 +829,6 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
                     // condition
                     if(abs(l1 - l2) > 1)
                         continue;
-
-
 
 
                     // width constraint
@@ -958,10 +975,7 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
                     iterPtx[e2] = x;
                     iterPty[e2] = y;
                     elemCost[e2] = c1 + c2;
-#ifdef DEBUG_ROUTE_TWOPIN_NET
-                    //printf("PUSH e %d (%d %d) cost %d dep %d\n", e2, x, y, c1+c2, dep);
-#endif
-                    
+
                     // if current element arrivals destination
                     // compare minimum cost
                     if(destination)
@@ -996,7 +1010,8 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
 
 #ifdef DEBUG_ROUTE_TWOPIN_NET
                 printf("backtrace\n");
-                printf("min cost %d depth %d\n(%d %d) -> [%d] (%d %d)", minCost, depth[minElem], lastPtx[minElem], lastPty[minElem], minElem, iterPtx[minElem], iterPty[minElem]);
+                printf("min cost %d depth %d\n(%d %d) -> [%d] (%d %d)", 
+                        minCost, depth[minElem], lastPtx[minElem], lastPty[minElem], minElem, iterPtx[minElem], iterPty[minElem]);
 
                 int tmp = minElem;
                 while(tmp != backtrace[tmp])
@@ -1133,8 +1148,6 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
                 for(count = 0; count < maxDepth+1 ; count++)
                 {
                     index = i*(maxDepth+1) + count;
-                    //wireid = wires.size();
-                    //local2global[index] = wireid;
 
                     Wire* curw = &created[index];
                     into_array(curw->x1, curw->x2, curw->y1, curw->y2, xs, ys);
@@ -1148,33 +1161,11 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
                     local2global[index] = wireid;
 
 #ifdef DEBUG_ROUTE_TWOPIN_NET
-                    if(bitid != curbus->bits[i])
-                    {
-                        cout << "illegal bitid ..." << endl;
-                        cout << "b1 : " << bitid << endl;
-                        cout << "b2 : " << curbus->bits[i] << endl;
-                        cout << "seq : " << seq << endl;
-                        cout << "index : " << index << endl;
-                        exit(0);
-                    }
-
-                    if(i != seq)
-                    {
-                        cout << "illegal seq ..." << endl;
-                        exit(0);
-                    }
-
                     if(count==0)
                     {
                         pin1 = &ckt->pins[mp1->pins[i]];
                         pin2 = &ckt->pins[mp2->pins[i]];
                         printf("p%d -> p%d seq %d bitid %d\n", mp1->pins[i], mp2->pins[i], seq, bitid);
-                        /*
-                           printf("%s p1 (%d %d) (%d %d) -> p2 (%d %d) (%d %d)\n", 
-                           ckt->bits[curbus->bits[bitid]].name.c_str(),
-                           pin1->llx, pin1->lly, pin1->urx, pin1->ury,
-                           pin2->llx, pin2->lly, pin2->urx, pin2->ury);
-                           */
                     }
 
                     printf("    %s (%d %d) (%d %d) M%d ",
@@ -1227,9 +1218,17 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
         }
     }
 
+    cout << "< Route Twopin Net Report >" << endl;
+    cout << "Bus        : " << curbus->name << endl;
+    cout << "MultiPin1  : (" 
+        << multipin2llx[m1] << " " << multipin2lly[m1] << ") (" 
+        << multipin2urx[m1] << " " << multipin2ury[m1] << ") M" << mp1->l << endl;
+    cout << "MultiPin2  : (" 
+        << multipin2llx[m2] << " " << multipin2lly[m2] << ") (" 
+        << multipin2urx[m2] << " " << multipin2ury[m2] << ") M" << mp2->l << endl;
     cout << "# visiting : " << visit_count << endl;
-    cout << "# failed   : " << failed_count << endl;
-    cout << "====================" << endl << endl;
+    cout << "# failed   : " << failed_count << endl << endl;
+    
     return solution; 
 }
 
@@ -1292,6 +1291,12 @@ void OABusRouter::Router::range_of_tj(Segment& target, int ll[], int ur[])
 bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment> &tp)
 {
 
+    // check elapse time and runtime limit
+    if(should_stop())
+    {
+        return false;
+    }
+
     // Variables
     int i, j, wireid;
     int numwires, numpins;
@@ -1317,6 +1322,9 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
     bool solution = false;
     bool isRef;
     bool t_junction;
+    bool ep_ll;
+    bool ep_ur;
+
     typedef PointBG pt;
     typedef SegmentBG seg;
     typedef BoxBG box;
@@ -1334,7 +1342,7 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
     MultiPin* curmp;
     //SegRtree* trackrtree;
     Circuit* circuit;
-
+    Segment target;
     //Rtree localrtree(rtree);
     //trackrtree = &localrtree.track;
     
@@ -1381,42 +1389,38 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
         PQ1.push(seg);
     
     int iterCount=0;
+    int firstDir;
     bool retry = false;
+    bool ref_fail = false;
+    
     while(PQ1.size() > 0)
-    //Segment target;
-    //while(iterCount < PQ1.size()*2) 
     {
-        Segment target  = PQ1.top();
-        PQ1.pop();
-
-        //Segment target;
-        /*
-        if(iterCount++ % 2 == 0)
-        { 
-            target = PQ1.top();
-            PQ1.pop();
-            retry = false;
-        }
-        else
+        // check elapse time and runtime limit
+        if(should_stop())
         {
-            if(previousShape != Direction::T_Junction)
-            {
-                
-            }
-
+            return false;
         }
-        */
 
-        printf("\n=========================================\n");
-        printf("%s routing to tp start\n", curbus->name.c_str());
-        printf("m (%d %d) (%d %d) m%d -> s (%d %d) (%d %d) m%d\n",
-                mx[0], my[0], mx[1], my[1], l, target.x1, target.y1, target.x2, target.y2, target.l);
-
-        into_array(target.x1, target.x2, target.y1, target.y2, segx, segy);
-        t_junction = t_junction_available(busid, segx, segy, target.l);
-        if(t_junction)
-            range_of_tj(target, ll, ur);
-
+        target  = PQ1.top();
+        //PQ1.pop();
+        
+        if(!retry)
+        {
+            ep_ll = true;
+            ep_ur = true;
+            into_array(target.x1, target.x2, target.y1, target.y2, segx, segy);
+            t_junction = t_junction_available(busid, segx, segy, target.l);
+            if(t_junction)
+                range_of_tj(target, ll, ur);
+        }
+           
+        //ep_ll = true;
+        //ep_ur = true;
+        //into_array(target.x1, target.x2, target.y1, target.y2, segx, segy);
+        //t_junction = t_junction_available(busid, segx, segy, target.l);
+        //if(t_junction)
+        //    range_of_tj(target, ll, ur);
+        
         // copy local rtree
         TrackRtree local_rtree_t(rtree_t);
         ObstacleRtree local_rtree_o(rtree_o);
@@ -1488,6 +1492,14 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
         //
         for(i=0; i < numpins; i++)
         {
+
+                // check elapse time and runtime limit
+            if(should_stop())
+            {
+                return false;
+            }
+
+
             seq = sequence[sorted[i]];
             curpin = &ckt->pins[sorted[i]];
             tarwire = &wires[target.wires[seq]];
@@ -1573,21 +1585,9 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                     l1 = local_rtree_t.get_layer(e1);
                     maxWidth = local_rtree_t.get_width(e1);
 
-                    //if(abs(l1 - curpin->l) == 1 && !bg::intersects(orig, it.first))
-                    //    continue;
-
                     // width constraint
                     if(maxWidth < width[l1])
                         continue;
-
-                    //
-                    //if(vertical_align == local_rtree_t.is_vertical(e1))
-                    //    continue;
-
-                    //
-                    //if(abs(curpin->l - l1) > 1)
-                    //    continue;
-
 
                     // visit
                     backtrace[e1] = e1; // root
@@ -1633,20 +1633,21 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
 
                         if(isRef)
                         {
-                            /*
-                            if(t_junction)
-                            {
-                                if(!is_inside(x, y, ll, ur))
-                                {
+                            if(curShape == Direction::T_Junction)
+                                if(!t_junction)
                                     continue;
-                                }
-                            }
-                            else
-                            {
-                                if(vertical != target.vertical && curShape == Direction::T_Junction)
+                                else
+                                    if(!is_inside(x,y,ll,ur))
                                         continue;
-                            }
-                            */
+
+                            if(curShape == Direction::EndPointLL && !ep_ll)
+                                continue;
+
+                            if(curShape == Direction::EndPointUR && !ep_ur)
+                                continue;
+                            
+                            
+                            /*
                             if(curShape == Direction::T_Junction)
                             {
                                 if(!t_junction)
@@ -1655,11 +1656,6 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                                     if(!is_inside(x,y,ll,ur))
                                         continue;
                             }
-
-                            /*
-                            if(vertical != target.vertical)
-                                if(!t_junction && curShape == Direction::T_Junction)
-                                    continue;
                             */
                         }
                         else
@@ -1775,15 +1771,14 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                     c1 = cost1 + manhatan_distance(iterPtx[e1], iterPty[e1], x, y) + abs(l1-l2) * VIA_COST + DEPTH_COST;
                     c2 = cost2;
                     
-                    ///////////////////////////////////
+#ifdef DEBUG_ROUTE_MP_TO_TP
                     //if(isRef)
                     //{
                     //    printf("candidate (%d %d) (%d %d) M%d dep %d maxWidth %d intersect (%d %d)\n",
                     //            (int)bg::get<0,0>(elem), (int)bg::get<0,1>(elem), (int)bg::get<1,0>(elem), (int)bg::get<1,1>(elem), l2, dep, maxWidth,
                     //            x, y);
                     //}
-                    ///////////////////////////////////
-
+#endif
                     if(maxWidth < width[l2])
                     {
                         cout << "width condtion..." << endl;
@@ -1925,6 +1920,19 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                         if(isRef)
                         {
                             if(curShape == Direction::T_Junction)
+                                if(!t_junction)
+                                    continue;
+                                else
+                                    if(!is_inside(ptx,pty,ll,ur))
+                                        continue;
+
+                            if(curShape == Direction::EndPointLL && !ep_ll)
+                                continue;
+
+                            if(curShape == Direction::EndPointUR && !ep_ur)
+                                continue;
+                            /* 
+                            if(curShape == Direction::T_Junction)
                             {
                                 if(!t_junction)
                                     continue;
@@ -1932,32 +1940,8 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                                     if(!is_inside(ptx,pty,ll,ur))
                                         continue;
                             }
-
-
-                            /*                            
-                            if(t_junction)
-                            {
-                                if(!is_inside(x, y, ll, ur))
-                                {
-                                    continue;
-                                }
-                            }
-                            else
-                            {
-                                if(curShape == Direction::T_Junction)
-                                    continue;
-                            }
                             */
-                            /*
-                            if(local_rtree_t.is_vertical(e2) != target.vertical)
-                                if(!t_junction && curShape == Direction::T_Junction)
-                                {
-                                    //printf("intersection (%d %d)\n wire (%d %d) (%d %d) M%d \n target (%d %d) (%d %d) M%d\n",
-                                    //        ptx, pty, iterPtx[e2], iterPty[e2], ptx, pty, local_rtree_t.get_layer(e2),
-                                    //        tarwire->x1, tarwire->y1, tarwire->x2, tarwire->y2, tarwire->l);
-                                    continue;
-                                }
-                                */
+
                         }
                         else
                         {
@@ -2011,9 +1995,6 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                             lastPtx[e2] = ptx;
                             lastPty[e2] = pty;
                             PQ2.push(make_tuple(DESTINATION, c1, c2));
-
-                       
-                        
                         }
                     }
                 }
@@ -2129,90 +2110,88 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                 
                 if(isRef)
                 {
-                    printf("=========================================\n");
-                    int tmp = minElem;
-                    printf("current pin (%d %d) (%d %d) M%d -> target wire (%d %d) (%d %d) M%d\n",
-                            curpin->llx, curpin->lly, curpin->urx, curpin->ury, curpin->l,
-                            tarwire->x1, tarwire->y1, tarwire->x2, tarwire->y2, tarwire->l);
-
-                    printf("trace layer     = { ");
-                    printf("M%d (%d %d) -> ", tracelNum[depth[tmp]], lastPtx[tmp], lastPty[tmp]);
-                    while(tmp != backtrace[tmp])
+                    printf("< Reference Bit Routing Report >\n");
+                    for(int tmp = minElem; ; tmp = backtrace[tmp])
                     {
-                        printf("M%d (%d %d) -> ", tracelNum[depth[tmp]], iterPtx[tmp], iterPty[tmp]);
-                        tmp = backtrace[tmp];
-
-                    }
-                    printf("M%d (%d %d) }\n", tracelNum[depth[tmp]], iterPtx[tmp], iterPty[tmp]);
-
-                    printf("trace dir       = { ");
-                    tmp = minElem;
-                    while(true)
-                    {
-                        switch(traceDir[depth[tmp]])
+                        if(tmp == minElem)
                         {
-                            case Direction::Left:
-                                printf("Left ");
-                                break;
-                            case Direction::Right:
-                                printf("Right ");
-                                break;
-                            case Direction::Up:
-                                printf("Up ");
-                                break;
-                            case Direction::Down:
-                                printf("Down ");
-                                break;
-                            case Direction::Point:
-                                printf("Point ");
-                                break;
-                            default:
-                                printf("?? ");
-                                break;
+                            printf("bus name : %s\n", curbus->name.c_str());
+                            printf("pin loc (%d %d) (%d %d) M%d\n",
+                                    curpin->llx, curpin->lly, curpin->urx, curpin->ury, curpin->l);
+                            printf("tar loc (%d %d) (%d %d) M%d\n", 
+                                    tarwire->x1, tarwire->y1, tarwire->x2, tarwire->y2, tarwire->l);
+                            printf("trace layer num = { ");
+                            printf("M%d (%d %d) -> ", tracelNum[depth[tmp]], lastPtx[tmp], lastPty[tmp]);
                         }
+                        
+                        if(tmp == backtrace[tmp])
+                        {
+                            printf("M%d (%d %d) }\n", tracelNum[depth[tmp]], iterPtx[tmp], iterPty[tmp]);
+                            break;
+                        }
+                        else
+                            printf("M%d (%d %d) -> ", tracelNum[depth[tmp]], iterPtx[tmp], iterPty[tmp]);
+                    }
+
+                    for(int tmp = minElem; ; tmp = backtrace[tmp])
+                    //for(int tmp = minElem; tmp != backtrace[tmp]; tmp = backtrace[tmp])
+                    {
+                        if(tmp == minElem)
+                            printf("trace direction = { ");
+                        if(traceDir[depth[tmp]] == Direction::Left)
+                            printf("Left ");
+                        if(traceDir[depth[tmp]] == Direction::Right)     
+                            printf("Right ");
+                        if(traceDir[depth[tmp]] == Direction::Up)     
+                            printf("Up ");
+                        if(traceDir[depth[tmp]] == Direction::Down)     
+                            printf("Down ");
+                        if(traceDir[depth[tmp]] == Direction::Point)     
+                            printf("Point ");
                         if(tmp == backtrace[tmp])
                         {
                             printf("}\n");
+                            printf("routing shape   = { ");
+                            switch(lastRoutingShape)
+                            {
+                                case Direction::EndPointLL:
+                                    printf("end point LL }\n");
+                                    break;
+                                case Direction::EndPointUR:
+                                    printf("end point UR }\n");
+                                    break;
+                                case Direction::T_Junction:
+                                    printf("T junction }\n ");
+                                    break;
+                                default:
+                                    printf("?? }\n");
+                                    break;
+                            }
                             break;
-                        }else{
-                            printf("-> ");
                         }
-                        tmp = backtrace[tmp];
+                        else
+                            printf("<- ");
                     }
-
-                    printf("last            = { ");
-                    switch(lastRoutingShape)
-                    {
-                        case Direction::EndPointLL:
-                            printf("end point LL }\n");
-                            break;
-                        case Direction::EndPointUR:
-                            printf("end point UR }\n");
-                            break;
-                        case Direction::T_Junction:
-                            printf("T junction }\n ");
-                            break;
-                        default:
-                            printf("?? }\n");
-                            break;
-                    }
-                    printf("=========================================\n");
+                    printf("\n\n");
                 }
 #ifdef DEBUG_ROUTE_MP_TO_TP
 #endif
+
             }
             else
             {
                 solution = false;
+                
                 failed_tp++;
-                printf("%s routing to tp failed\n", curbus->name.c_str());
-                printf("current sequence %d\n", seq);
+                printf("[Info] %s mp to tp routing failed (cur seq %d)\n", curbus->name.c_str(), seq);
+#ifdef DEBUG_ROUTE_MP_TO_TP
+                //printf("%s routing to tp failed\n", curbus->name.c_str());
+                //printf("current sequence %d\n", seq);
+#endif
                 break;
             }
             //
             isRef = false;
-            
-            //delete[] elemCost;
         }
         //
         
@@ -2307,20 +2286,312 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
         else
         {
             // re try
+            ref_fail = isRef ? true : false;
+            
+            if(!retry && !ref_fail)
+            {
+                retry = true;
+                //PQ1.pop();
+                
+                if(lastRoutingShape == Direction::T_Junction)
+                    t_junction = false;
 
+                if(lastRoutingShape == Direction::EndPointLL)
+                {
+                    ep_ll = false;
+                    ep_ur = true;
+                }
+                
+                if(lastRoutingShape == Direction::EndPointUR)
+                {
+                    ep_ll = true;
+                    ep_ur = false;
+                }
+            }
+            else
+            {
+                PQ1.pop();
+                //if(ref_fail) 
+                //    PQ1.pop();
 
+                ref_fail = false;
+                ep_ur = true;
+                ep_ll = true;
+                retry = false;
+            }
+        
         }
         //
     }
 
     if(!solution)
     {
-        printf("No solution...\n");
+        cout << "[INFO] " << curbus->name << " mp to tp routing failed" << endl;
         failed++;
     }
-    printf("total visit count : %d\n", total_visit_count);
-    printf("=========================================\n");
+    else
+    {
+
+        cout << "< Route Multipin to tp Report >" << endl;
+        cout << "Bus        : " << curbus->name << endl;
+        cout << "MultiPin   : (" 
+            << mx[0] << " " << my[0] << ") (" << mx[1] << " " << my[1] << ") M" << l << endl;
+        cout << "Segment    : ("
+            << segx[0] << " " << segy[0] << ") (" << segx[1] << " " << segy[1] << ") M" << target.l << endl;
+        cout << "# visiting : " << total_visit_count << endl;
+        cout << "# failed   : " << failed_tp << endl << endl;
+    }
     return solution;
+}
+
+void OABusRouter::Router::remove_wire(int wireid)
+{
+    int trackid, l, width;
+    int x[2], y[2];
+    bool vertical;
+    Wire* curwire;
+    Bus* curbus;
+    Bit* curbit;
+    curwire = &wires[wireid];
+    curbit = &ckt->bits[curwire->bitid];
+    curbus = &ckt->buses[ckt->busHashMap[curbit->busName]];
+    trackid = curwire->trackid;
+    l = curwire->l;
+    width = curbus->width[l];
+    vertical = curwire->vertical;
+    // remove wire
+    into_array(curwire->x1, curwire->x2, curwire->y1, curwire->y2, x, y);
+    rtree_t.insert_element(trackid, x, y, l, false);
+    // remove obstacle
+    expand_width(x, y, width, vertical);
+    rtree_o.insert_obstacle(curbit->id, x, y, l, true);
+}
+
+void OABusRouter::Router::remove_all(int busid)
+{
+    int numbits, numwires, i, j;
+    Bus* curbus = &ckt->buses[busid];
+    Bit* curbit;
+    numbits = curbus->numBits;
+    // remove all wires
+    for(i=0; i < numbits; i++)
+    {
+        curbit = &ckt->bits[curbus->bits[i]];
+        numwires = curbit->wires.size();
+        for(j=0; j < numwires; j++)
+            remove_wire(curbit->wires[j]);
+        curbit->wires.clear();
+    }
+}
+
+void OABusRouter::Router::penalty_cost()
+{
+    int numBuses, numLayers, numObs, numBits, numWires, numPins;
+    int delta, epsilon;
+    int i, j, l;
+    bool vertical;
+
+    numLayers = ckt->layers.size();
+    numBuses = ckt->buses.size();
+    numObs = ckt->obstacles.size();
+    numBits = ckt->bits.size();
+
+    vector<int> Ps(numBuses, 0);
+    vector<int> Pf(numBuses, 0);
+    set<pair<int,int>> SV;
+
+    int bitid;
+    int elemid;
+    int wireid;
+    int obsid;
+    int x[2], y[2];
+    vector<BoxRtree> rtree(numLayers);
+    vector<box> elems;
+   
+    dense_hash_map<int,int> elem2bus;
+    dense_hash_map<int,int> elem2pin;
+    dense_hash_map<int,int> elem2bit;
+    dense_hash_map<int,int> elem2wire;
+    dense_hash_map<int,int> elem2obs;
+    dense_hash_map<int,int> elem2type;
+    dense_hash_map<int,int> wire2elem;
+
+    elem2wire.set_empty_key(INT_MAX);
+    elem2obs.set_empty_key(INT_MAX);
+    elem2type.set_empty_key(INT_MAX);
+    elem2bus.set_empty_key(INT_MAX);
+    elem2pin.set_empty_key(INT_MAX);
+    elem2bit.set_empty_key(INT_MAX);
+    wire2elem.set_empty_key(INT_MAX);
+
+
+    delta = ckt->delta;
+    epsilon = ckt->epsilon;
+
+    for(i=0; i < numObs; i++)
+    {
+        Obstacle* obs = &ckt->obstacles[i];
+        into_array(obs->llx, obs->urx, obs->lly, obs->ury, x, y);
+        elemid = elems.size();
+        l = obs->l;
+        //
+        box elem(pt(x[0], y[0]), pt(x[1], y[1]));
+        rtree[l].insert({ elem, elemid });
+        
+        elems.push_back(elem);
+        elem2type[elemid] = OBSTACLE;
+        elem2obs[elemid] = obs->id;
+    }
+
+
+    for(i=0; i < numBits; i++)
+    {
+        Bit* curbit = &ckt->bits[i];
+        Bus* curbus = &ckt->buses[ckt->busHashMap[curbit->busName]];
+        numPins = curbit->pins.size();
+        numWires = curbit->wires.size();
+        bitid = curbit->id;
+        for(j=0; j < numPins; j++)
+        {
+            Pin* curpin = &ckt->pins[curbit->pins[j]];
+            into_array(curpin->llx, curpin->urx, curpin->lly, curpin->ury, x, y);
+            elemid = elems.size();
+            l = curpin->l;
+
+            //
+            box elem(pt(x[0], y[0]), pt(x[1], y[1]));
+            rtree[l].insert({ elem, elemid });
+            elems.push_back(elem);
+            elem2type[elemid] = PINTYPE;
+            elem2pin[elemid] = curpin->id;
+            elem2bus[elemid] = curbus->id;
+            elem2bit[elemid] = curbit->id;
+        }
+       
+
+        for(j=0; j < numWires; j++)
+        {
+            Wire* curw = &wires[curbit->wires[j]];
+            l = curw->l;
+            vertical = curw->vertical;
+            into_array(curw->x1, curw->x2, curw->y1, curw->y2, x, y);
+            expand_width(x, y, curbus->width[l], vertical);
+            elemid = elems.size();
+
+            //
+            box elem(pt(x[0], y[0]), pt(x[1], y[1]));
+            rtree[l].insert({ elem, elemid });
+            elems.push_back(elem);
+            
+            elem2type[elemid] = WIRETYPE;
+            elem2wire[elemid] = curw->id;
+            elem2bus[elemid] = curbus->id;
+            elem2bit[elemid] = curbit->id;
+            wire2elem[curw->id] = elemid;
+        }
+    }
+   
+    for(i=0; i < numBits; i++)
+    {
+        Bit* curbit = &ckt->bits[i];
+        Bus* curbus = &ckt->buses[ckt->busHashMap[curbit->busName]];
+        numWires = curbit->wires.size();
+
+        for(j=0; j < numWires; j++)
+        {
+            int e1, e2;
+            vector<pair<box,int>> queries;
+            Wire* curw = &wires[curbit->wires[j]];
+            
+            //if(curw->via)
+            //    continue;
+
+            l = curw->l;
+            vertical = curw->vertical;
+            into_array(curw->x1, curw->x2, curw->y1, curw->y2, x, y);
+            design_ruled_area(x, y, curbus->width[l], spacing[l], vertical);
+
+            box area(pt(x[0], y[0]), pt(x[1], y[1]));
+            e1 = wire2elem[curw->id];
+
+            rtree[l].query(bgi::intersects(area), back_inserter(queries));
+            for(auto& it : queries)
+            {
+                e2 = it.second;
+                
+                if(e1==e2)
+                    continue;
+                
+                //if(!bg::overlaps(area, it.first))
+                //    continue;
+
+                if(bg::touches(area, it.first))
+                    continue;
+
+
+                if(SV.find({e1,e2}) == SV.end() && SV.find({e2,e1}) == SV.end())
+                {
+                    int type = elem2type[e2];
+                    if(elem2type[e2] == PINTYPE)
+                    {
+                        if(elem2bit[e1] != elem2bit[e2])
+                        {
+                            SV.insert({e1,e2});
+                            if(elem2bus[e1] == elem2bus[e2])
+                            {
+                                Ps[elem2bus[e1]] += delta;
+                            }
+                            else
+                            {
+                                Ps[elem2bus[e1]] += delta;
+                                Ps[elem2bus[e2]] += delta;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if(elem2type[e2] == WIRETYPE)
+                        {
+                            //if(wires[elem2wire[e2]].via)
+                            //    continue;
+
+                            if(elem2bit[e1] == elem2bit[e2])
+                                continue;
+                            
+                            if(elem2bus[e1] == elem2bus[e2])
+                            {
+                                Ps[elem2bus[e1]] += delta;
+                            }
+                            else
+                            {
+                                Ps[elem2bus[e1]] += delta;
+                                Ps[elem2bus[e2]] += delta;
+                            }
+                        }
+                        else
+                        {
+                            Ps[elem2bus[e1]] += delta;
+                        }
+                        SV.insert({e1,e2});
+                    }
+                    //
+                }
+                //
+            }
+            //
+        }
+        // end wires
+    }
+    // end bits
+  
+    printf("\n\n------------------------------------\n\n");
+    printf("Ps : #Spacing violations * %d\nPf : #routing failed * %d\n\n", delta, epsilon);
+    for(i=0; i < numBuses; i++)
+    {
+        printf("%s  -> Ps %d\n", ckt->buses[i].name.c_str(), Ps[i]);
+    }
+    printf("total SV %d\n", SV.size());
+    printf("\n\n------------------------------------\n\n");
 }
 
 
