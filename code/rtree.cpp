@@ -477,6 +477,7 @@ int OABusRouter::Router::create_wire(int bitid, int trackid, int x[], int y[], i
     ys[1] = (w.vertical) ? y[1] : y[1] + (int)(1.0*w.width / 2);
     // rtree update for obstacle
     rtree_o.insert_obstacle(bitid, xs, ys, l, false);
+    assert (w.id != INT_MAX);
     return w.id;
 }
 

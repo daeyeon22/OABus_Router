@@ -161,11 +161,12 @@ void OABusRouter::Router::route_all()
 
     Circuit* circuit = ckt;
     sort(sorted.begin(), sorted.end(), [&,circuit](int left, int right){
-            int x1 = circuit->buses[left].llx; //(int)( 1.0 * ( circuit->buses[left].llx + circuit->buses[left].urx ) / 2 );
-            int y1 = circuit->buses[left].lly; //(int)( 1.0 * ( circuit->buses[left].lly + circuit->buses[left].ury ) / 2 );
-            int x2 = circuit->buses[right].llx; //(int)( 1.0 * ( circuit->buses[right].llx + circuit->buses[right].urx ) / 2 );
-            int y2 = circuit->buses[right].lly; //(int)( 1.0 * ( circuit->buses[right].lly + circuit->buses[right].ury ) / 2 );
+            int x1 = ckt->buses[left].llx; //(int)( 1.0 * ( circuit->buses[left].llx + circuit->buses[left].urx ) / 2 );
+            int y1 = ckt->buses[left].lly; //(int)( 1.0 * ( circuit->buses[left].lly + circuit->buses[left].ury ) / 2 );
+            int x2 = ckt->buses[right].llx; //(int)( 1.0 * ( circuit->buses[right].llx + circuit->buses[right].urx ) / 2 );
+            int y2 = ckt->buses[right].lly; //(int)( 1.0 * ( circuit->buses[right].lly + circuit->buses[right].ury ) / 2 );
 
+                //return (x1 > x2);
                 return (y1 > y2); // || ((y1 == y2) && (x1 < x2));
             });
 
@@ -236,17 +237,31 @@ bool OABusRouter::Router::route_bus(int busid)
     sort(comb.begin(), comb.end(), [&,this](pair<int,int> left, pair<int,int> right){
             box b1, b2;
             float dist1, dist2;
+            int l1, l2;
+            int dx, dy;
             b1 = box(pt(this->multipin2llx[left.first], this->multipin2lly[left.first])
                         ,pt(this->multipin2urx[left.first], this->multipin2ury[left.first]));
             b2 = box(pt(this->multipin2llx[left.second], this->multipin2lly[left.second])
                         ,pt(this->multipin2urx[left.second], this->multipin2ury[left.second]));
             dist1 = bg::distance(b1,b2);
+            //dx = this->multipin2llx[left.first] + this->multipin2urx[left.first]
+            //    - this->multipin2llx[left.second] - this->multipin2urx[left.second];
+            //dy = this->multipin2lly[left.first] + this->multipin2ury[left.first]
+            //    - this->multipin2lly[left.second] - this->multipin2ury[left.second];
+            //l1 = min(abs(dx),abs(dy));
+
 
             b1 = box(pt(this->multipin2llx[right.first], this->multipin2lly[right.first])
                         ,pt(this->multipin2urx[right.first], this->multipin2ury[right.first]));
             b2 = box(pt(this->multipin2llx[right.second], this->multipin2lly[right.second])
                         ,pt(this->multipin2urx[right.second], this->multipin2ury[right.second]));
             dist2 = bg::distance(b1,b2);
+            //dx = this->multipin2llx[right.first] + this->multipin2urx[right.first]
+            //    - this->multipin2llx[right.second] - this->multipin2urx[right.second];
+            //dy = this->multipin2lly[right.first] + this->multipin2ury[right.first]
+            //    - this->multipin2lly[right.second] - this->multipin2ury[right.second];
+            //l2 = min(abs(dx),abs(dy));
+            //return l1 > l2;
             return dist1 > dist2;
             });
 

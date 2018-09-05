@@ -1,7 +1,7 @@
 #include "route.h"
 #include "circuit.h"
-//#define DEBUG_CUT
-//#define DEBUG_PATH
+#define DEBUG_CUT
+#define DEBUG_PATH
 
 
 void OABusRouter::Circuit::create_path()
@@ -16,8 +16,11 @@ void OABusRouter::Circuit::create_path()
     memset(visit, false, sizeof(bool) * rou->wires.size());
 
 
+
     for(int i=0; i < buses.size(); i++)
     {
+    cout << " buses size : " << buses.size() << endl;
+    cout << " i : " << i << endl;
         //
         //if(!ckt->buses[i].assign)
         //    continue;
@@ -25,6 +28,7 @@ void OABusRouter::Circuit::create_path()
         int k=0;
         while(true)
         {
+            cout << "k : " << k << endl;
             curmp = &multipins[buses[i].multipins[k]];
             if(rou->pin2wire.find(curmp->pins[0]) == rou->pin2wire.end())
                 k++;
