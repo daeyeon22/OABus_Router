@@ -320,9 +320,14 @@ bool OABusRouter::Router::route_bus(int busid)
 
             // update to global structure
             update_net_tp(tp);
+            routing_success = true;
             break;
             // routing success
             //return true;
+        }
+        else
+        {
+            routing_success = false;
         }
     }
 
@@ -559,7 +564,7 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
         vector<pair<int, int>> pts;
         TrackRtree local_rtree_t(rtree_t);
         ObstacleRtree local_rtree_o(rtree_o);
-        
+
         // local search area
         if((int)(1.0 * iterCount / 2) > 1)
         {
@@ -633,6 +638,14 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
                 printf("HORIZONTAL");
             printf("\n");
 #endif
+
+            //
+            BitRtree bit_rtree;
+            construct_bit_rtree(bitid, bit_rtree);
+            set<int> except1;
+            set<int> except2;
+            except1.insert(pin1->id);
+            except1.insert(pin2->id);
 
             // variables
             seg elem;
@@ -829,11 +842,14 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
                     if(abs(l1 - l2) > 1)
                         continue;
 
-
+                    
+                    
                     // width constraint
                     if(maxWidth < width[l2])
                         continue;
 
+
+                    
                     if(!isRef)
                     {
                         // layer condition
@@ -913,6 +929,16 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
                     if(local_rtree_o.spacing_violations(bitid, xs, ys, l1, width[l1], spacing[l1], vertical))
                         c2 += SPACING_VIOLATION;
 
+                    ///////////////////////////////////////////////////////////////////////////
+                    expand_width(xs,ys,width[l1],vertical);
+                    if(bit_rtree.short_violation(xs, ys, l1, except1, except2))
+                        continue;
+                    //expand_width(xs, ys, width[l1], vertical);
+                    //if(local_rtree_o.short_violation(bitid, xs, ys, l1, pin2x, pin2y, pin2->l))
+                    //    continue;
+                    ///////////////////////////////////////////////////////////////////////////
+
+
                     // if destination
                     if((abs(pin2->l-l2) == 0 && bg::intersects(elem, ext2)) || (abs(pin2->l-l2) == 1 && bg::intersects(elem, orig2)))
                     {
@@ -956,9 +982,20 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
                         into_array(min(x, ptx), max(x, ptx), min(y, pty), max(y, pty), xs, ys);
                         vertical = local_rtree_t.is_vertical(e2);
 
+
                         if(local_rtree_o.spacing_violations(bitid, xs, ys, l2, width[l2], spacing[l2], vertical))
                             c2 += SPACING_VIOLATION;
-                        
+
+                        ///////////////////////////////////////////////////////////////////////////
+                        expand_width(xs, ys, width[l2], vertical);
+                        if(bit_rtree.short_violation(xs, ys, l2, except1, except2))
+                            continue;
+                        //expand_width(xs, ys, width[l2], vertical);
+                        //if(local_rtree_o.short_violation(bitid, xs, ys, l2, pin2x, pin2y, pin2->l))
+                        //    continue;
+                        ///////////////////////////////////////////////////////////////////////////
+
+                       
                         lastPtx[e2] = ptx;
                         lastPty[e2] = pty;
                     }
@@ -1443,7 +1480,7 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
         vector<int> traceuy;
         vector<int> tracePtx;
         vector<int> tracePty;
-        sorted = curmp->pins;
+        //sorted = curmp->pins;
 
         maxDepth = INT_MAX;
         solution = true;
@@ -1455,6 +1492,22 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
         ury = target.y2;
 
         // Ordering
+        Pin* firstPin = &ckt->pins[curmp->pins[0]];
+        Pin* lastPin = &ckt->pins[curmp->pins[numpins-1]];
+        Wire* firstWire = &wires[target.wires[0]];
+        Wire* lastWire = &wires[target.wires[numpins-1]];
+        box b1(pt(firstPin->llx, firstPin->lly), pt(firstPin->urx, firstPin->ury));
+        box b2(pt(lastPin->llx, lastPin->lly), pt(lastPin->urx, lastPin->ury));
+        seg s1(pt(firstWire->x1, firstWire->y1), pt(firstWire->x2, firstWire->y2));
+        seg s2(pt(lastWire->x1, lastWire->y1), pt(lastWire->x2, lastWire->y2));
+        float dist1 = bg::distance(b1, s1);
+        float dist2 = bg::distance(b2, s2);
+        if(dist1 < dist2)
+            sorted.insert(sorted.end(), curmp->pins.begin(), curmp->pins.end());
+        else
+            sorted.insert(sorted.end(), curmp->pins.rbegin(), curmp->pins.rend()); 
+
+        /*        
         if(vertical_align)
         {
             if(ury < multipin2lly[curmp->id])
@@ -1485,7 +1538,7 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                         });
             }
         }
-
+        */
 
         
         //
@@ -1510,7 +1563,15 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
             into_array(curpin->llx, curpin->urx, curpin->lly, curpin->ury, pinx, piny);
             orig = box(pt(pinx[0], piny[0]), pt(pinx[1], piny[1]));
             pin_area(pinx, piny, align, width[curpin->l], ext);
-           
+          
+            ///////////////////////////////////////
+            BitRtree bit_rtree;
+            construct_bit_rtree(bitid, bit_rtree);
+            set<int> except1;
+            set<int> except2;
+            except1.insert(curpin->id);
+            except2.insert(tarwire->id);
+            //////////////////////////////////////
 
             // variables
             seg elem;
@@ -1683,7 +1744,12 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                         {
                             c2 += SPACING_VIOLATION;
                         }
-
+                        
+                        ////////////////////////////////////////////////////////
+                        expand_width(xs,ys,width[l1],vertical);
+                        if(bit_rtree.short_violation(xs, ys, l1, except1, except2))
+                            continue;
+                        ///////////////////////////////////////////////////////
 
                         if(minCost > c1 + c2)
                         {
@@ -1815,6 +1881,36 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
 
                         if(curDir != Direction::Point)
                         {
+                            if(tracelx[dep] != traceux[dep])
+                            {
+                                if(tracePtx[dep] == tracelx[dep])
+                                {
+                                    if(tracePtx[dep] <= x)
+                                        continue;
+                                }
+
+                                if(tracePtx[dep] == traceux[dep])
+                                {
+                                    if(tracePtx[dep] >= x)
+                                        continue;
+                                }   
+                            }
+
+                            if(tracely[dep] != traceuy[dep])
+                            {
+                                if(tracePty[dep] == tracely[dep])
+                                {
+                                    if(tracePty[dep] <= y)
+                                        continue;
+                                }
+                                else if(tracePty[dep] == traceuy[dep])
+                                {
+                                    if(tracePty[dep] >= y)
+                                        continue;
+                                }   
+                            }
+                        }
+                            /*
                             if(tracelx[dep] != traceux[dep] && tracely[dep] != traceuy[dep])
                             {
                                 if(tracePtx[dep] == tracelx[dep])
@@ -1838,6 +1934,8 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                                     if(tracePty[dep] > y)
                                         continue;
                                 }
+                            }
+                            */
                                 /*
                                 bool wire_order_failed = false;
                                 if(tracePtx[dep] == tracelx[dep])
@@ -1870,8 +1968,8 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                                     continue;
                                 }
                                 */
-                            }
-                        }
+                            //}
+                        //}
                         //cout << "pass wire ordering" << endl;
                         c2 += manhatan_distance(tracePtx[dep], tracePty[dep], x, y);
                     }
@@ -1883,6 +1981,14 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
 
                     if(local_rtree_o.spacing_violations(bitid, xs, ys, l1, width[l1], spacing[l1], vertical))
                         c2 += SPACING_VIOLATION;
+
+                    ////////////////////////////////////////////////////////
+                    expand_width(xs, ys, width[l1], vertical);
+                    if(bit_rtree.short_violation(xs, ys, l1, except1, except2))
+                        continue;
+                    ///////////////////////////////////////////////////////
+
+
 
                     if(elemCost[e2] <= c1 + c2)
                     {
@@ -1966,6 +2072,13 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                         if(local_rtree_o.spacing_violations(bitid, xs, ys, l2, width[l2], spacing[l2], vertical))
                             c2 += SPACING_VIOLATION;
 
+                        ////////////////////////////////////////////////////////
+                        expand_width(xs,ys,width[l2],vertical);
+                        if(bit_rtree.short_violation(xs, ys, l2, except1, except2))
+                            continue;
+                        ///////////////////////////////////////////////////////
+
+
                         
                         // if current minimum cost is bigger than e2
                         // assign minimum element to e2
@@ -1981,11 +2094,7 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                                 tmp = backtrace[tmp];
                                 printf("(%d %d) (%d %d) M%d\n", iterPtx[tmp], iterPty[tmp], iterPtx[tmp2], iterPty[tmp2], local_rtree_t.get_layer(tmp));
                             }
-                            //if(minCost <= c1 + c2)
-                            //{
                             printf("<minCost %d curCost %d>\n",minCost, c1+c2);
-
-                            //}
                             printf("\n");
 #endif
                             hasMinElem = true;

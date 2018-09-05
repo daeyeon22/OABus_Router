@@ -80,6 +80,44 @@ namespace OABusRouter
 
     };
 
+    struct BitRtree
+    {
+        typedef SegmentBG seg;
+        typedef PointBG pt;
+        typedef BoxBG box;
+       
+        int elemindex;
+        vector<box> elems;
+        vector<BoxRtree> rtree;
+        dense_hash_map<int,int> elem2type;
+        dense_hash_map<int,int> elem2pin;
+        dense_hash_map<int,int> elem2wire;
+
+        BitRtree()
+        {}
+
+
+        BitRtree(int numlayers)
+        {
+            elemindex = 0;
+            rtree = vector<BoxRtree>(numlayers);
+            elem2type.set_empty_key(0);
+            elem2pin.set_empty_key(0);
+            elem2wire.set_empty_key(0);
+        }
+
+        BitRtree(const BitRtree& br):
+            elemindex(br.elemindex),
+            elems(br.elems),
+            rtree(br.rtree),
+            elem2type(br.elem2type),
+            elem2pin(br.elem2pin),
+            elem2wire(br.elem2wire)
+        {}
+
+        bool short_violation(int x[], int y[], int l, set<int>& except1, set<int>& except2);
+    };
+
     struct TrackRtree
     {
         typedef SegmentBG seg;
@@ -155,6 +193,7 @@ namespace OABusRouter
         
     };
 
+
     struct ObstacleRtree
     {
         typedef SegmentBG seg;
@@ -197,6 +236,7 @@ namespace OABusRouter
         bool spacing_violations(int bitid, int x[], int y[], int l, int width, int spacing, bool vertical);
         bool compactness(int numbits, int mx[], int my[], int x, int y, int l1, int l2, int align, int dir, int width, int spacing);
         bool spacing_violations_ndr(int bitid, int x[], int y[], int l);
+        bool short_violation(int bitid, int wirex[], int wirey[], int wl, int tarx[], int tary[], int tl);
     };
 };
 #endif
