@@ -334,7 +334,6 @@ bool OABusRouter::Router::route_bus(int busid)
         }
     }
 
-    
 
     // routing fail
     return routing_success;
@@ -447,7 +446,7 @@ void OABusRouter::Router::local_search_area(int m1, int m2, int count, int ll[],
             maxWidth = max(maxWidth, curbus->width[i]);
             maxSpacing = max(maxSpacing, spacing[i]);
         }
-        expand = (maxWidth + maxSpacing)*numbits*count*10;
+        expand = (maxWidth + maxSpacing)*numbits*count*20;
         ll[0] = min(multipin2llx[m1], multipin2llx[m2]) - expand;
         ll[1] = min(multipin2lly[m1], multipin2lly[m2]) - expand;
         ur[0] = max(multipin2urx[m1], multipin2urx[m2]) + expand;
@@ -617,12 +616,6 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
             into_array(pin2->llx, pin2->urx, pin2->lly, pin2->ury, pin2x, pin2y);
             pin_area(pin1x, pin1y, align1, width[pin1->l], ext1);
             pin_area(pin2x, pin2y, align2, width[pin2->l], ext2);
-
-#ifdef DEBUG_ROUTE_TWOPIN_NET
-            printf("\n\n\n");
-            printf("=======================================\n");
-            printf("local search area (%d %d) (%d %d)\n", local_area_ll[0], local_area_ll[1],
-                    local_area_ur[0], local_area_ur[1]);
             printf("start %d seqence bit routing\n", seq);
             printf("p%d (%d %d) (%d %d) -> p%d (%d %d) (%d %d) seq %d bitid %d\n",
                     pin1->id,
@@ -630,6 +623,12 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
                     pin2->id,
                     pin2->llx, pin2->lly, pin2->urx, pin2->ury, seq, bitid);
 
+
+#ifdef DEBUG_ROUTE_TWOPIN_NET
+            printf("\n\n\n");
+            printf("=======================================\n");
+            printf("local search area (%d %d) (%d %d)\n", local_area_ll[0], local_area_ll[1],
+                    local_area_ur[0], local_area_ur[1]);
 
             printf("m1 (%d %d) (%d %d) : ", multipin2llx[m1], multipin2lly[m1], multipin2urx[m1], multipin2ury[m1]);
             if(align1 == VERTICAL)
@@ -982,6 +981,8 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
                     //if(local_rtree_o.spacing_violations(bitid, xs, ys, l1, width[l1], spacing[l1], vertical))
                     //    c2 += SPACING_VIOLATION;
 
+                    printf("current wire (%d %d) (%d %d) M%d -> cost %d (min %d) #SPV %d iter (%d %d)\n",
+                            xs[0], ys[0], xs[1], ys[1], l1, c1+c2, elemCost[e2], num_spacing_vio, x, y);
                     ///////////////////////////////////////////////////////////////////////////
                     expand_width(xs,ys,width[l1],vertical);
                     if(bit_rtree.short_violation(xs, ys, l1, except1, except2))
@@ -991,6 +992,7 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
                     // if previous cost is smaller, continue
                     if(elemCost[e2] < c1 + c2)
                         continue;
+
 
                     element[e2] = elem;
                     depth[e2] = dep;
@@ -1051,6 +1053,8 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
 
                         //if(local_rtree_o.spacing_violations(bitid, xs, ys, l2, width[l2], spacing[l2], vertical))
                         //    c2 += SPACING_VIOLATION;
+                        printf("\n< candidate >\n");
+                        printf("(%d %d) (%d %d) M%d -> (%d %d) dep %d cost %d min %d\n\n", x, y, ptx, pty, l2, ptx, pty, dep, c1+ c2, minCost);
 
                         ///////////////////////////////////////////////////////////////////////////
                         expand_width(xs, ys, width[l2], vertical);
@@ -1067,18 +1071,21 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
                             lastPtx[e2] = ptx;
                             lastPty[e2] = pty;
                             PQ.push(make_tuple(DESTINATION, c1, c2));
-#ifdef DEBUG_ROUTE_TWOPIN_NET
-                            printf("\n\nFind destination\nmin cost %d current depth %d\n(%d %d) -> [%d] (%d %d)", 
-                                    minCost,depth[e2], lastPtx[e2], lastPty[e2], e2, iterPtx[e2], iterPty[e2]);
-
-                            int tmp = e2;
-                            while(tmp != backtrace[tmp])
+//#ifdef DEBUG_ROUTE_TWOPIN_NET
+                            if(isRef)
                             {
-                                printf(" -> [%d] (%d %d)", backtrace[tmp], iterPtx[backtrace[tmp]], iterPty[backtrace[tmp]]);
-                                tmp = backtrace[tmp];
+
+                                printf("\n< Find destination >\nprev : %d\ncurr : %d\n current depth %d\n(%d %d) -> [%d] (%d %d)", 
+                                        elemCost[e2],c1 + c2, depth[e2], lastPtx[e2], lastPty[e2], e2, iterPtx[e2], iterPty[e2]);
+                                int tmp = e2;
+                                while(tmp != backtrace[tmp])
+                                {
+                                    printf(" -> [%d] (%d %d)", backtrace[tmp], iterPtx[backtrace[tmp]], iterPty[backtrace[tmp]]);
+                                    tmp = backtrace[tmp];
+                                }
+                                printf("\n\n");
                             }
-                            printf("\n\n");
-#endif
+//#endif
                         }
                     }
 
@@ -1090,23 +1097,25 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
             if(hasMinElem)
             {
 
-#ifdef DEBUG_ROUTE_TWOPIN_NET
-                printf("backtrace\n");
-                printf("min cost %d depth %d\n(%d %d) -> [%d] (%d %d)", 
-                        minCost, depth[minElem], lastPtx[minElem], lastPty[minElem], minElem, iterPtx[minElem], iterPty[minElem]);
-
-                int tmp = minElem;
-                while(tmp != backtrace[tmp])
+//#ifdef DEBUG_ROUTE_TWOPIN_NET
+                if(isRef)
                 {
-                    printf(" -> [%d] (%d %d)", backtrace[tmp], iterPtx[backtrace[tmp]], iterPty[backtrace[tmp]]);
-                    tmp = backtrace[tmp];
+                    printf("< backtrace >\n");
+                    printf("min cost %d depth %d\n(%d %d) -> [%d] (%d %d)", 
+                            minCost, depth[minElem], lastPtx[minElem], lastPty[minElem], minElem, iterPtx[minElem], iterPty[minElem]);
+
+                    int tmp = minElem;
+                    while(tmp != backtrace[tmp])
+                    {
+                        printf(" -> [%d] (%d %d)", backtrace[tmp], iterPtx[backtrace[tmp]], iterPty[backtrace[tmp]]);
+                        tmp = backtrace[tmp];
+                    }
+                    printf("\n\n");
                 }
-                printf("\n\n");
-#endif
+//#endif
 
                 // initial element
                 e2 = minElem;
-                //l2 = localrtree.layer(e2);
                 l2 = local_rtree_t.get_layer(e2);
 
                 // if reference routing, store
@@ -1131,7 +1140,7 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
 
 
                 // reverse count because of backtrace
-                totalSPV =+ numDestSV;
+                totalSPV += numDestSV;
                 count = maxDepth;
                 w2 = (maxDepth+1)*seq + count--;
                 trackid = local_rtree_t.get_trackid(e2);
@@ -1211,6 +1220,7 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
             }
             else
             {
+                cout << "[INFO] " << curbus->name << " routing failed at seq " << seq << endl;
                 solution = false;
                 failed_tw++;
                 failed_count++;
@@ -1220,8 +1230,9 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
             isRef = false;
         }
 
-        if(EPSILON < 2 * DELTA * totalSPV)
-            solution = false;
+        if(curbus->numPinShapes > 2)
+            if(EPSILON < 2 * DELTA * totalSPV)
+                solution = false;
 
         //
         if(solution)
@@ -1303,6 +1314,8 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
                 //SetNeighbor(&wires[w1], &wires[w2], pts[i].first, pts[i].second);
             }
             break;
+        }else{
+            failed_count++;
         }
     }
 
@@ -1316,7 +1329,8 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
         << multipin2urx[m2] << " " << multipin2ury[m2] << ") M" << mp2->l << endl;
     cout << "# visiting : " << visit_count << endl;
     cout << "# failed   : " << failed_count << endl << endl;
-    
+   
+    cout << "[INFO] " << totalSPV << " * " <<  DELTA << " penalty occurs" << endl << endl;
     return solution; 
 }
 

@@ -315,6 +315,11 @@ int OABusRouter::ObstacleRtree::num_spacing_violations(int bitid, int x[], int y
     int xs[] = {x[0], x[1]};
     int ys[] = {y[0], y[1]};
     design_ruled_area(xs, ys, width, spacing, vertical);
+    /*
+    int totalSV = num_spacing_violations_ndr(bitid, xs, ys, l);
+        printf("(%d %d) (%d %d) M%d spacing violations occurs #SPV %d\n",
+                x[0], y[0], x[1], y[1], l, totalSV);
+    */
     return num_spacing_violations_ndr(bitid, xs, ys, l);
 }
 
@@ -358,15 +363,18 @@ int OABusRouter::ObstacleRtree::num_spacing_violations_ndr(int bitid, int x[], i
 #endif
             totalSV++;
         }
-
-        if(it.second != bitid)
+        else
         {
+            if(it.second != bitid)
+            {
 #ifdef DEBUG_SPACING_VIOLATION
-            printf("spacing violation occurs (%d %d) (%d %d) m%d -> bitid %d\n", x[0], y[0], x[1], y[1], l, it.second);
+                printf("spacing violation occurs (%d %d) (%d %d) m%d -> bitid %d\n", x[0], y[0], x[1], y[1], l, it.second);
 #endif
-            totalSV++;
+                totalSV++;
+            }
         }
     }
+
     return totalSV;
 }
 
