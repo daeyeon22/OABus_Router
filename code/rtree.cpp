@@ -310,10 +310,82 @@ bool OABusRouter::ObstacleRtree::short_violation(int bitid, int wirex[], int wir
     return hasShort;
 }
 
+int OABusRouter::ObstacleRtree::num_spacing_violations(int bitid, int x[], int y[], int l, int width, int spacing, bool vertical)
+{
+    int xs[] = {x[0], x[1]};
+    int ys[] = {y[0], y[1]};
+    design_ruled_area(xs, ys, width, spacing, vertical);
+    /*
+    int totalSV = num_spacing_violations_ndr(bitid, xs, ys, l);
+        printf("(%d %d) (%d %d) M%d spacing violations occurs #SPV %d\n",
+                x[0], y[0], x[1], y[1], l, totalSV);
+    */
+    return num_spacing_violations_ndr(bitid, xs, ys, l);
+}
+
+int OABusRouter::ObstacleRtree::num_spacing_violations_ndr(int bitid, int x[], int y[], int l)
+{
+    
+    int totalSV=0;
+    box area(pt(x[0], y[0]), pt(x[1], y[1]));
+    // Design boundary spacing violations
+    box design_boundary(pt(db[0], db[1]), pt(db[2], db[3]));
+
+    seg s1( pt(db[0], db[1]), pt(db[0], db[3]) );
+    seg s2( pt(db[2], db[1]), pt(db[2], db[3]) );
+    seg s3( pt(db[0], db[1]), pt(db[2], db[1]) );
+    seg s4( pt(db[0], db[3]), pt(db[2], db[3]) );
+
+    //if(bg::intersects(s1, area) || bg::intersects(s2, area) || 
+    //   bg::intersects(s3, area) || bg::intersects(s4, area))
+    if(!bg::within(area, design_boundary))
+    {
+#ifdef DEBUG_SPACING_VIOLATION
+        printf("spacing violation occurs (%d %d) (%d %d) m%d -> DESIGN_BOUNDARY (%d %d) (%d %d)\n",
+                x[0], y[0], x[1], y[1], l, db[0], db[1], db[2], db[3]);
+#endif
+        totalSV++;
+    }
+
+    // Wire to wire spacing violations
+    vector<pair<box,int>> queries;
+    rtree[l].query(bgi::intersects(area) , back_inserter(queries));
+    for(auto& it : queries)
+    {
+        // ???
+        if(bg::touches(it.first , area))
+            continue;
+
+        if(it.second == OBSTACLE)
+        {
+#ifdef DEBUG_SPACING_VIOLATION
+            printf("spacing violation occurs (%d %d) (%d %d) m%d -> OBSTACLE\n", x[0], y[0], x[1], y[1], l);
+#endif
+            totalSV++;
+        }
+        else
+        {
+            if(it.second != bitid)
+            {
+#ifdef DEBUG_SPACING_VIOLATION
+                printf("spacing violation occurs (%d %d) (%d %d) m%d -> bitid %d\n", x[0], y[0], x[1], y[1], l, it.second);
+#endif
+                totalSV++;
+            }
+        }
+    }
+
+    return totalSV;
+}
+
+
+
 bool OABusRouter::ObstacleRtree::spacing_violations(int bitid, int x[], int y[], int l, int width, int spacing, bool vertical)
 {
-    design_ruled_area(x, y, width, spacing, vertical);
-    return spacing_violations_ndr(bitid, x, y, l);
+    int xs[] = {x[0], x[1]};
+    int ys[] = {y[0], y[1]};
+    design_ruled_area(xs, ys, width, spacing, vertical);
+    return spacing_violations_ndr(bitid, xs, ys, l);
 }
 
     
