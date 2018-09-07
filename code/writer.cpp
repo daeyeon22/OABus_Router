@@ -8,10 +8,12 @@ using namespace std;
 using namespace OABusRouter;
 
 void Circuit::def_write() {
-    return def_write("output.def");
+    return def_write("../output/output.def");
 }
 
 void Circuit::def_write(string file_name) {
+
+    file_name = "../output/"+file_name + ".def";
 
     ofstream dot_def(file_name.c_str());
 
@@ -142,10 +144,11 @@ void Circuit::def_write(string file_name) {
 }
 
 void Circuit::lef_write() {
-    return lef_write("output.lef");
+    return lef_write("../output/output.lef");
 }
 
 void Circuit::lef_write(string file_name) {
+    file_name = "../output/"+file_name + ".lef";
 
     ofstream dot_lef(file_name.c_str());
 

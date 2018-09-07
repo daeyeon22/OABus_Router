@@ -45,7 +45,7 @@ int main(int argc, char** argv){
     
     cout << "================================================================" <<endl;
     cout << "    ICCAD 2018 Contest on Obstacle-aware Bus Routing            " <<endl;
-    cout << "    Authors : Daeyeon Kim, Seungwon Kim                         " <<endl;
+    cout << "    Authors : Daeyeon Kim, SangGi Do                            " <<endl;
     cout << "    Advisor : Seok-Hyeong Kang                                  " <<endl;
     cout << "================================================================" <<endl;
 
@@ -88,6 +88,11 @@ int main(int argc, char** argv){
         cout << "Fail to read " << inputFileName << endl;
     }
 
+    ckt->def_write(benchName);
+    ckt->lef_write(benchName);
+    ckt->out_write(outputFileName);
+    exit(0);
+    
     cout << "[INFO] start Initialize" << endl;
     ckt->initialize();
     //rou->initialize();
@@ -101,8 +106,8 @@ int main(int argc, char** argv){
     rou->create_plot(benchName.c_str());
     cout << "[INFO] start Write def & lef file" << endl;
     ckt->out_write(outputFileName);
-    //ckt->def_write();
-    //ckt->lef_write();
+    ckt->def_write(benchName);
+    ckt->lef_write(benchName);
     
 
     rou->penalty_cost();
