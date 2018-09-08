@@ -220,7 +220,7 @@ void OABusRouter::Router::initialize_rtree_new()
 
         rtree_o[l]->insert({b, OBSTACLE});
         
-        /*
+        /* 
         vector<pair<seg,int>> queries;
         rtree_t[l]->query(bgi::intersects(b), back_inserter(queries));
 

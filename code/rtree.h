@@ -186,6 +186,7 @@ namespace OABusRouter
         bool insert_element(int trackid, int x[], int y[], int l, bool remove);
         
         //template <typename A, typename B>
+        void get_intersection(int t1, int t2, int &x, int &y);
         void query(int mode, box geo, int l, vector<pair<seg,int>>& queries);
         void query(int mode, seg geo, int l, vector<pair<seg,int>>& queries);
         void query(int mode, box geometry, int lower, int upper, vector<pair<seg,int>> &queries);

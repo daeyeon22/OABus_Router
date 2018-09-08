@@ -25,7 +25,7 @@ bool OABusRouter::Circuit::should_stop()
     double elapse_time = measure.elapse_time();
     double runtime_limit = (double)runtime * 60;
 
-    if(elapse_time > 0.8*runtime_limit)
+    if(elapse_time > 0.9*runtime_limit)
     {
         printf("\n");
         printf("[INFO] elapse time over 80% runtime limit\n");
@@ -52,6 +52,10 @@ int main(int argc, char** argv){
     char* inputFileName;
     char* outputFileName;
     string benchName;
+    string logDirName;
+    string outDirName;
+    string lefName;
+    string defName;
     int numThreads;
 
     
@@ -63,6 +67,7 @@ int main(int argc, char** argv){
                 tmp = tmp.substr(0, tmp.find_last_of("."));
                 benchName = tmp.substr(tmp.find_last_of("/")+1, tmp.size());
 
+                
                 //size_t found1 = tmp.find_last_of("/");
                 //size_t found2 = tmp.find_last_of(".");
                 //cout << found1 << " " << found2 << endl;
@@ -72,7 +77,12 @@ int main(int argc, char** argv){
                 numThreads = atoi(argv[++i]);
             }
             if(strncmp(argv[i], "-output", 7) == 0){
+
                 outputFileName = argv[++i];
+                string tmp = outputFileName;
+                tmp = tmp.substr(0, tmp.find_last_of("/"));
+                outDirName = tmp;
+                logDirName = "../log" + tmp.substr(tmp.find_last_of("/"), tmp.size());
             }
         }
     }
@@ -82,6 +92,8 @@ int main(int argc, char** argv){
     cout << "Input      : " << inputFileName << endl;
     cout << "Output     : " << outputFileName << endl;
     cout << "Bench      : " << benchName << endl;
+    cout << "Out Dir    : " << outDirName << endl;
+    cout << "Log Dir    : " << logDirName << endl;
     cout << "# threads  : " << numThreads << endl;
     cout << endl;
 
@@ -102,9 +114,11 @@ int main(int argc, char** argv){
     rou->create_plot(benchName.c_str());
     cout << "[INFO] start Write def & lef file" << endl;
     ckt->out_write(outputFileName);
-    //ckt->def_write();
-    //ckt->lef_write();
-    
+
+    lefName = logDirName + "/" + benchName + ".lef";
+    defName = logDirName + "/" + benchName + ".def";
+    ckt->lef_write(lefName);
+    ckt->def_write(defName);
 
     rou->penalty_cost();
 
