@@ -74,6 +74,14 @@ void lpt(seg s, int &x, int &y)
 {
     x = (int)(bg::get<0,0>(s) + 0.5);
     y = (int)(bg::get<0,1>(s) + 0.5);
+#ifdef DEBUG_FUNC
+    if(x%10 != 0)
+    {
+        std::cout << "lpt" << std::endl;
+        std::cout << x << " " << y << std::endl;
+        exit(0);
+    }
+#endif
 }
 
 // upper point
@@ -81,6 +89,15 @@ void upt(seg s, int &x, int &y)
 {
     x = (int)(bg::get<1,0>(s) + 0.5);
     y = (int)(bg::get<1,1>(s) + 0.5);
+
+#ifdef DEBUG_FUNC
+    if(x%10 != 0)
+    {
+        std::cout << "upt" << std::endl;
+        std::cout << x << " " << y << std::endl;
+        exit(0);
+    }
+#endif
 }
 
 
@@ -91,16 +108,117 @@ bool intersects(seg s1, seg s2)
 
 bool intersection(seg s1, seg s2, int &x, int &y)
 {
+    int llx1, lly1, urx1, ury1;
+    int llx2, lly2, urx2, ury2;
+    bool vertical1, vertical2;
+    lpt(s1, llx1, lly1);
+    upt(s1, urx1, ury1);
+    lpt(s2, llx2, lly2);
+    upt(s2, urx2, ury2);
+    vertical1 = (llx1 == urx1) ? true : false;
+    vertical2 = (llx2 == urx2) ? true : false;
+
+    bool valid = false;
+    if(vertical1 && !vertical2)
+    {
+        x = llx1;
+        y = lly2;
+        valid = true;
+    }
+    else if(!vertical1 && vertical2)
+    {
+        x = llx2;
+        y = lly1;
+        valid = true;
+    }
+    else
+    {
+        if(llx1 == urx2 && lly1 == ury2)
+        {
+            x = llx1;
+            y = lly1;
+            valid = true;
+        }
+        else if(urx1 == llx2 && ury1 == lly2)
+        {
+            x = urx1;
+            y = ury1;
+            valid = true;
+        }
+    }
+#ifdef DEBUG_FUNC
+    using namespace std;        
+    if(bg::get<0,0>(s1) == bg::get<1,0>(s1))
+    {
+        if(x != bg::get<0,0>(s1))
+        {
+            cout << "invalid intersection..." << endl;
+            cout << bg::dsv(s1) << endl;
+            cout << bg::dsv(s2) << endl;
+            cout << x << " " << y << endl;
+            exit(0);
+        }
+    }
+
+    if(bg::get<0,1>(s1) == bg::get<1,1>(s1))
+    {
+        if(y != bg::get<0,1>(s1))
+        {
+            cout << "invalid intersection..." << endl;
+            cout << bg::dsv(s1) << endl;
+            cout << bg::dsv(s2) << endl;
+            cout << x << " " << y << endl;
+            exit(0);
+        }
+    }
+    if(bg::get<0,0>(s2) == bg::get<1,0>(s2))
+    {
+        if(x != bg::get<0,0>(s2))
+        {
+            cout << "invalid intersection..." << endl;
+            cout << bg::dsv(s1) << endl;
+            cout << bg::dsv(s2) << endl;
+            cout << x << " " << y << endl;
+            exit(0);
+        }
+    }
+
+    if(bg::get<0,1>(s2) == bg::get<1,1>(s2))
+    {
+        if(y != bg::get<0,1>(s2))
+        {
+            cout << "invalid intersection..." << endl;
+            cout << bg::dsv(s1) << endl;
+            cout << bg::dsv(s2) << endl;
+            cout << x << " " << y << endl;
+            exit(0);
+        }
+    }
+
+    if(!valid)
+    {
+            cout << bg::dsv(s1) << endl;
+            cout << bg::dsv(s2) << endl;
+        cout << "Invalid intersection..." << endl;
+        exit(0);
+    }
+
+#endif
+    return valid;
+    /*
     std::vector<pt> _intersection;
     bg::intersection(s1, s2, _intersection);
     if(_intersection.size() == 0)
         return false;
     else
     {
+        
         x = (int)(bg::get<0>(_intersection[0]) + 0.5);
         y = (int)(bg::get<1>(_intersection[0]) + 0.5);
+       
         return true;
     }
+    */
 }
 
 size_t GetHashKey(std::pair<std::string,int> &value)

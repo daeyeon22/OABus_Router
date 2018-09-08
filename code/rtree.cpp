@@ -573,6 +573,7 @@ bool OABusRouter::Router::routability_check(int m, int t, int dir)
 
 
 
+
 bool OABusRouter::ObstacleRtree::compactness(int numbits, int mx[], int my[], int x, int y, int l1, int l2, int align, int dir, int width, int spacing)
 {
     enum Direction
@@ -673,6 +674,18 @@ bool OABusRouter::Router::set_neighbor(int w1, int w2, int x, int y)
 }
 
 
+void OABusRouter::TrackRtree::get_intersection(int t1, int t2, int &x, int &y)
+{
+    if(is_vertical_t(t1))
+        x = get_offset_t(t1);
+    else
+        y = get_offset_t(t1);
+
+    if(is_vertical_t(t2))
+        x = get_offset_t(t2);
+    else
+        y = get_offset_t(t2);
+}
 
 bool OABusRouter::Router::get_intersection(int w1, int w2, int &x, int& y)
 {
@@ -783,7 +796,18 @@ void OABusRouter::Router::intersection_pin(int pinx[], int piny[], int l1,  int 
         }
     }   
 
-
+    if(x != wirex[0] && y != wirey[0])
+    {
+        cout << "illegal intersection pin..." << endl;
+        printf("(%d %d) (%d %d) -> (%d %d)\n", wirex[0], wirey[0], wirex[1], wirey[1], x, y);
+        exit(0);
+    }
+    if(x != wirex[1] && y != wirey[1])
+    {
+        cout << "illegal intersection pin..." << endl;
+        printf("(%d %d) (%d %d) -> (%d %d)\n", wirex[0], wirey[0], wirex[1], wirey[1], x, y);
+        exit(0);
+    }
 }
 
 

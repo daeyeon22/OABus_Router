@@ -24,7 +24,7 @@ LINKCFLAGS = $(CFLAGS) -static-libstdc++ $(CPLEXLIBS) $(CONCERTLIBS)
 #CONCERTDIR 	= /home/tool/IBM/ILOG/127/concert/include
 # source settings.
 SRCHASH 	= /home/tool/cpplib/sparsehash/install/2.0.3/include
-BOOST 		= /home/tool/cpplib/boost/install/1.63.0/include
+BOOST 		= /home/tool/cpplib/boost/install/1.67.0/include
 CPLEXDIR 	= /home/tool/ibm/install/12.7.0/cplex/include
 CONCERTDIR 	= /home/tool/ibm/install/12.7.0/concert/include
 

@@ -280,6 +280,7 @@ namespace OABusRouter
         void rip_up(int busid);
         void intersection_pin(int pinx[], int piny[], int l1, int wirex[], int wirey[], int l2, int iterx, int itery, int &x, int &y);
         void sort_pins_routing_sequence(int m1, int m2, vector<int>& sorted1, vector<int>& sorted2);
+        void sort_pins_routing_sequence(int m1, int m2, bool reverse, vector<int>& sorted1, vector<int>& sorted2);
         void update_net_tp(vector<Segment>& tp);
         void create_plot(const char* benchName);
         void local_search_area(int m1, int m2, int count, int ll[], int ur[]);
@@ -292,7 +293,16 @@ namespace OABusRouter
         //bool UpdateWire(int wireid, int x[], int y[]);
     
         bool route_bus(int busid);
+        // bus -> example1 ~ 1_4
         bool route_twopin_net(int busid, int m1, int m2, vector<Segment>& tp);
+        // too many spacing violations
+        bool route_twopin_net_v2(int busid, int m1, int m2, vector<Segment>& tp);
+        bool route_twopin_net_v3(int busid, int m1, int m2, vector<Segment>& tp);
+        bool route_twopin_net_v4(int busid, int m1, int m2, vector<Segment>& tp);
+        // 
+        //
+        bool route_twopin_net_v5(int busid, int m1, int m2, vector<Segment>& tp);
+        bool route_twopin_net_v6(int busid, int m1, int m2, vector<Segment>& tp);
         bool route_multipin_to_tp(int busid, int m, vector<Segment>& tp);
         bool reroute(int busid);
         bool set_neighbor(int w1, int w2, int x, int y);
