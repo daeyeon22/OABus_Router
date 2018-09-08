@@ -12,7 +12,7 @@ import subprocess as sp
 import time
 from datetime import datetime
 
-
+benchDirList = ["../bench", "../bench_big"]
 dirpos = "../bench"
 binaryName = "./iccad18obr"
 evalpos = "../eval/eval_1.0-a4"
@@ -53,6 +53,13 @@ if len(sys.argv) <=2:
     print("         ./run.py 4 1")
     print("         ./run.py example_2 1")
     sys.exit(1)
+
+if(len(sys.argv) >4):
+    if(sys.argv[4] == "big"):
+        dirpos = benchDirList[1]
+    
+
+
 
 
 benchNum = -1

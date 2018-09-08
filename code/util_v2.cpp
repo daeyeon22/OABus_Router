@@ -62,8 +62,17 @@ void create_bus_plot(bool all, int busid, const char* fileName)
     layoutWidth = ckt->width;
     layoutHeight = ckt->height;
 
-    stroke_width *= sqrt(sqrt(layoutWidth*layoutHeight) / 10000);
-    circle_radius *= sqrt(sqrt(layoutWidth*layoutHeight) / 10000);
+    //scale *= sqrt(sqrt(layoutWidth*layoutHeight) / 100000);
+    
+    if(layoutWidth >10000000 || layoutHeight > 10000000)
+        scale = 0.01;
+    else if (layoutWidth > 1000000 || layoutHeight > 1000000)
+        scale = 0.1;
+    else
+        scale = 1;
+
+    stroke_width *= sqrt(sqrt(layoutWidth*layoutHeight) / 1000);
+    circle_radius *= sqrt(sqrt(layoutWidth*layoutHeight) / 1000);
 
 
 

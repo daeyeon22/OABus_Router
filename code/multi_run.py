@@ -14,12 +14,15 @@ from multiprocessing import Process, Pool
 from datetime import datetime
 
 
-dirpos = "../bench"
+benchDirList = [ "../bench", "../bench_big" ]
+dirpos =  "../bench"
 binaryName = "./iccad18obr"
-evalpos = "../eval/eval_1.0-a3"
+evalpos = "../eval/eval_1.0-a4"
 evaluator = "eval"
 outpos = "../output"
 logpos = "../log"
+outDir = ""
+logDir = ""
 
 def Tokenizer( line, delim ):
     vals = line.split()
@@ -43,20 +46,21 @@ def ReadScore( outputFile ):
 
     return score
 
-def ExecuteBinary(benchName):
+def ExecuteBinary( benchName ):
     resultDic = {}
     benchName = benchName.split('.')[0]
-    curTime = datetime.now().strftime('%Y-%m-%d')
-    runCommand = "%s -input %s/%s.input -threads %d -output %s/%s.out > %s/%s_%s.log" % (binaryName, dirpos, benchName, numThreads, outpos, benchName, logpos, benchName, curTime)
+    #curTime = datetime.now().strftime('%Y-%m-%d')
+
+    runCommand = "%s -input %s/%s.input -threads %d -output %s/%s.out > %s/%s.log" % (binaryName, dirpos, benchName, numThreads, outDir, benchName, logDir, benchName)
     startTime = time.time()
     ExecuteCommand(runCommand)
     endTime = time.time()
     runTime = endTime - startTime
 
-    evalCommand = "%s/%s %s/%s.input %s/%s.out > %s/%s.eval" % (evalpos, evaluator, dirpos, benchName, outpos, benchName, logpos, benchName)
+    evalCommand = "%s/%s %s/%s.input %s/%s.out > %s/%s.eval" % (evalpos, evaluator, dirpos, benchName, outDir, benchName, logDir, benchName)
     ExecuteCommand(evalCommand)
     
-    evalFileName = "%s/%s.eval" % (logpos, benchName)
+    evalFileName = "%s/%s.eval" % (logDir, benchName)
     score = ReadScore(evalFileName)
 
     resultDic['Bench'] = benchName
@@ -80,6 +84,13 @@ if __name__ == '__main__':
         print("         ./run.py example_2 1")
         sys.exit(1)
 
+
+    if len(sys.argv) > 4:
+        if sys.argv[4] == "big":
+            dirpos = benchDirList[1]
+    else:
+        dirpos = benchDirList[0]
+
     benchNum = -1
     benchName = ""
     benchList = []
@@ -100,8 +111,11 @@ if __name__ == '__main__':
 
     numThreads = int(sys.argv[2])
     #curTime = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
-    curTime = datetime.now().strftime('%Y-%m-%d')
-    
+    curTime = datetime.now().strftime('%m_%d_%H_%M_%S')
+    logDir = "%s/%s" % (logpos, curTime)
+    outDir = "%s/%s" % (outpos, curTime)
+    os.makedirs(logDir)
+    os.makedirs(outDir)
     
     if len(sys.argv) > 3:
         exeEval = (sys.argv[3] == "eval")
@@ -132,7 +146,7 @@ if __name__ == '__main__':
     """
     
     keys = ['Bench', 'CR', 'Ps', 'Pf', 'cost', 'RT']
-    summary = open("%s/summary_%s.txt" % (logpos, curTime), "w")
+    summary = open("%s/summary.txt" % (logDir), "w")
 
     for dic in dics:
         for key in keys:

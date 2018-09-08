@@ -186,6 +186,7 @@ namespace OABusRouter
         bool insert_element(int trackid, int x[], int y[], int l, bool remove);
         
         //template <typename A, typename B>
+        void get_intersection(int t1, int t2, int &x, int &y);
         void query(int mode, box geo, int l, vector<pair<seg,int>>& queries);
         void query(int mode, seg geo, int l, vector<pair<seg,int>>& queries);
         void query(int mode, box geometry, int lower, int upper, vector<pair<seg,int>> &queries);
@@ -233,10 +234,12 @@ namespace OABusRouter
 
         // member functions
         bool insert_obstacle(int bitid, int x[], int y[], int l, bool remove);
-        bool spacing_violations(int bitid, int x[], int y[], int l, int width, int spacing, bool vertical);
         bool compactness(int numbits, int mx[], int my[], int x, int y, int l1, int l2, int align, int dir, int width, int spacing);
+        bool spacing_violations(int bitid, int x[], int y[], int l, int width, int spacing, bool vertical);
         bool spacing_violations_ndr(int bitid, int x[], int y[], int l);
         bool short_violation(int bitid, int wirex[], int wirey[], int wl, int tarx[], int tary[], int tl);
+        int num_spacing_violations(int bitid, int x[], int y[], int l, int width, int spacing, bool vertical);
+        int num_spacing_violations_ndr(int bitid, int x[], int y[], int l);
     };
 };
 #endif

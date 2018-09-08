@@ -310,10 +310,82 @@ bool OABusRouter::ObstacleRtree::short_violation(int bitid, int wirex[], int wir
     return hasShort;
 }
 
+int OABusRouter::ObstacleRtree::num_spacing_violations(int bitid, int x[], int y[], int l, int width, int spacing, bool vertical)
+{
+    int xs[] = {x[0], x[1]};
+    int ys[] = {y[0], y[1]};
+    design_ruled_area(xs, ys, width, spacing, vertical);
+    /*
+    int totalSV = num_spacing_violations_ndr(bitid, xs, ys, l);
+        printf("(%d %d) (%d %d) M%d spacing violations occurs #SPV %d\n",
+                x[0], y[0], x[1], y[1], l, totalSV);
+    */
+    return num_spacing_violations_ndr(bitid, xs, ys, l);
+}
+
+int OABusRouter::ObstacleRtree::num_spacing_violations_ndr(int bitid, int x[], int y[], int l)
+{
+    
+    int totalSV=0;
+    box area(pt(x[0], y[0]), pt(x[1], y[1]));
+    // Design boundary spacing violations
+    box design_boundary(pt(db[0], db[1]), pt(db[2], db[3]));
+
+    seg s1( pt(db[0], db[1]), pt(db[0], db[3]) );
+    seg s2( pt(db[2], db[1]), pt(db[2], db[3]) );
+    seg s3( pt(db[0], db[1]), pt(db[2], db[1]) );
+    seg s4( pt(db[0], db[3]), pt(db[2], db[3]) );
+
+    //if(bg::intersects(s1, area) || bg::intersects(s2, area) || 
+    //   bg::intersects(s3, area) || bg::intersects(s4, area))
+    if(!bg::within(area, design_boundary))
+    {
+#ifdef DEBUG_SPACING_VIOLATION
+        printf("spacing violation occurs (%d %d) (%d %d) m%d -> DESIGN_BOUNDARY (%d %d) (%d %d)\n",
+                x[0], y[0], x[1], y[1], l, db[0], db[1], db[2], db[3]);
+#endif
+        totalSV++;
+    }
+
+    // Wire to wire spacing violations
+    vector<pair<box,int>> queries;
+    rtree[l].query(bgi::intersects(area) , back_inserter(queries));
+    for(auto& it : queries)
+    {
+        // ???
+        if(bg::touches(it.first , area))
+            continue;
+
+        if(it.second == OBSTACLE)
+        {
+#ifdef DEBUG_SPACING_VIOLATION
+            printf("spacing violation occurs (%d %d) (%d %d) m%d -> OBSTACLE\n", x[0], y[0], x[1], y[1], l);
+#endif
+            totalSV++;
+        }
+        else
+        {
+            if(it.second != bitid)
+            {
+#ifdef DEBUG_SPACING_VIOLATION
+                printf("spacing violation occurs (%d %d) (%d %d) m%d -> bitid %d\n", x[0], y[0], x[1], y[1], l, it.second);
+#endif
+                totalSV++;
+            }
+        }
+    }
+
+    return totalSV;
+}
+
+
+
 bool OABusRouter::ObstacleRtree::spacing_violations(int bitid, int x[], int y[], int l, int width, int spacing, bool vertical)
 {
-    design_ruled_area(x, y, width, spacing, vertical);
-    return spacing_violations_ndr(bitid, x, y, l);
+    int xs[] = {x[0], x[1]};
+    int ys[] = {y[0], y[1]};
+    design_ruled_area(xs, ys, width, spacing, vertical);
+    return spacing_violations_ndr(bitid, xs, ys, l);
 }
 
     
@@ -501,6 +573,7 @@ bool OABusRouter::Router::routability_check(int m, int t, int dir)
 
 
 
+
 bool OABusRouter::ObstacleRtree::compactness(int numbits, int mx[], int my[], int x, int y, int l1, int l2, int align, int dir, int width, int spacing)
 {
     enum Direction
@@ -602,6 +675,18 @@ bool OABusRouter::Router::set_neighbor(int w1, int w2, int x, int y)
 }
 
 
+void OABusRouter::TrackRtree::get_intersection(int t1, int t2, int &x, int &y)
+{
+    if(is_vertical_t(t1))
+        x = get_offset_t(t1);
+    else
+        y = get_offset_t(t1);
+
+    if(is_vertical_t(t2))
+        x = get_offset_t(t2);
+    else
+        y = get_offset_t(t2);
+}
 
 bool OABusRouter::Router::get_intersection(int w1, int w2, int &x, int& y)
 {
@@ -712,7 +797,18 @@ void OABusRouter::Router::intersection_pin(int pinx[], int piny[], int l1,  int 
         }
     }   
 
-
+    if(x != wirex[0] && y != wirey[0])
+    {
+        cout << "illegal intersection pin..." << endl;
+        printf("(%d %d) (%d %d) -> (%d %d)\n", wirex[0], wirey[0], wirex[1], wirey[1], x, y);
+        exit(0);
+    }
+    if(x != wirex[1] && y != wirey[1])
+    {
+        cout << "illegal intersection pin..." << endl;
+        printf("(%d %d) (%d %d) -> (%d %d)\n", wirex[0], wirey[0], wirex[1], wirey[1], x, y);
+        exit(0);
+    }
 }
 
 
