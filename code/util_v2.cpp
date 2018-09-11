@@ -57,8 +57,8 @@ void create_bus_plot(bool all, int busid, const char* fileName)
 
 
 
-    layoutOffsetX = -1*ckt->originX;
-    layoutOffsetY = -1*ckt->originY;
+    layoutOffsetX = 0-ckt->originX;
+    layoutOffsetY = 0-ckt->originY;
     layoutWidth = ckt->width;
     layoutHeight = ckt->height;
 
@@ -97,8 +97,8 @@ void create_bus_plot(bool all, int busid, const char* fileName)
     //lly = layoutOffsetY;
     //urx = layoutOffsetX + layoutWidth;
     //ury = layoutOffsetY + layoutHeight;
-    llx = 0;
-    lly = 0;
+    llx = 0;//-layoutOffsetX; //ckt->originX;
+    lly = 0;//-layoutOffSetY; //ckt->originY;
     urx = layoutWidth;
     ury = layoutHeight;
 
