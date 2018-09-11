@@ -6,6 +6,19 @@
 //#define DEBUG_RTREE
 //#define DEBUG_CREATE_WIRE
 
+enum Direction
+{
+    Left = 10,
+    Right = 11,
+    Up = 12,
+    Down = 13,
+    Point = 14,
+    // target wire routing topologies
+    T_Junction = 15,
+    EndPointLL = 16,
+    EndPointUR = 17
+};
+
 
 void design_ruled_area(int x[], int y[], int width, int spac, bool vertical)
 {   
@@ -90,6 +103,13 @@ bool OABusRouter::TrackRtree::is_vertical(int e)
 bool OABusRouter::TrackRtree::is_vertical_t(int t)
 {
     return tracks[t].vertical;
+}
+
+bool OABusRouter::TrackRtree::insert_element(int trackid, int x1, int y1, int x2, int y2, int l, bool remove)
+{
+    int x[2] = {x1, x2};
+    int y[2] = {y1, y2};
+    return insert_element(trackid, x, y, l, remove);
 }
 
 bool OABusRouter::TrackRtree::insert_element(int trackid, int x[], int y[], int l, bool remove)
@@ -462,6 +482,40 @@ bool OABusRouter::BitRtree::short_violation(int x[], int y[], int l, set<int>& e
     return false;
 }
 
+int OABusRouter::PinRtree::num_diff_bus_between_twopins(int busid, int p1, int p2, int l)
+{
+    int x[2], y[2];
+    int numPins = 0;
+    box b1 = elems[p1];
+    box b2 = elems[p2];
+    x[0] = min((int)bg::get<0,0>(b1), (int)bg::get<0,0>(b2));
+    x[1] = max((int)bg::get<1,0>(b1), (int)bg::get<1,0>(b2));
+    y[0] = min((int)bg::get<0,1>(b1), (int)bg::get<0,1>(b2));
+    y[1] = max((int)bg::get<1,1>(b1), (int)bg::get<1,1>(b2));
+
+    box envelope(pt(x[0], y[0]), pt(x[1], y[1]));
+    vector<pair<box,int>> queries;
+    rtree[l].query(bgi::intersects(envelope), back_inserter(queries));
+
+    
+    for(auto& it : queries)
+    {
+        if(busid != elem2bus[it.second])
+            numPins++;
+    }
+    return numPins;
+}
+
+void OABusRouter::PinRtree::remove_pins(vector<int> &pins)
+{
+    int l;
+    for(auto& pinid : pins)
+    {
+        l = ckt->pins[pinid].l;
+        rtree[l].remove({elems[pinid], pinid});
+    }
+}
+
 void OABusRouter::Router::construct_bit_rtree(int bitid, BitRtree& bitrtree)
 {
     int i, l, pinid, wireid, elemid, numPins, numWires;
@@ -513,6 +567,7 @@ void OABusRouter::Router::construct_bit_rtree(int bitid, BitRtree& bitrtree)
 }
 bool OABusRouter::Router::routability_check(int m, int t, int dir)
 {
+/*
     enum Direction
     {
         Left,
@@ -520,7 +575,7 @@ bool OABusRouter::Router::routability_check(int m, int t, int dir)
         Up,
         Down
     };
-
+*/
     int l, numbits;
     int t_offset;
     int lower, upper;
@@ -576,6 +631,7 @@ bool OABusRouter::Router::routability_check(int m, int t, int dir)
 
 bool OABusRouter::ObstacleRtree::compactness(int numbits, int mx[], int my[], int x, int y, int l1, int l2, int align, int dir, int width, int spacing)
 {
+/*
     enum Direction
     {
         Left,
@@ -583,7 +639,7 @@ bool OABusRouter::ObstacleRtree::compactness(int numbits, int mx[], int my[], in
         Up,
         Down
     };
-
+*/
     int xs[2], ys[2];
     if(align == VERTICAL)
     {
@@ -615,7 +671,31 @@ bool OABusRouter::ObstacleRtree::compactness(int numbits, int mx[], int my[], in
 }
 
 
+/*
+void OABusRouter::Router::change_track(int wireid, int trackid)
+{
+    Wire* curw = &wires[wireid];
+    curw->trackid = trackid;
+    int offset = ckt->tracks[trackid].offset;
 
+    curw->x[0] = curw->vertical ? offset : x[0];
+    curw->x[1] = curw->vertical ? offset : x[1];
+    curw->y[0] = curw->vertical ? y[0] : offset;
+    curw->y[1] = curw->vertical ? y[1] : offset;
+    rtree_t.insert_element(trackid, curw->x, curw->y, curw->l, true);
+
+    for(auto& it : curw->intersection)
+    {
+        Wire* tarw = &wires[it.first];
+        int x = it.second.first;
+        int y = it.second.second;
+
+        
+
+
+    }
+}
+*/
 
 int OABusRouter::Router::create_wire(int bitid, int trackid, int x[], int y[], int l, int seq, bool pin)
 {

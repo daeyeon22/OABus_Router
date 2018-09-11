@@ -11,7 +11,7 @@ void OABusRouter::Circuit::initialize()
 {
     typedef BoxBG box;
     typedef PointBG pt;
-    int i, j, k, l;
+    int i, j, k, l, align;
     int numpins, numbits, numbuses, numlayers;
     Bus* curbus;
     Bit* curbit;
@@ -28,9 +28,12 @@ void OABusRouter::Circuit::initialize()
     for(i=0; i < numpins ; i++)
     {
         curpin = &pins[i];
-        rou->pin2bit[curpin->id] = bitHashMap[curpin->bitName];
+        curbit = &bits[bitHashMap[curpin->bitName]];
+        curbus = &buses[busHashMap[curbit->busName]];
+        rou->pin2bit[curpin->id] = curbit->id;
+        rou->pin2bus[curpin->id] = curbus->id;
+        //bitHashMap[curpin->bitName];
     }
-
 
     for(i=0; i < numbuses; i++)
     {
@@ -96,6 +99,16 @@ void OABusRouter::Circuit::initialize()
 
             if(mp.align == layers[mp.l].direction)
                 mp.needVia = true;
+
+            /*
+            align = mp.align;
+            sort(mp.pins.begin(), mp.pins.end(), [&,this,align](int left, int right){
+                if(align == VERTICAL)
+                    return this->pins[left].lly < this->pins[right].lly;
+                else
+
+                    });
+            */
 
             curbus->multipins.push_back(mp.id);
             multipins.push_back(mp);
@@ -171,9 +184,14 @@ void OABusRouter::Router::initialize_rtree_new()
 
     // Initialize Intervals.
     vector<SegRtree> trackrtree(numLayers);
-   
+  
+    rtree_s = SegmentRtree(numLayers);
     rtree_t = TrackRtree(numLayers, numTracks);
     rtree_o = ObstacleRtree(numLayers);
+    rtree_p = PinRtree(numLayers);
+    rtree_p.elem2bus = pin2bus;
+    rtree_p.elem2bit = pin2bit;
+
     rtree_o.db[0] = ckt->originX;
     rtree_o.db[1] = ckt->originY;
     rtree_o.db[2] = ckt->originX + ckt->width;
@@ -217,9 +235,9 @@ void OABusRouter::Router::initialize_rtree_new()
         l = curobs->l;
 
         box b(pt(x1,y1), pt(x2,y2));
-
         rtree_o[l]->insert({b, OBSTACLE});
-        
+    
+
         /* 
         vector<pair<seg,int>> queries;
         rtree_t[l]->query(bgi::intersects(b), back_inserter(queries));
@@ -246,6 +264,9 @@ void OABusRouter::Router::initialize_rtree_new()
 
         box b(pt(x1,y1), pt(x2,y2));
         rtree_o[l]->insert({b, pin2bit[curpin->id]});
+        //
+        rtree_p.elems.push_back(b);
+        rtree_p[l]->insert({b, curpin->id});
 
         vector<pair<seg, int>> queries;
         
