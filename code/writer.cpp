@@ -12,9 +12,6 @@ void Circuit::def_write() {
 }
 
 void Circuit::def_write(string file_name) {
-
-    file_name = "../output/"+file_name + ".def";
-
     ofstream dot_def(file_name.c_str());
 
     if(!dot_def.good()) {
@@ -148,8 +145,6 @@ void Circuit::lef_write() {
 }
 
 void Circuit::lef_write(string file_name) {
-    file_name = "../output/"+file_name + ".lef";
-
     ofstream dot_lef(file_name.c_str());
 
     if(!dot_lef.good()) {
