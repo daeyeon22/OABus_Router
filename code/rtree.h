@@ -80,6 +80,35 @@ namespace OABusRouter
 
     };
 
+    struct PinRtree
+    {
+        typedef SegmentBG seg;
+        typedef PointBG pt;
+        typedef BoxBG box;
+
+        vector<box> elems;
+        vector<BoxRtree> rtree;
+        dense_hash_map<int,int> elem2bus;
+        dense_hash_map<int,int> elem2bit;
+
+        PinRtree() {}
+
+        PinRtree(int numlayers)
+        {
+            rtree = vector<BoxRtree>(numlayers);
+            elem2bus.set_empty_key(INT_MAX);
+            elem2bit.set_empty_key(INT_MAX);
+        }
+
+        BoxRtree* operator [] (int l)
+        {
+            return &rtree[l];
+        }
+
+        void remove_pins(vector<int> &pins);
+        int num_diff_bus_between_twopins(int busid, int p1, int p2, int l);
+    };
+
     struct BitRtree
     {
         typedef SegmentBG seg;
@@ -101,9 +130,9 @@ namespace OABusRouter
         {
             elemindex = 0;
             rtree = vector<BoxRtree>(numlayers);
-            elem2type.set_empty_key(0);
-            elem2pin.set_empty_key(0);
-            elem2wire.set_empty_key(0);
+            elem2type.set_empty_key(INT_MAX);
+            elem2pin.set_empty_key(INT_MAX);
+            elem2wire.set_empty_key(INT_MAX);
         }
 
         BitRtree(const BitRtree& br):
@@ -116,6 +145,32 @@ namespace OABusRouter
         {}
 
         bool short_violation(int x[], int y[], int l, set<int>& except1, set<int>& except2);
+    };
+
+    struct SegmentRtree
+    {
+        typedef SegmentBG seg;
+        typedef PointBG pt;
+        typedef BoxBG box;
+
+        vector<box> elems;
+        vector<BoxRtree> rtree;
+
+        dense_hash_map<int,int> elem2bus;
+        SegmentRtree() {}
+
+        SegmentRtree(int numlayers)
+        {
+            rtree = vector<BoxRtree>(numlayers);
+            elem2bus.set_empty_key(INT_MAX);
+        }
+
+        BoxRtree* operator [] (int l)
+        {
+            return &rtree[l];
+        }
+
+
     };
 
     struct TrackRtree
@@ -183,6 +238,7 @@ namespace OABusRouter
         bool is_vertical(int e);
         bool is_vertical_t(int t);
 
+        bool insert_element(int trackid, int x1, int y1, int x2, int y2, int l, bool remove);
         bool insert_element(int trackid, int x[], int y[], int l, bool remove);
         
         //template <typename A, typename B>

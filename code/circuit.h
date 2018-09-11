@@ -369,6 +369,7 @@ namespace OABusRouter
     struct Bit
     {
         int id;
+        int seq;
         string name;
         string busName;
         vector<int> pins;
@@ -380,6 +381,7 @@ namespace OABusRouter
 
         Bit() : 
             id(INT_MAX), 
+            seq(INT_MAX),
             name(INIT_STR), 
             busName(INIT_STR),
             assign(false)
@@ -387,6 +389,7 @@ namespace OABusRouter
 
         Bit(const Bit& b) :
             id(b.id),
+            seq(b.seq),
             name(b.name),
             busName(b.busName),
             assign(b.assign)

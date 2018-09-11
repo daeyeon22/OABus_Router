@@ -348,6 +348,7 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
     ifstream inputFile(fileName);
     string line = "";
     string delim = " ()";
+    int count;
     bool flag = false;
 
     typedef boost::tokenizer<boost::char_separator<char>>::iterator tokenIter;
@@ -378,6 +379,7 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                 }else{
                     // START BUS
                     if(*iter == "BUS"){
+                        count = 0;
                         Bus bus;
                         bus.id = this->buses.size();
                         bus.name = *(++iter);
@@ -438,6 +440,7 @@ bool OABusRouter::Circuit::getBusInfo(char* fileName){
                             if(*iter == "BIT"){
                                 Bit bit;
                                 bit.id = this->bits.size();
+                                bit.seq = count++;
                                 bit.busName = bus.name;
                                 bit.name = *++iter;
                                 //bit.name = bit.name + "_" + *++iter;

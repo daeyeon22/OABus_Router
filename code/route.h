@@ -53,7 +53,27 @@ typedef bgi::rtree<pair<BoxBG, int>, bgi::rstar<16>> BoxRtree;
 
 namespace OABusRouter
 {
+    struct RoutingTopology
+    {
+        int depth;
+        vector<int> traceDir;
+        vector<int> traceNuml;
 
+    };
+
+    struct SignalGroup
+    {
+
+        int id;
+        int align1;
+        int align2;
+
+        set<int> buses;
+        vector<int> pin1;
+        vector<int> pin2;
+    };
+
+    
     struct Segment
     {
         int id;
@@ -68,7 +88,7 @@ namespace OABusRouter
                                 // sorted increasing sequence
         bool assign;
         bool vertical;
-
+        bool leaf;
         
         Segment():
             id(INT_MAX),
@@ -79,7 +99,8 @@ namespace OABusRouter
             l(INT_MAX),
             bw(INT_MAX),
             assign(false),
-            vertical(false)
+            vertical(false),
+            leaf(false)
         {}
         
         Segment(int id,
@@ -90,7 +111,8 @@ namespace OABusRouter
                 int l,
                 int bw,
                 bool assign,
-                bool vertical) :
+                bool vertical,
+                bool leaf) :
             id(id),
             x1(x1),
             y1(y1),
@@ -99,7 +121,8 @@ namespace OABusRouter
             l(l),
             bw(bw),
             assign(assign),
-            vertical(vertical)
+            vertical(vertical),
+            leaf(leaf)
         {}
 
         Segment(const Segment& s) :
@@ -114,11 +137,17 @@ namespace OABusRouter
             neighbor(s.neighbor),
             wires(s.wires), 
             assign(s.assign),
-            vertical(s.vertical)
+            vertical(s.vertical),
+            leaf(leaf)
         {}
-
-
     };
+
+    struct Topology
+    {
+        int busid;
+        vector<Segment> segs;
+    };
+
 
     struct Wire
     {
@@ -187,6 +216,8 @@ namespace OABusRouter
         //Rtree       rtree;
         TrackRtree      rtree_t;
         ObstacleRtree   rtree_o;
+        PinRtree        rtree_p;
+        SegmentRtree    rtree_s;
 
 
         // Created Segments
@@ -194,19 +225,24 @@ namespace OABusRouter
         //vector<Junction>        junctions;
         vector<Wire>            wires;
         vector<Via>             vias;
-
+        vector<Topology>        topologies;
 
 
         // Hash map
         //dense_hash_map<int,int> seg2multipin;   // ??
+        dense_hash_map<int,int> seg2top;
+        dense_hash_map<int,int> wire2seg;
         dense_hash_map<int,int> spacing;
-        dense_hash_map<int,int> seg2bus;
+        //dense_hash_map<int,int> seg2bus;
         dense_hash_map<int,int> wire2pin;       // ??
-        dense_hash_map<int,int> junc2bus;
-        dense_hash_map<int,int> via2bus;
-        dense_hash_map<int,int> multipin2seg;
+        
+        //dense_hash_map<int,int> junc2bus;
+        //dense_hash_map<int,int> via2bus;
+        //dense_hash_map<int,int> multipin2seg;
         dense_hash_map<int,int> pin2wire;
         dense_hash_map<int,int> pin2bit;
+        dense_hash_map<int,int> pin2bus;
+
 
         dense_hash_map<int,int> multipin2llx;
         dense_hash_map<int,int> multipin2lly;
@@ -219,12 +255,13 @@ namespace OABusRouter
         {
             //seg2multipin.set_empty_key(0);
             spacing.set_empty_key(INT_MAX);
-            multipin2seg.set_empty_key(INT_MAX);
+            //multipin2seg.set_empty_key(INT_MAX);
             pin2wire.set_empty_key(INT_MAX);
             pin2bit.set_empty_key(INT_MAX);
-            seg2bus.set_empty_key(INT_MAX);
-            junc2bus.set_empty_key(INT_MAX);
-            via2bus.set_empty_key(INT_MAX);
+            pin2bus.set_empty_key(INT_MAX);
+            //seg2bus.set_empty_key(INT_MAX);
+            //junc2bus.set_empty_key(INT_MAX);
+            //via2bus.set_empty_key(INT_MAX);
             wire2pin.set_empty_key(INT_MAX);
             //bitwidth.set_empty_key(0);
             //assign.set_empty_key(0);
@@ -281,10 +318,11 @@ namespace OABusRouter
         void intersection_pin(int pinx[], int piny[], int l1, int wirex[], int wirey[], int l2, int iterx, int itery, int &x, int &y);
         void sort_pins_routing_sequence(int m1, int m2, vector<int>& sorted1, vector<int>& sorted2);
         void sort_pins_routing_sequence(int m1, int m2, bool reverse, vector<int>& sorted1, vector<int>& sorted2);
-        void update_net_tp(vector<Segment>& tp);
+        void update_net_tp(int busid, vector<Segment>& tp);
         void create_plot(const char* benchName);
         void local_search_area(int m1, int m2, int count, int ll[], int ur[]);
         void range_of_tj(Segment& target, int ll[], int ur[]);
+        void wire_reordering(int busid, vector<Segment>& tp);
         //void SetNeighbor(Wire* w1, Wire* w2, int x, int y);
         //bool Intersection(Wire* w1, Wire* w2, int &x, int &y);
         
@@ -309,7 +347,7 @@ namespace OABusRouter
         bool get_intersection(int w1, int w2, int &x, int &y);
         bool t_junction_available(int busid, int x[], int y[], int l);
         bool routability_check(int m, int t, int dir);
-        
+        bool get_middle_seg(int s1, int s2, int& tar); 
         void penalty_cost();
         void remove_all(int busid);
         void remove_wire(int wireid);

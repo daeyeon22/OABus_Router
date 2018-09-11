@@ -82,6 +82,7 @@ void Circuit::def_write(string file_name) {
     dot_def << "NETS " << bits.size() << " ;" << endl;
     for(int i=0; i < bits.size(); i++) {
         Bit* theBit = &bits[i];
+        Bus* theBus = &buses[busHashMap[theBit->busName]];
 
         //if( theBit->busName != theBus->name )
         //    continue;
@@ -93,6 +94,41 @@ void Circuit::def_write(string file_name) {
             dot_def << " ( PIN pin_" << thePin->id << " )";
         } dot_def << endl;
 
+        for(int j=0; j < theBit->paths.size(); j++)
+        {
+            Path* thePath = &theBit->paths[j];
+            if( j == 0 )
+                dot_def << "  + ROUTED ";
+            
+            if(thePath->via)
+            {
+
+            }
+            else
+            {
+                if( j != 0 )
+                    dot_def << "    NEW ";
+
+                dot_def << layers[thePath->l].name << " ( " << (thePath->x[0] + thePath->x[1])/2 << " " << (thePath->y[0] + thePath->y[1])/2 << " ) ";
+                int width = theBus->width[thePath->l];
+
+                if(is_vertical(thePath->l))
+                {
+                    int length = thePath->y[1] - thePath->y[0];
+                    dot_def << "RECT ( " << 0 - width/2 << " " << 0 - length/2 << " ";
+                    dot_def << 0 + width/2 << " " << 0 + length/2 << " )" << endl;
+                }
+                else {
+                    int length = thePath->x[1] - thePath->x[0];
+                    dot_def << "RECT ( " << 0 - length/2 << " " << 0 - width/2 << " ";
+                    dot_def << 0 + length/2 << " " << 0 + width/2 << " )" << endl;
+                }
+            }
+            
+
+        }
+
+        /*
         for(int j=0; j < theBit->wires.size(); j++) {
             Wire* theWire = &rou->wires[theBit->wires[j]];
             if( j == 0 )
@@ -114,7 +150,8 @@ void Circuit::def_write(string file_name) {
             //dot_def << layers[theWire->l].name << " ( " << theWire->x1 << " " << theWire->y1 << " ) ( ";
             //dot_def  << theWire->x2 << " " << theWire->y2 << " )" << endl;
         }
-         dot_def << ";" << endl;
+        */
+        dot_def << ";" << endl;
         
     }
     dot_def << "END NETS" << endl;
