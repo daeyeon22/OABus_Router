@@ -1,3 +1,4 @@
+
 EXE = iccad18obr
 CXX = g++
 
@@ -19,7 +20,8 @@ SRCHASH 	= /home/tool/cpplib/sparsehash/install/2.0.3/include
 BOOST 		= /home/tool/cpplib/boost/install/1.67.0/include
 
 SRC			= func.o main.o parser.o route.o init.o maze.o\
-			  util.o rtree.o writer.o cut.o rip.o mymeasure.o
+			  util.o rtree.o writer.o cut.o rip.o mymeasure.o\
+			  topology.o
 
 DEBUG = -g -gstrict-dwarf -gdwarf-2 -pg
 
@@ -62,9 +64,11 @@ rip.o: rip.cpp route.h
 mymeasure.o: mymeasure.cpp mymeasure.h
 	$(CXX) $(CFLAGS) -c -o $@ $<  
 
+topology.o: topology.cpp route.h
+	$(CXX) $(CFLAGS) -c -o $@ $<  
+
 .PHONY: clean
 clean:
 	/bin/rm -f *.o 2> /dev/null; /bin/rm -f $(EXE) 2> /dev/null; /bin/rm -f *.log;
-
 
 

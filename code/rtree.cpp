@@ -46,6 +46,8 @@ void expand_width(int x[], int y[], int width, int vertical);
 void pin_area(int x[], int y[], int align, int width, box& box);
 void design_ruled_area(int x[], int y[], int width, int spacing, bool vertical);
 */
+
+
 bool OABusRouter::Wire::leaf()
 {
     return intersection.size() < 2;
@@ -398,7 +400,33 @@ int OABusRouter::ObstacleRtree::num_spacing_violations_ndr(int bitid, int x[], i
     return totalSV;
 }
 
+bool OABusRouter::ObstacleRtree::spacing_violations(int busid, int l, polygon& poly)
+{
+    
+    box design_boundary(pt(db[0], db[1]), pt(db[2], db[3]));
+    box poly_envelope;
+    bg::envelope(poly, poly_envelope);
+    if(!bg::within(poly_envelope, design_boundary))
+        return true;
 
+
+    vector<pair<box,int>> queries;
+    rtree[l].query(bgi::intersects(poly), back_inserter(queries));
+    for(auto& it : queries)
+    {
+        //if(bg::disjoint(it.first, poly))
+        //    continue;
+
+        if(it.second == OBSTACLE)
+            //continue;
+            return true;
+
+        if(rou->bit2bus[it.second] != busid)
+            return true;
+    }
+
+    return false;
+}
 
 bool OABusRouter::ObstacleRtree::spacing_violations(int bitid, int x[], int y[], int l, int width, int spacing, bool vertical)
 {
@@ -627,7 +655,10 @@ bool OABusRouter::Router::routability_check(int m, int t, int dir)
 }
 
 
-
+bool OABusRouter::ObstacleRtree::compactness_check(int busid, int l, polygon& geo)
+{
+    return !spacing_violations(busid, l, geo); 
+}
 
 bool OABusRouter::ObstacleRtree::compactness(int numbits, int mx[], int my[], int x, int y, int l1, int l2, int align, int dir, int width, int spacing)
 {
@@ -689,10 +720,6 @@ void OABusRouter::Router::change_track(int wireid, int trackid)
         Wire* tarw = &wires[it.first];
         int x = it.second.first;
         int y = it.second.second;
-
-        
-
-
     }
 }
 */
@@ -877,6 +904,7 @@ void OABusRouter::Router::intersection_pin(int pinx[], int piny[], int l1,  int 
         }
     }   
 
+    /*
     if(x != wirex[0] && y != wirey[0])
     {
         cout << "illegal intersection pin..." << endl;
@@ -889,6 +917,7 @@ void OABusRouter::Router::intersection_pin(int pinx[], int piny[], int l1,  int 
         printf("(%d %d) (%d %d) -> (%d %d)\n", wirex[0], wirey[0], wirex[1], wirey[1], x, y);
         exit(0);
     }
+    */
 }
 
 

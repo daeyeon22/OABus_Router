@@ -43,7 +43,12 @@ void OABusRouter::Circuit::initialize()
         vector<vector<int>> unused_pins(numbits);
 
         for(j=0; j < numbits; j++)
+        {
+            // added
+            rou->bit2bus[curbus->bits[j]] = curbus->id;
+
             unused_pins[j] = bits[curbus->bits[j]].pins;
+        }
 
         for(j=0; j < numpins; j++)
         {
@@ -120,8 +125,15 @@ void OABusRouter::Circuit::initialize()
         }
     }
 
+    rou->DEPTH_COST = (height + width)/10;
+    rou->VIA_COST = (height + width)/100;
+    rou->SPACING_VIOLATION = (height + width)/2;
+    rou->NOTCOMPACT = (height + width)/5;
+
+
     rou->initialize_rtree_new();
     //rou->initialize_grid3d();
+
 }
 
 
