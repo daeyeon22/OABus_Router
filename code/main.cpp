@@ -117,8 +117,8 @@ int main(int argc, char** argv){
 
     lefName = logDirName + "/" + benchName + ".lef";
     defName = logDirName + "/" + benchName + ".def";
-    ckt->lef_write(lefName);
-    ckt->def_write(defName);
+    //ckt->lef_write(lefName);
+    //ckt->def_write(defName);
 
     rou->penalty_cost();
 

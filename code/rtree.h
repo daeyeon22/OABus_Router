@@ -30,6 +30,7 @@ typedef bi::discrete_interval<int> DiscreteIntervalT;
 typedef bg::model::point<float,2, bg::cs::cartesian> PointBG;
 typedef bg::model::segment<PointBG> SegmentBG;
 typedef bg::model::box<PointBG> BoxBG;
+typedef bg::model::polygon<PointBG> PolygonBG;
 typedef bgi::rtree<pair<PointBG,int>, bgi::rstar<16>> PointRtree;
 typedef bgi::rtree<pair<SegmentBG,int>, bgi::rstar<16>> SegRtree;
 typedef bgi::rtree<pair<BoxBG,int>, bgi::rstar<16>> BoxRtree;
@@ -52,6 +53,7 @@ namespace OABusRouter
         typedef SegmentBG seg;
         typedef PointBG pt;
         typedef BoxBG box;
+        typedef PolygonBG polygon;
 
         int trackid;
         int offset;
@@ -85,6 +87,7 @@ namespace OABusRouter
         typedef SegmentBG seg;
         typedef PointBG pt;
         typedef BoxBG box;
+        typedef PolygonBG polygon;
 
         vector<box> elems;
         vector<BoxRtree> rtree;
@@ -114,6 +117,7 @@ namespace OABusRouter
         typedef SegmentBG seg;
         typedef PointBG pt;
         typedef BoxBG box;
+        typedef PolygonBG polygon;
        
         int elemindex;
         vector<box> elems;
@@ -152,6 +156,7 @@ namespace OABusRouter
         typedef SegmentBG seg;
         typedef PointBG pt;
         typedef BoxBG box;
+        typedef PolygonBG polygon;
 
         vector<box> elems;
         vector<BoxRtree> rtree;
@@ -178,6 +183,7 @@ namespace OABusRouter
         typedef SegmentBG seg;
         typedef PointBG pt;
         typedef BoxBG box;
+        typedef PolygonBG polygon;
 
 
         int elemindex;
@@ -256,7 +262,8 @@ namespace OABusRouter
         typedef SegmentBG seg;
         typedef PointBG pt;
         typedef BoxBG box;
-        
+        typedef PolygonBG polygon;
+
         // design bound
         int db[4];
         vector<BoxRtree> rtree;
@@ -291,6 +298,8 @@ namespace OABusRouter
         // member functions
         bool insert_obstacle(int bitid, int x[], int y[], int l, bool remove);
         bool compactness(int numbits, int mx[], int my[], int x, int y, int l1, int l2, int align, int dir, int width, int spacing);
+        bool compactness_check(int busid, int l, polygon& geo); // added 9/11
+        bool spacing_violations(int busid, int l, polygon& geo); 
         bool spacing_violations(int bitid, int x[], int y[], int l, int width, int spacing, bool vertical);
         bool spacing_violations_ndr(int bitid, int x[], int y[], int l);
         bool short_violation(int bitid, int wirex[], int wirey[], int wl, int tarx[], int tary[], int tl);

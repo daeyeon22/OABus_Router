@@ -57,8 +57,8 @@ void create_bus_plot(bool all, int busid, const char* fileName)
 
 
 
-    layoutOffsetX = 0-ckt->originX;
-    layoutOffsetY = 0-ckt->originY;
+    layoutOffsetX = 0;//-ckt->originX;
+    layoutOffsetY = 0;//-ckt->originY;
     layoutWidth = ckt->width;
     layoutHeight = ckt->height;
 
@@ -82,7 +82,7 @@ void create_bus_plot(bool all, int busid, const char* fileName)
     
 #endif
 
-    Dimensions dimensions(scale*layoutWidth, scale*layoutHeight);
+    Dimensions dimensions(scale*(layoutWidth + ckt->originX*2), scale*(layoutHeight + ckt->originY*2));
     Document doc(fileName, Layout(dimensions, Layout::BottomLeft, scale));
 
     Color colors[]
@@ -97,10 +97,10 @@ void create_bus_plot(bool all, int busid, const char* fileName)
     //lly = layoutOffsetY;
     //urx = layoutOffsetX + layoutWidth;
     //ury = layoutOffsetY + layoutHeight;
-    llx = 0;//-layoutOffsetX; //ckt->originX;
-    lly = 0;//-layoutOffSetY; //ckt->originY;
-    urx = layoutWidth;
-    ury = layoutHeight;
+    llx = ckt->originX; //0;//-layoutOffsetX; //ckt->originX;
+    lly = ckt->originY; //0;//-layoutOffSetY; //ckt->originY;
+    urx = ckt->originX + layoutWidth;
+    ury = ckt->originY + layoutHeight;
 
     Polygon border(Color::White, Stroke(stroke_width,Color::Black));
     border << Point(llx,lly) << Point(llx, ury) << Point(urx,ury) << Point(urx, lly);
@@ -224,10 +224,10 @@ void create_bus_plot(bool all, int busid, const char* fileName)
         lly = curPin->lly + layoutOffsetY;
         urx = curPin->urx + layoutOffsetX;
         ury = curPin->ury + layoutOffsetY;
-        llx = max(llx, 0); //layoutOffsetX);
-        lly = max(lly, 0); //layoutOffsetY);
-        urx = min(urx, layoutWidth); //layoutOffsetX + layoutWidth);
-        ury = min(ury, layoutHeight); //layoutOffsetY + layoutHeight);
+        llx = max(llx, ckt->originX); //layoutOffsetX);
+        lly = max(lly, ckt->originY); //layoutOffsetY);
+        urx = min(urx, ckt->originX + layoutWidth); //layoutOffsetX + layoutWidth);
+        ury = min(ury, ckt->originY + layoutHeight); //layoutOffsetY + layoutHeight);
         
         curl = curPin->l; //ckt->layerHashMap[curPin->layer];   
         content = curPin->bitName;
