@@ -110,12 +110,13 @@ int main(int argc, char** argv){
     ckt->create_path();
     //cout << "[INFO] start Create Plot" << endl;
     //rou->create_plot(benchName.c_str());
-    cout << "[INFO] start Write def & lef file" << endl;
+    cout << "[INFO] start Write out file" << endl;
     ckt->out_write(outputFileName);
-    //lefName = outDirName + "/" + benchName + ".lef";
-    //defName = outDirName + "/" + benchName + ".def";
-    //ckt->lef_write(lefName);
-    //ckt->def_write(defName);
+    cout << "[INFO] start Write def & lef file" << endl;
+    lefName = outDirName + "/" + benchName + ".lef";
+    defName = outDirName + "/" + benchName + ".def";
+    ckt->lef_write(lefName);
+    ckt->def_write(defName);
 
     //rou->penalty_cost();
 

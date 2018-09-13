@@ -15,7 +15,7 @@ from datetime import datetime
 benchDirList = ["../bench", "../bench_big"]
 dirpos = "../bench"
 binaryName = "./iccad18obr"
-evalpos = "../eval/eval_1.0-a4"
+evalpos = "../eval/eval_1.0-a6"
 evaluator = "eval"
 outpos = "../output"
 logpos = "../log"

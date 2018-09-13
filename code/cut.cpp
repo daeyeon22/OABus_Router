@@ -1,7 +1,7 @@
 #include "route.h"
 #include "circuit.h"
-#define DEBUG_CUT
-#define DEBUG_PATH
+#define _DEBUG_CUT
+#define _DEBUG_PATH
 
 
 void OABusRouter::Circuit::create_path()
@@ -25,7 +25,6 @@ void OABusRouter::Circuit::create_path()
         int k=0;
         while(true)
         {
-            cout << "k : " << k << endl;
             curmp = &multipins[buses[i].multipins[k]];
             if(rou->pin2wire.find(curmp->pins[0]) == rou->pin2wire.end())
                 k++;
