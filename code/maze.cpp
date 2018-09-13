@@ -1,7 +1,7 @@
 
 #include "func.h"
-#include "circuit.h"
 #include "route.h"
+#include "circuit.h"
 #include "rtree.h"
 
 #include <stdlib.h>

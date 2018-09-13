@@ -20,51 +20,48 @@ SRCHASH 	= /home/tool/cpplib/sparsehash/install/2.0.3/include
 BOOST 		= /home/tool/cpplib/boost/install/1.67.0/include
 
 SRC			= func.o main.o parser.o route.o init.o maze.o\
-			  util.o rtree.o writer.o cut.o rip.o mymeasure.o\
-			  topology.o
+			  util.o rtree.o writer.o cut.o rip.o mymeasure.o
 
 DEBUG = -g -gstrict-dwarf -gdwarf-2 -pg
 
 $(EXE): $(SRC) 
-	$(CXX) $(DEBUG) $(CXXOPTS) $^ -o $@ $(LINKCFLAGS) 
+	$(CXX) $^ -o $@ $(LINKCFLAGS) 
+	#$(CXX) $(DEBUG) $(CXXOPTS) $^ -o $@ $(CFLAGS) 
 
-func.o: func.cpp func.h
+func.o: func.cpp
 	$(CXX) $(CFLAGS) -c -o $@ $<  
 
-main.o: main.cpp circuit.h
+main.o: main.cpp
 	$(CXX) $(CFLAGS) -c -o $@ $<
 
-parser.o: parser.cpp circuit.h func.h
+parser.o: parser.cpp
 	$(CXX) $(CFLAGS) -c -o $@ $<
 
-route.o: route.cpp route.h circuit.h rtree.h
+route.o: route.cpp
 	$(CXX) $(CFLAGS) -c -o $@ $<  
 
-writer.o: writer.cpp circuit.h route.h
+writer.o: writer.cpp
 	$(CXX) $(CFLAGS) -c -o $@ $<
 
-rtree.o: rtree.cpp rtree.h circuit.h route.h
+rtree.o: rtree.cpp
 	$(CXX) $(CFLAGS) -c -o $@ $<  
 
-util.o: util_v2.cpp circuit.h route.h 
+util.o: util_v2.cpp 
 	$(CXX) $(CFLAGS) -c -o $@ $<  
 
-init.o: init.cpp circuit.h route.h rtree.h
+init.o: init.cpp
 	$(CXX) $(CFLAGS) -c -o $@ $<  
 
-maze.o: maze.cpp route.h rtree.h
+maze.o: maze.cpp
 	$(CXX) $(CFLAGS) -c -o $@ $<  
 
-cut.o: cut.cpp route.h
+cut.o: cut.cpp
 	$(CXX) $(CFLAGS) -c -o $@ $<  
 
-rip.o: rip.cpp route.h
+rip.o: rip.cpp
 	$(CXX) $(CFLAGS) -c -o $@ $<  
 	
 mymeasure.o: mymeasure.cpp mymeasure.h
-	$(CXX) $(CFLAGS) -c -o $@ $<  
-
-topology.o: topology.cpp route.h
 	$(CXX) $(CFLAGS) -c -o $@ $<  
 
 .PHONY: clean
