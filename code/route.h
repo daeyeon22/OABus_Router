@@ -333,6 +333,7 @@ namespace OABusRouter
         void local_search_area(int m1, int m2, int count, int ll[], int ur[]);
         void range_of_tj(Segment& target, int ll[], int ur[]);
         void wire_reordering(int busid, vector<Segment>& tp);
+        void move_pt_loc(int &x, int &y, int numBits, int width, int spacing, int sDir);
         bool get_routing_topology(int numBits, int x[], int y[], int width[], int spac[], int sDir[], polygon &area);
         bool get_routing_topology_v2(int numBits, int x[], int y[], int width[], int spac[], int sDir[], polygon &area);
         bool get_routing_topology_v3(int numBits, int x[], int y[], int width, int spac, int sDir, polygon &area);
