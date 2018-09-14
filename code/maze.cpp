@@ -8,26 +8,24 @@
 #include <time.h>
 #include <unordered_map>
 #include <tuple>
+#include <omp.h>
+
 
 #define MAX_ITERATION_COUNT 10
-//#define VIA_COST 1000 
-//#define DEPTH_COST 5000
-//#define SPACING_VIOLATION max((int)((ckt->width + ckt->height)/2),100000)
-//#define NOTCOMPACT 10000
 #define DESTINATION -12311
-//#define DESTINATION SIZE_MAX
+#define NUM_THREADS 4
 
 #define DELTA ckt->delta
 #define EPSILON ckt->epsilon
 //#define DEBUG_ROUTE_MP_TO_TP
 //#define DEBUG_ROUTE_TWOPIN_NET
 //#define DEBUG_MAZE
-// Routing direction
+
+
 typedef PointBG pt;
 typedef SegmentBG seg;
 typedef BoxBG box;
 typedef PolygonBG polygon;
-
 static int randseed = 777;
 static int failed = 0;
 static int failed_tw = 0;;
@@ -120,6 +118,19 @@ void into_array(int x1, int x2, int y1, int y2, int x[], int y[])
     y[0] = y1;
     y[1] = y2;
 }
+
+
+void OABusRouter::Router::get_intersection_pin(int pinx[], int piny[], int l1, seg elem, int l2, int iterx, int itery, int &x, int &y)
+{
+    int x1, y1, x2, y2;
+    int wirex[2], wirey[2];
+    lpt(elem, x1, y1);
+    upt(elem, x2, y2);
+    into_array(x1, x2, y1, y2, wirex, wirey);
+    intersection_pin(pinx, piny, l1, wirex, wirey, l2, iterx, itery, x, y);
+}
+
+
 
 void OABusRouter::Wire::get_info(int b, int t, int x[], int y[], int curl, int s, bool accessPin)
 {
@@ -317,7 +328,7 @@ bool OABusRouter::Router::route_bus(int busid)
         vector<Segment> tp;
 
         cout << "[INFO] start route twopin net" << endl;
-        if(route_twopin_net_v6(busid, mp1, mp2, tp))
+        if(route_twopin_net_v8(busid, mp1, mp2, tp))
         {
 
             cout << "[INFO] success route twopin net" << endl;
@@ -605,7 +616,7 @@ void OABusRouter::Router::local_search_area(int m1, int m2, int count, int ll[],
             maxWidth = max(maxWidth, curbus->width[i]);
             maxSpacing = max(maxSpacing, spacing[i]);
         }
-        expand = (maxWidth + maxSpacing)*numbits*(count+1)*5;
+        expand = (maxWidth + maxSpacing)*numbits*(count+2)*30;
         ll[0] = min(multipin2llx[m1], multipin2llx[m2]) - expand;
         ll[1] = min(multipin2lly[m1], multipin2lly[m2]) - expand;
         ur[0] = max(multipin2urx[m1], multipin2urx[m2]) + expand;
@@ -617,128 +628,112 @@ void OABusRouter::Router::local_search_area(int m1, int m2, int count, int ll[],
     }
 }
 
-bool OABusRouter::Router::route_twopin_net_v6(int busid, int m1, int m2, vector<Segment> &tp)
+bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<Segment> &tp)
 {
-    // check elapse time and runtime limit
+    //
     if(should_stop())
         return false;
-    
+
     typedef PointBG pt;
     typedef SegmentBG seg;
     typedef BoxBG box;
     typedef tuple<int,int,int,int> ituple;
-    // Variables
-    int i, j, wireid, bitid, trackid, l, seq;
-    int numwires, numpins, numbits, count, index;
-    int cost, c1, c2, c3, e1, e2, w1, w2, t1, t2, l1, l2;
-    int wirelength, estimated, penalty;
-    int x1, y1, x2, y2, x3, y3, x, y, dep1, dep2, dep;
-    int minElem, minCost, totalSPV, numDestSPV, num_spacing_vio;
-    int sx1, sx2, sy1, sy2;
-    int llx, lly, urx, ury;
-    int curDir, prevDir, maxDepth;
-    int maxWidth, align1, align2, minPanelty;
-    int local_area_ll[2], local_area_ur[2];
-    int xs[2], ys[2], wirex[2], wirey[2];
-    int pin1x[2], pin1y[2], pin2x[2], pin2y[2];
-    int mx1[2], my1[2], mx2[2], my2[2];
-   
-    int initialSdir, sDir1, sDir2, sDir3, rDir1, rDir2, rDir3;
-    int s[3], wid[3], spac[3];
-    bool pin, isRef, hasMinElem, isDestination;
-    bool vertical_arrange1, vertical_arrange2;
-    bool vertical, vertical1, vertical2;
-    bool reverse;
-    bool solution = true;
 
-    // Element index ID, Wire length, Estimated Distance, Penalty
+    // Global variables
+    int i, wireid, bitid, trackid, l, seq, initSdir;
+    int numwires, numpins, numbits, count, index, align1, align2;
+    int minElem, minCost, totalSPV, numDestSPV, maxDepth, minPanelty;
+    int llx, lly, urx, ury;
+    int local_area_ll[2], local_area_ur[2];
+    int mx1[2], mx2[2], my1[2], my2[2];
+    int pin1x[2], pin1y[2], pin2x[2], pin2y[2];
+    bool isRef, reverse, solution, vertical_arrange1, vertical_arrange2;
+
     vector<int> sorted1, sorted2;
     dense_hash_map<int,int> width;
     dense_hash_map<int,int> sequence;
     sequence.set_empty_key(INT_MAX);
     
-    Pin *pin1, *pin2;
     Bus* curbus;
+    Pin *pin1, *pin2;
     MultiPin *mp1, *mp2;
 
     mp1 = &ckt->multipins[m1];
     mp2 = &ckt->multipins[m2];
-            
-    if(multipin2llx[mp1->id] > multipin2llx[mp2->id])
+
+    if(mp1->llx > mp2->llx)
     {
-        swap(mp1, mp2);
+        swap(mp1,mp2);
         swap(m1,m2);
     }
 
     curbus = &ckt->buses[busid];
     numbits = curbus->numBits;
     width = curbus->width;
-    int visit_count=0;
-    int failed_count=0;
-    int iterCount=0;
-    int search_maximum_depth = 0;
-    int dest_count=0;
-    int DEPTH_THRESHOLD;
+
+    int visit_count = 0;
+    int failed_count = 0;
+    int iterCount = 0;
+    int MIN_DEPTH_THRESHOLD = 0;
+    int MAX_DEPTH_THRESHOLD = INT_MAX;
+    
+
     while(iterCount < 4)
     {
-        // check elapse time and runtime limit
-        if(should_stop())
-            return false;
-
-        
+        //
         if(iterCount / 2 == 1)
         {
             swap(mp1, mp2);
-            swap(m1,m2);
+            swap(m1, m2);
         }
+       
+
+        local_area_ll[0] = ckt->originX;
+        local_area_ll[1] = ckt->originY;
+        local_area_ur[0] = ckt->originX + ckt->width;
+        local_area_ur[1] = ckt->originY + ckt->height;
 
         if(iterCount % 2 == 1)
+        {
             reverse = true;
+            //local_area_ll[0] = ckt->originX;
+            //local_area_ll[1] = ckt->originY;
+            //local_area_ur[0] = ckt->originX + ckt->width;
+            //local_area_ur[1] = ckt->originY + ckt->height;
+        }
         else
+        {
             reverse = false;
+            //local_search_area(m1, m2, iterCount, local_area_ll, local_area_ur);
+        }
 
-        sort_pins_routing_sequence(m1, m2, reverse, initialSdir, sorted1, sorted2);
-
+        sort_pins_routing_sequence(m1, m2, reverse, initSdir, sorted1, sorted2);
         iterCount++;
-
-        //sort_pins_routing_sequence(m1, m2, sorted1, sorted2);
+        
         align1 = mp1->align;
         align2 = mp2->align;
-        for(i=0; i < numbits; i++)
-        {
-#ifdef DEBUG_ROUTE_TWOPIN_NET
-            printf("p%d -> p%d seq %d bitid %d\n", mp1->pins[i], mp2->pins[i], i, curbus->bits[i]);
-#endif
-            sequence[mp1->pins[i]] = i;
-        }
+        vertical_arrange1 = (align1 == VERTICAL)? true : false;
+        vertical_arrange2 = (align2 == VERTICAL)? true : false;
+        into_array(mp1->llx, mp1->urx, mp1->lly, mp1->ury, mx1, my1);
+        into_array(mp2->llx, mp2->urx, mp2->lly, mp2->ury, mx2, my2);
 
-        
-        // get copied rtree
+        for(i=0; i < numbits; i++)
+            sequence[mp1->pins[i]] = i;
+
+        // local variables
         tp.clear();
         maxDepth = INT_MAX;
-        DEPTH_THRESHOLD = INT_MAX;
+        MAX_DEPTH_THRESHOLD = INT_MAX;
         isRef = true;
         solution = true;
-        vector<int> tracelNum, traceDir;  // trace layer number
+        vector<int> tracelNum, traceDir, stackDir;
         vector<int> tracelx, tracely, traceux, traceuy;
         vector<int> tracePtx, tracePty;
-        vector<int> stackDir;
         vector<Wire> created;
-        vector<pair<int, int>> edges;
-        vector<pair<int, int>> pts;
+        vector<pair<int,int>> edges;
+        vector<pair<int,int>> pts;
         TrackRtree local_rtree_t(rtree_t);
         ObstacleRtree local_rtree_o(rtree_o);
-
-        // local search area
-        if(iterCount % 2 == 1)
-        { 
-            local_area_ll[0] = ckt->originX;
-            local_area_ll[1] = ckt->originY;
-            local_area_ur[0] = ckt->originX + ckt->width;
-            local_area_ur[1] = ckt->originY + ckt->height;
-        }
-        else
-            local_search_area(m1, m2, iterCount/1, local_area_ll, local_area_ur);
 
 
         for(i=0; i < numbits; i++)
@@ -747,78 +742,54 @@ bool OABusRouter::Router::route_twopin_net_v6(int busid, int m1, int m2, vector<
             if(should_stop())
                 return false;
 
-            // always pin1 located leftside of pin2
             pin1 = &ckt->pins[sorted1[i]];
             pin2 = &ckt->pins[sorted2[i]];
-            align1 = mp1->align;
-            align2 = mp2->align;
             bitid = pin2bit[pin1->id];
-            seq = sequence[sorted1[i]];//i; 
-            vertical_arrange1 = (mp1->align == VERTICAL) ? true : false;
-            vertical_arrange2 = (mp2->align == VERTICAL) ? true : false;
-
-            into_array(multipin2llx[mp1->id], multipin2urx[mp1->id], multipin2lly[mp1->id], multipin2ury[mp1->id], mx1, my1);
-            into_array(multipin2llx[mp2->id], multipin2urx[mp2->id], multipin2lly[mp2->id], multipin2ury[mp2->id], mx2, my2);
-
-            // Get Pin Area valid
-            box pinbox1, pinbox2;
-            box ext1, ext2;
-            box orig1, orig2;
+            seq = sequence[sorted1[i]];
+            isRef = (i == 0) ? true : false;
+            
+            
+            // pin area 
+            box orig1, orig2, ext1, ext2;
             orig1 = box(pt(pin1->llx, pin1->lly), pt(pin1->urx, pin1->ury));
             orig2 = box(pt(pin2->llx, pin2->lly), pt(pin2->urx, pin2->ury));
             into_array(pin1->llx, pin1->urx, pin1->lly, pin1->ury, pin1x, pin1y);
             into_array(pin2->llx, pin2->urx, pin2->lly, pin2->ury, pin2x, pin2y);
             pin_area(pin1x, pin1y, align1, width[pin1->l], ext1);
             pin_area(pin2x, pin2y, align2, width[pin2->l], ext2);
-#ifdef DEBUG_ROUTE_TWOPIN_NET
-            printf("start %d seqence bit routing\n", seq);
-            printf("p%d (%d %d) (%d %d) -> p%d (%d %d) (%d %d) seq %d bitid %d\n",
-                    pin1->id,
-                    pin1->llx, pin1->lly, pin1->urx, pin1->ury,
-                    pin2->id,
-                    pin2->llx, pin2->lly, pin2->urx, pin2->ury, seq, bitid);
-#endif
 
-            //////////////////
             if(isRef)
-                initialSdir = get_stack_direction(mp1->id, pin1->id);
+                initSdir = get_stack_direction(m1, pin1->id);
 
-            //
             BitRtree bit_rtree;
             construct_bit_rtree(bitid, bit_rtree);
             set<int> except1;
             set<int> except2;
             except1.insert(pin1->id);
             except1.insert(pin2->id);
-
-            // variables
-            seg elem1, elem2;
-            minElem = INT_MAX;
-            minCost = INT_MAX;
-            minPanelty = INT_MAX;
-            hasMinElem = false;
-
-            int numelems = local_rtree_t.elemindex;
-            vector<int> elemCost(numelems, INT_MAX);
-
+            
+            // local variables
+            int numElems = local_rtree_t.elemindex;
+            int minElem = INT_MAX;
+            int minCost = INT_MAX;
+            int minPanelty = INT_MAX;
+            bool hasMinElem = false;
+            vector<int> elemCost(numElems, INT_MAX);
             dense_hash_map<int,int> prevSdir;
             dense_hash_map<int,int> prevRdir;
             dense_hash_map<int,int> numSV;
             dense_hash_map<int,int> backtrace;
             dense_hash_map<int,int> depth;
             dense_hash_map<int,int> iterWL;
-            dense_hash_map<int,int> estDist;
             dense_hash_map<int,int> accPanelty;
             dense_hash_map<int,int> iterPtx;
             dense_hash_map<int,int> iterPty;
             dense_hash_map<int,int> lastPtx;
             dense_hash_map<int,int> lastPty;
             dense_hash_map<int,seg> element;
-            
             prevSdir.set_empty_key(INT_MAX);
             prevRdir.set_empty_key(INT_MAX);
             iterWL.set_empty_key(INT_MAX);
-            estDist.set_empty_key(INT_MAX);
             accPanelty.set_empty_key(INT_MAX);
             numSV.set_empty_key(INT_MAX);
             backtrace.set_empty_key(INT_MAX);
@@ -836,88 +807,90 @@ bool OABusRouter::Router::route_twopin_net_v6(int busid, int m1, int m2, vector<
             };
             priority_queue<ituple , vector<ituple>, decltype(cmp)> PQ(cmp);
 
-            //
+
+            // First Candidate
             queries.clear();
             local_rtree_t.query(QueryMode::Intersects, ext1, pin1->l-1, pin1->l+1, queries);
-            
-            // Initial candidate
-            for(auto& it : queries)
+
+            #pragma omp parallel for num_threads(NUM_THREADS)
+            for(int j=0; j < queries.size(); j++)
             {
-                elem1 = it.first;
-                e1 = it.second;
+                // local variables
+                int e1, t1, l1, x1, y1, x2, y2, c1, c2, c3;
+                int maxWidth, numSpacingVio;
+                int wirex[2], wirey[2], xs[2], ys[2];
+                bool isDestination, vertical1;
+                seg elem1;
+                elem1 = queries[j].first;
+                e1 = queries[j].second;
                 t1 = local_rtree_t.get_trackid(e1);
                 l1 = local_rtree_t.get_layer(e1);
-                vertical1 = local_rtree_t.is_vertical(e1); 
+                vertical1 = local_rtree_t.is_vertical(e1);
                 maxWidth = local_rtree_t.get_width(e1);
-                
+
                 // width constraint
                 if(maxWidth < width[l1])
                     continue;
-                
-                // condition
+
                 if(vertical_arrange1 == vertical1)
                     continue;
 
                 if(pin1->l != l1 && !bg::intersects(orig1, elem1))
                     continue;
 
-                // visit
-                backtrace[e1] = e1;         // e1 is root
-                element[e1] = it.first;
-                depth[e1] = 0;
+                get_intersection_pin(pin1x, pin1y, pin1->l, elem1, l1, -1, -1, x1, y1);
+                
 
-                // get point
-                lpt(elem1, sx1, sy1);
-                upt(elem1, sx2, sy2);
-                into_array(min(sx1, sx2), max(sx1, sx2),  min(sy1, sy2), max(sy1, sy2), wirex, wirey);
-                intersection_pin(pin1x, pin1y, pin1->l, wirex, wirey, l1, -1, -1, x1, y1);
-                iterPtx[e1] = x1;
-                iterPty[e1] = y1;
-                numSV[e1] = 0;
-                //sDir[e1] = sDir1;
-
-                // Find iterating point of e1
                 c1 = VIA_COST * abs(pin1->l - l1);
                 c2 = 0;
-                c3 = 0; 
-                
-                isDestination = false; 
-                num_spacing_vio = 0;
+                c3 = 0;
+
+                isDestination = false;
+                numSpacingVio = 0;
                 if((abs(l1 - pin2->l) ==0 && bg::intersects(elem1, ext2)) || (abs(l1 - pin2->l) == 1 && bg::intersects(elem1, orig2)))
                 {
                     isDestination = true;
-                    intersection_pin(pin2x, pin2y, pin2->l, wirex, wirey, l1, x1, y1, x2, y2);
+                    get_intersection_pin(pin2x, pin2y, pin2->l, elem1, l1, x1, y1, x2, y2);
                     into_array(min(x1, x2), max(x1, x2), min(y1, y2), max(y1, y2), xs, ys);
-                    num_spacing_vio = local_rtree_o.num_spacing_violations(bitid, xs, ys, l1, width[l1], spacing[l1], vertical1);
+                    numSpacingVio = local_rtree_o.num_spacing_violations(bitid, xs, ys, l1, width[l1], spacing[l1], vertical1);
                     c1 += manhatan_distance(x1, y1, x2, y2);
-                    c3 += num_spacing_vio * SPACING_VIOLATION;
+                    c3 += numSpacingVio * SPACING_VIOLATION;
                 }
-                
-                c3 += num_spacing_vio * SPACING_VIOLATION;
-                numSV[e1] = num_spacing_vio;
-                elemCost[e1] = c1 + c2 + c3;
-                iterWL[e1] = c1;
-                estDist[e1] = c2;
-                accPanelty[e1] = c3;
-                PQ.push(make_tuple(e1,c1,c2,c3));
-                
-                if(isDestination && minPanelty > c3)
+
+                #pragma omp critical(GLOBAL)
                 {
-                    lastPtx[e1] = x2;
-                    lastPty[e1] = y2;
-                    hasMinElem = true;
-                    minCost = c1 + c2 + c3;
-                    minPanelty = c3;
-                    minElem = e1;
-                    numDestSPV = num_spacing_vio;
+                    // visit
+                    backtrace[e1] = e1;
+                    element[e1] = elem1;
+                    depth[e1] = 0;
+                    iterPtx[e1] = x1;
+                    iterPty[e1] = y1;
+                    numSV[e1] = numSpacingVio;
+                    iterWL[e1] = c1;
+                    accPanelty[e1] = c3;
+                    elemCost[e1] = c1 + c2 + c3;
+
+                    PQ.push(make_tuple(e1, c1, c2, c3));
+
+                    if(isDestination && minPanelty > c3)
+                    {
+                        lastPtx[e1] = x2;
+                        lastPty[e1] = y2;
+                        hasMinElem = true;
+                        minCost = c1 + c2+ c3;
+                        minPanelty = c3;
+                        minElem = e1;
+                        numDestSPV = numSV[e1];
+                    }
                 }
             }
-            //
-
 
             while(PQ.size() > 0)
             {
-                int cost1, cost2, cost3;
+                int e1, t1, l1, x1, y1, dep1, cost1, cost2, cost3;
+                int maxWidth1;
+                bool vertical1;
+                seg elem1;
                 ituple e = PQ.top();
                 PQ.pop();
 
@@ -925,16 +898,10 @@ bool OABusRouter::Router::route_twopin_net_v6(int busid, int m1, int m2, vector<
                 cost1 = get<1>(e);
                 cost2 = get<2>(e);
                 cost3 = get<3>(e);
-                
-                //cout << "Queue size : " << PQ.size() << endl;
-                //printf("e(%d) c1 %d c3 %d\n", e1, cost1, cost3);
-                //
-                visit_count++;
-                //
+
                 if(minElem == e1 || minPanelty == 0)
                     break;
 
-                //
                 if(iterWL[e1] != cost1 || accPanelty[e1] != cost3)
                     continue;
 
@@ -947,28 +914,20 @@ bool OABusRouter::Router::route_twopin_net_v6(int busid, int m1, int m2, vector<
                 if(minPanelty <= cost3)
                     continue;
 
-                // routing condition
                 if(maxDepth <= depth[e1])
                     continue;
 
-                if(DEPTH_THRESHOLD < depth[e1])
+                if(MAX_DEPTH_THRESHOLD < depth[e1])
                     continue;
                 
                 elem1 = element[e1];
                 t1 = local_rtree_t.get_trackid(e1);
                 l1 = local_rtree_t.get_layer(e1);
+                vertical1 = local_rtree_t.is_vertical(e1);
                 x1 = iterPtx[e1];
                 y1 = iterPty[e1];
-                vertical1 = local_rtree_t.is_vertical(e1);
                 dep1 = depth[e1];
-                if(isRef)
-                    search_maximum_depth = max(search_maximum_depth, dep1);
-                if(dep1 == 1)
-                {
-                    prevSdir[e1] = initialSdir;
-                    prevRdir[e1] = routing_direction(iterPtx[backtrace[e1]], iterPty[backtrace[e1]], x1, y1, local_rtree_t.is_vertical(backtrace[e1]));
-                }
-                // query intersected tracks
+
                 queries.clear();
                 if(isRef)
                 {
@@ -979,32 +938,41 @@ bool OABusRouter::Router::route_twopin_net_v6(int busid, int m1, int m2, vector<
                     local_rtree_t.query(QueryMode::Intersects, elem1, tracelNum[dep1+1], queries);
 
 
-                // Intersected available tracks
-                for(auto& it : queries)
+                #pragma omp parallel for num_threads(NUM_THREADS)
+                for(int j=0; j < queries.size(); j++)
                 {
-                    e2 = it.second;
+                    if(minPanelty == 0)
+                    {
+                        continue;
+                    }
+                    int e2, t2, l2, x2, y2, x3, y3, dep2, c1, c2, c3;
+                    int maxWidth2, curDir, numSpacingVio;
+                    int sx1, sx2, sy1, sy2;
+                    int wirex[2], wirey[2], xs[2], ys[2];
+                    bool vertical2, isDestination;
+                    seg elem2;
+                    
+                    elem2 = queries[j].first;
+                    e2 = queries[j].second;
                     t2 = local_rtree_t.get_trackid(e2);
                     l2 = local_rtree_t.get_layer(e2);
-                    maxWidth = local_rtree_t.get_width(e2);
-                    elem2 = it.first;
-                    dep2 = depth[e1] + 1;
+                    dep2 = dep1 + 1;
                     vertical2 = local_rtree_t.is_vertical(e2);
-                    
-                    //destination = false;                
+                    maxWidth2 = local_rtree_t.get_width(e2);
 
                     if(e1 == e2)
                         continue;
-                    
-                    // intersection
+
                     if(!intersection(elem1, elem2, x2, y2))
-                        continue;   
-                    
-                    // cost
+                        continue;
+
                     c1 = cost1 + manhatan_distance(x1, y1, x2, y2) + abs(l1-l2) * VIA_COST + DEPTH_COST;
                     c2 = 0;
                     c3 = cost3;
-                    
-                    if(elemCost[e2] <= c1 + c3)
+                    curDir = routing_direction(x1, y1, x2, y2, vertical1);
+
+                    // skipping
+                    if(elemCost[e2] <= c1 + c2 + c3)
                         continue;
 
                     // local area
@@ -1012,14 +980,14 @@ bool OABusRouter::Router::route_twopin_net_v6(int busid, int m1, int m2, vector<
                         continue;
 
                     // width constraint
-                    if(maxWidth < width[l2])
+                    if(maxWidth2 < width[l2])
                         continue;
 
-
-                    isDestination = false;
-                    if((abs(pin2->l-l2) == 0 && bg::intersects(elem2, ext2)) || (abs(pin2->l-l2) == 1 && bg::intersects(elem2, orig2)))
+                    // destination
+                    if((abs(pin2->l - l2) == 0 && bg::intersects(elem2, ext2)) || (abs(pin2->l - l2) == 1 && bg::intersects(elem2, orig2)))
                         isDestination = true;
-
+                    else 
+                        isDestination = false;
 
                     if(!isRef)
                     {
@@ -1027,16 +995,12 @@ bool OABusRouter::Router::route_twopin_net_v6(int busid, int m1, int m2, vector<
                         if(tracelNum[dep2] != l2)
                             continue;
 
-                        curDir = routing_direction(x1, y1, x2, y2, vertical1);
-                        // if current routing direction is different,
-                        // don't push into the priority queue
+                        //curDir = routing_direction(x1, y1, x2, y2, vertical1);
                         if(traceDir[dep1] != curDir)
-                            continue; 
-                        
+                            continue;
+
                         if(!isDestination)
                         {
-                           
-                            // wire ordering 
                             if(curDir != Direction::Point)
                             {
                                 if(tracelx[dep2] != traceux[dep2])
@@ -1071,11 +1035,10 @@ bool OABusRouter::Router::route_twopin_net_v6(int busid, int m1, int m2, vector<
                             }
                         }
 
-                        ////////////
                         c3 += manhatan_distance(tracePtx[dep2], tracePty[dep2], x2, y2);
                     }
-
-                    // condition
+                    
+                    // first condition
                     if(dep1 == 0)
                     {
                         if(x1 == x2 && y1 == y2)
@@ -1083,185 +1046,115 @@ bool OABusRouter::Router::route_twopin_net_v6(int busid, int m1, int m2, vector<
 
                         if(isRef)
                         {
-                            // check compactness cost
-                            curDir = routing_direction(x1, y1, x2, y2, vertical1);
-
-                            if(!local_rtree_o.compactness((numbits-i), mx1, my1, x2, y2, l1, l2, align1, curDir, width[l2], spacing[l2]))
+                            if(!local_rtree_o.compactness(numbits, mx1, my1, x2, y2, l1, l2, align1, curDir, width[l2], spacing[l2]))
                                 c3 += NOTCOMPACT;
                         }
                     }
 
-                    
-                    // check spacing violation
-                    into_array(min(x1, x2), max(x1, x2), min(y1, y2), max(y1, y2), xs, ys); 
 
-                    num_spacing_vio = local_rtree_o.num_spacing_violations(bitid, xs, ys, l1, width[l1], spacing[l1], vertical1);
-                    
+                    // check spacing violation
+                    into_array(min(x1, x2), max(x1, x2), min(y1, y2), max(y1, y2), xs, ys);
+                    numSpacingVio = local_rtree_o.num_spacing_violations(bitid, xs, ys, l1, width[l1], spacing[l1], vertical1);
+
+                    // check short violation
                     expand_width(xs, ys, width[l1], vertical1);
                     if(bit_rtree.short_violation(xs, ys, l1, except1, except2))
                         continue;
-                    
 
                     if(isDestination)
                     {
-                        lpt(elem2, sx1, sy1);
-                        upt(elem2, sx2, sy2);
-                        into_array(sx1, sx2, sy1, sy2, wirex, wirey);
-                        intersection_pin(pin2x, pin2y, pin2->l, wirex, wirey, l2, x2, y2, x3, y3); //lastPtx[e2], lastPty[e2]); 
                         //
                         if(vertical_arrange2 == vertical2)
                             continue;
+
+                        get_intersection_pin(pin2x, pin2y, pin2->l, elem2, l2, x2, y2, x3, y3);
                         
-                        // condition(routing direction)
                         if(!isRef)
                         {
-                            curDir = routing_direction(x2, y2, x3, y3, vertical2);
-                            // if current routing direction is different,
-                            // don't push into the priority queue
-                            if(traceDir[dep2] != curDir)
+                            if(traceDir[dep2] != routing_direction(x2, y2, x3, y3, vertical2))
                                 continue;
                             
                             if(maxDepth != dep2)
                                 continue;
                         }
-                        else
-                        {
-
-                        }
-
-
+                        //
                         if(isRef && backtrace[e1] != e1)
                         {
-                            int tmp = backtrace[e1];
-                            prevDir = routing_direction(iterPtx[tmp], iterPty[tmp], x1, y1, local_rtree_t.is_vertical(tmp));
-                            curDir = routing_direction(x2, y2, x3, y3, vertical2);
-                            if(prevDir != curDir)
-                                curDir = routing_direction(x3, y3, x2, y2, vertical2);
+                            int dir1, dir2;
+                            int prev = backtrace[e1];
+                            dir1 = routing_direction(iterPtx[prev], iterPty[prev], x1, y1, local_rtree_t.is_vertical(prev));
+                            dir2 = routing_direction(x2, y2, x3, y3, vertical2);
+                            if(dir1 != dir2)
+                                dir2 = routing_direction(x3, y3, x2, y2, vertical2);
 
-                            if(!local_rtree_o.compactness((numbits-i), mx2, my2, x2, y2, l1, l2, align2, curDir, width[l1], spacing[l1]))
+                            if(!local_rtree_o.compactness(numbits, mx2, my2, x2, y2, l1, l2, align2, dir2, width[l1], spacing[l1]))
                                 c3 += NOTCOMPACT;
                         }
 
-                        // check spacing violation
+                        // spacing violation
                         into_array(min(x2, x3), max(x2, x3), min(y2, y3), max(y2, y3), xs, ys);
-                        num_spacing_vio += local_rtree_o.num_spacing_violations(bitid, xs, ys, l2, width[l2], spacing[l2], vertical2);
+                        numSpacingVio += local_rtree_o.num_spacing_violations(bitid, xs, ys, l2, width[l2], spacing[l2], vertical2);
+                        
+                        
                         expand_width(xs, ys, width[l2], vertical2);
                         if(bit_rtree.short_violation(xs, ys, l2, except1, except2))
                             continue;
-                        
+
                         c1 += manhatan_distance(x2, y2, x3, y3);
                     }
-                    
-                    c3 += num_spacing_vio*SPACING_VIOLATION;
+
+                    c3 += numSpacingVio * SPACING_VIOLATION;
 
                     if(elemCost[e2] <= c1 + c2 + c3)
                         continue;
 
 
-                    //
-                    if(isRef)
+                    #pragma omp critical(GLOBAL)
                     {
-                        prevRdir[e2] = routing_direction(x1, y1, x2, y2, vertical1);
-                        if(dep1 == 0)
+                        element[e2] = elem2;
+                        depth[e2] = dep2;
+                        backtrace[e2] = e1;
+                        iterPtx[e2] = x2;
+                        iterPty[e2] = y2;
+                        iterWL[e2] = c1;
+                        accPanelty[e2] = c3;
+                        elemCost[e2] = c1 + c2 + c3;
+                        numSV[e2] = numSV[e1] + numSpacingVio;
+
+                        PQ.push(make_tuple(e2, c1, c2, c3));
+
+                        if(isDestination && minPanelty > c3)
                         {
-                            prevSdir[e2] = initialSdir;
-                        }
-                        else
-                        {
-                            //prevSdir[e2] = (dep1 == 0) ? initialSdir : get_stack_direction(prevRdir[e1], prevSdir[e1], prevRdir[e2], reverse);
-                            //cout << " ???? " << endl;
-                            prevSdir[e2] = get_stack_direction(prevRdir[e1], prevSdir[e1], prevRdir[e2], reverse);
+                            lastPtx[e2] = x3;
+                            lastPty[e2] = y3;
+                            hasMinElem = true;
+                            minCost = c1 + c2 + c3;
+                            minPanelty = c3;
+                            minElem = e2;
+                            numDestSPV = numSV[e2];
+                            MAX_DEPTH_THRESHOLD = dep2 + 2;
+
                         }
                     }
-                    //
-                    element[e2] = elem2;
-                    depth[e2] = dep2;
-                    backtrace[e2] = e1;
-                    iterPtx[e2] = x2;
-                    iterPty[e2] = y2;
-                    iterWL[e2] = c1;
-                    estDist[e2] = c2;
-                    accPanelty[e2] = c3;
-                    elemCost[e2] = c1 + c2 + c3;
-                    numSV[e2] = numSV[e1] + num_spacing_vio;
-                    PQ.push(make_tuple(e2, c1, c2, c3));
-
-                    if(isDestination && minPanelty > c3)
-                    {
-#ifdef DEBUG_ROUTE_TWOPIN_NET
-                        if(isRef)
-                        {
-
-                            printf("\n< Find destination >\nprev : %d\ncurr : %d\n current depth %d\n(%d %d) -> [%d] (%d %d)",
-                                    minPanelty,c3, dep2, x3, y3, e2, x2, y2);
-                            //, lastPtx[e2], lastPty[e2], e2, iterPtx[e2], iterPty[e2]);
-                            int tmp = e2;
-                            while(tmp != backtrace[tmp])
-                            {
-                                printf(" -> [%d] (%d %d)", backtrace[tmp], iterPtx[backtrace[tmp]], iterPty[backtrace[tmp]]);
-                                tmp = backtrace[tmp];
-                            }
-                            printf("\n\n");
-
-                            /*
-                            printf("< stack direction >\n");
-                            tmp = e2;
-                            while(tmp !=backtrace[tmp])
-                            {
-                                print_dir(prevSdir[tmp], true);
-                                tmp = backtrace[tmp];
-                            }
-                            printf("\n\n");
-                            */
-
-                        }
-#endif
-                        lastPtx[e2] = x3;
-                        lastPty[e2] = y3;
-                        hasMinElem = true;
-                        minCost = c1 + c2 + c3;
-                        minPanelty = c3;
-                        minElem = e2;
-                        numDestSPV = numSV[e2];
-                        DEPTH_THRESHOLD = dep2 + 2;
-
-                        if(minPanelty == 0)
-                            break;
-                    
-                    }
-
                 }
+
+                //
                 if(minPanelty == 0)
                     break;
-                //
+
             }
 
 
             if(hasMinElem)
             {
+                int e1, e2, x1, x2, y1, y2, x3, y3, w1, w2;
+                int t1, t2, l1, l2, count, index, curDir;
+                bool vertical1, vertical2, pin;
+                int xs[2], ys[2], wirex[2], wirey[2];
 
-//#ifdef DEBUG_ROUTE_TWOPIN_NET
-                if(isRef)
-                {
-                    printf("< backtrace >\n");
-                    printf("visiting %d minPanelty %d WL %d depth %d\n(%d %d) -> [%d] (%d %d)", 
-                            visit_count, minPanelty, iterWL[minElem], depth[minElem], lastPtx[minElem], lastPty[minElem], minElem, iterPtx[minElem], iterPty[minElem]);
-                    int tmp = minElem;
-                    while(tmp != backtrace[tmp])
-                    {
-                        printf(" -> [%d] (%d %d)", backtrace[tmp], iterPtx[backtrace[tmp]], iterPty[backtrace[tmp]]);
-                        tmp = backtrace[tmp];
-                    }
-                    printf("search maximum depth %d\n", search_maximum_depth);
-                    printf("\n\n");
-                }
-//#endif
-
-                // initial element
                 e2 = minElem;
                 l2 = local_rtree_t.get_layer(e2);
-
-                // if reference routing, store
+                
                 if(isRef)
                 {
                     totalSPV = 0;
@@ -1269,7 +1162,7 @@ bool OABusRouter::Router::route_twopin_net_v6(int busid, int m1, int m2, vector<
                     curDir = routing_direction(iterPtx[e2], iterPty[e2], lastPtx[e2], lastPty[e2], local_rtree_t.is_vertical(e2));
                     tracelNum.insert(tracelNum.begin(), l2);
                     traceDir.insert(traceDir.begin(), curDir);
-                    stackDir.insert(stackDir.begin(), Direction::Point);
+                    stackDir.insert(stackDir.begin(), get_stack_direction(mp2->id, pin2->id));
                     tracelx = vector<int>((maxDepth+1), INT_MAX);
                     tracely = vector<int>((maxDepth+1), INT_MAX);
                     traceux = vector<int>((maxDepth+1), INT_MIN);
@@ -1294,13 +1187,15 @@ bool OABusRouter::Router::route_twopin_net_v6(int busid, int m1, int m2, vector<
                 y2 = iterPty[e2];
                 x3 = lastPtx[e2];
                 y3 = lastPty[e2];
+                vertical2 = local_rtree_t.is_vertical(e2);
+
 
                 into_array(min(x2,x3), max(x2,x3), min(y2,y3), max(y2,y3), xs, ys);
                 wirex[0] = xs[0];
                 wirex[1] = xs[1];
                 wirey[0] = ys[0];
                 wirey[1] = ys[1];
-                expand_width(wirex, wirey, width[l2], local_rtree_t.is_vertical(e2));
+                expand_width(wirex, wirey, width[l2], vertical2); //local_rtree_t.is_vertical(e2));
 
                 created[w2].get_info(bitid, trackid, xs, ys, l2, seq, pin);
                 created[w2].add_intersection(PINTYPE, {lastPtx[e2], lastPty[e2]});
@@ -1318,7 +1213,7 @@ bool OABusRouter::Router::route_twopin_net_v6(int busid, int m1, int m2, vector<
                     x2 = iterPtx[e2];
                     y2 = iterPty[e2];
                     l1 = local_rtree_t.get_layer(e1);
-                    vertical = local_rtree_t.is_vertical(e1);
+                    vertical1 = local_rtree_t.is_vertical(e1);
                     tracelx[depth[e2]] = min(x2, tracelx[depth[e2]]);
                     tracely[depth[e2]] = min(y2, tracely[depth[e2]]);
                     traceux[depth[e2]] = max(x2, traceux[depth[e2]]);
@@ -1330,7 +1225,7 @@ bool OABusRouter::Router::route_twopin_net_v6(int busid, int m1, int m2, vector<
                     {
                         stackDir.insert(stackDir.begin(), prevSdir[e2]);
                         tracelNum.insert(tracelNum.begin(), l1);
-                        traceDir.insert(traceDir.begin(), routing_direction(x1, y1, x2, y2, vertical)); 
+                        traceDir.insert(traceDir.begin(), routing_direction(x1, y1, x2, y2, vertical1)); //local_rtree_t.is_vertical(e1)));
                     }
 
                     // data
@@ -1345,8 +1240,8 @@ bool OABusRouter::Router::route_twopin_net_v6(int busid, int m1, int m2, vector<
                     wirey[1] = ys[1];
 
                     // rtree update
-                    expand_width(wirex, wirey, width[l1], local_rtree_t.is_vertical(e1));
-                   
+                    expand_width(wirex, wirey, width[l1], vertical1); //local_rtree_t.is_vertical(e1));
+
                     created[w1].get_info(bitid, trackid, xs, ys, l1, seq, pin);
                     local_rtree_t.insert_element(trackid, xs, ys, l1, true);
                     local_rtree_o.insert_obstacle(bitid, wirex, wirey, l1, false);
@@ -1369,8 +1264,6 @@ bool OABusRouter::Router::route_twopin_net_v6(int busid, int m1, int m2, vector<
                         print_dir(it,true);
                     }
                     cout << endl << endl;
-
-                    //printf("\n\n");
                 }
                 /////////////////////////////////////////////
 
@@ -1383,26 +1276,20 @@ bool OABusRouter::Router::route_twopin_net_v6(int busid, int m1, int m2, vector<
                 failed_count++;
                 break;
             }
-            //
-            isRef = false;
         }
-
-        
-        if(curbus->numPinShapes > 2)
-            if(EPSILON < 2 * DELTA * totalSPV)
-                solution = false;
-        
 
         //
         if(solution)
         {
+            int xs[2], ys[2];
+            bool pin;
             dense_hash_map<int,int> local2global;
             local2global.set_empty_key(INT_MAX);
 
 
             tp = vector<Segment>(maxDepth+1);
             for(i=0; i < numbits; i++)
-            {  
+            {
                 for(count = 0; count < maxDepth+1 ; count++)
                 {
                     index = i*(maxDepth+1) + count;
@@ -1414,28 +1301,9 @@ bool OABusRouter::Router::route_twopin_net_v6(int busid, int m1, int m2, vector<
                     pin = curw->pin;
                     trackid = curw->trackid;
                     bitid = curw->bitid;
-                    //curw = CreateWire(bitid, trackid, xs, ys, l, seq, pin);
                     wireid = create_wire(bitid, trackid, xs, ys, l, seq, pin);
                     local2global[index] = wireid;
 
-#ifdef DEBUG_ROUTE_TWOPIN_NET
-                    if(count==0)
-                    {
-                        pin1 = &ckt->pins[mp1->pins[i]];
-                        pin2 = &ckt->pins[mp2->pins[i]];
-                        printf("p%d -> p%d seq %d bitid %d\n", mp1->pins[i], mp2->pins[i], seq, bitid);
-                    }
-
-                    printf("    %s (%d %d) (%d %d) M%d ",
-                            ckt->bits[bitid].name.c_str(), xs[0], ys[0], xs[1], ys[1], l);
-
-                    if(count == 0)
-                        printf("p1 %d -> wire %d", pin1->id, wireid);
-                    else if(count == maxDepth)
-                        printf("p2 %d -> wire %d", pin2->id, wireid);
-
-                    printf("\n");
-#endif
                     if(count == 0)
                     {
                         pin2wire[mp1->pins[i]] = wireid;
@@ -1485,24 +1353,24 @@ bool OABusRouter::Router::route_twopin_net_v6(int busid, int m1, int m2, vector<
 
             break;
         }else{
+            MIN_DEPTH_THRESHOLD = maxDepth;
             failed_count++;
         }
     }
-
+    
     cout << "< Route Twopin Net Report >" << endl;
-    cout << "Bus        : " << curbus->name << endl;
-    cout << "MultiPin1  : (" 
-        << multipin2llx[m1] << " " << multipin2lly[m1] << ") (" 
+    cout << "[INFO] Bus        : " << curbus->name << endl;
+    cout << "[INFO] MultiPin1  : ("
+        << multipin2llx[m1] << " " << multipin2lly[m1] << ") ("
         << multipin2urx[m1] << " " << multipin2ury[m1] << ") M" << mp1->l << endl;
-    cout << "MultiPin2  : (" 
-        << multipin2llx[m2] << " " << multipin2lly[m2] << ") (" 
+    cout << "[INFO] MultiPin2  : ("
+        << multipin2llx[m2] << " " << multipin2lly[m2] << ") ("
         << multipin2urx[m2] << " " << multipin2ury[m2] << ") M" << mp2->l << endl;
-    cout << "# visiting : " << visit_count << endl;
-    cout << "# failed   : " << failed_count << endl << endl;
-   
+    cout << "[INFO] # visiting : " << visit_count << endl;
+    cout << "[INFO] # failed   : " << failed_count << endl;
     cout << "[INFO] " << totalSPV << " * " <<  DELTA << " penalty occurs" << endl << endl;
-    return solution; 
-
+    
+    return solution;
 }
 
 int pair_hash_key(int t1, int t2, int moduler)
@@ -1555,6 +1423,8 @@ bool OABusRouter::Router::t_junction_available(int busid, int x[], int y[], int 
     }
     return true;
 }
+
+
 
 
 void OABusRouter::Router::range_of_tj(Segment& target, int ll[], int ur[])
