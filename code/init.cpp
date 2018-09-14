@@ -125,9 +125,9 @@ void OABusRouter::Circuit::initialize()
         }
     }
 
-    rou->DEPTH_COST = (height + width)*5/10;
-    rou->VIA_COST = (height + width)/100;
-    rou->SPACING_VIOLATION = (height + width)/2;
+    rou->DEPTH_COST = (height + width)*10/100;
+    rou->VIA_COST = (height + width)*10/1000;
+    rou->SPACING_VIOLATION = (height + width)*50/100;
     rou->NOTCOMPACT = (height + width)/5;
 
 
