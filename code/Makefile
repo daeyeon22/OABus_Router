@@ -7,7 +7,7 @@ LIBFORMAT = static_pic
 
 CXXOPTS = -m64 -O3 -fPIC -fno-strict-aliasing -fexceptions -fpermissive -DNDEBUG -DIL_STD 
 
-CFLAGS = -std=c++11 -m64 -O3 -mtune=native -fpermissive -g -ggdb -DNDEBUG -DIL_STD $(LIBINCLUDE)
+CFLAGS = -std=c++11 -m64 -O3 -fopenmp -mtune=native -fpermissive -g -ggdb -DNDEBUG -DIL_STD $(LIBINCLUDE)
 
 # include library settings..
 LIBINCLUDE = -I$(SRCHASH) -I$(BOOST)

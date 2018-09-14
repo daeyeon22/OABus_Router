@@ -216,6 +216,7 @@ namespace OABusRouter
         //RSMT        rsmt;
         //Grid3D      grid;
         typedef PolygonBG polygon;
+        typedef SegmentBG seg;
         //Rtree       rtree;
         int SPACING_VIOLATION;
         int VIA_COST;
@@ -325,6 +326,7 @@ namespace OABusRouter
         // Make Plot
         void route_all();
         void rip_up(int busid);
+        void get_intersection_pin(int pinx[], int piny[], int l1, seg elem1, int l2, int iterx, int itery, int &x, int &y);
         void intersection_pin(int pinx[], int piny[], int l1, int wirex[], int wirey[], int l2, int iterx, int itery, int &x, int &y);
         void sort_pins_routing_sequence(int m1, int m2, vector<int>& sorted1, vector<int>& sorted2);
         void sort_pins_routing_sequence(int m1, int m2, bool reverse, int& sDir, vector<int>& sorted1, vector<int>& sorted2);
@@ -333,6 +335,7 @@ namespace OABusRouter
         void local_search_area(int m1, int m2, int count, int ll[], int ur[]);
         void range_of_tj(Segment& target, int ll[], int ur[]);
         void wire_reordering(int busid, vector<Segment>& tp);
+        void move_pt_loc(int &x, int &y, int numBits, int width, int spacing, int sDir);
         bool get_routing_topology(int numBits, int x[], int y[], int width[], int spac[], int sDir[], polygon &area);
         bool get_routing_topology_v2(int numBits, int x[], int y[], int width[], int spac[], int sDir[], polygon &area);
         bool get_routing_topology_v3(int numBits, int x[], int y[], int width, int spac, int sDir, polygon &area);
@@ -356,6 +359,7 @@ namespace OABusRouter
         bool route_twopin_net_v5(int busid, int m1, int m2, vector<Segment>& tp);
         bool route_twopin_net_v6(int busid, int m1, int m2, vector<Segment>& tp);
         bool route_twopin_net_v7(int busid, int m1, int m2, vector<Segment>& tp);
+        bool route_twopin_net_v8(int busid, int m1, int m2, vector<Segment>& tp);
         bool route_multipin_to_tp(int busid, int m, vector<Segment>& tp);
         bool reroute(int busid);
         bool set_neighbor(int w1, int w2, int x, int y);
