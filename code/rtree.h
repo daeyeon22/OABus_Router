@@ -303,6 +303,10 @@ namespace OABusRouter
         bool spacing_violations(int bitid, int x[], int y[], int l, int width, int spacing, bool vertical);
         bool spacing_violations_ndr(int bitid, int x[], int y[], int l);
         bool short_violation(int bitid, int wirex[], int wirey[], int wl, int tarx[], int tary[], int tl);
+        bool bending_available(int busid, int x, int y, int l1, int l2, int rDir);
+        bool bending_available_at_sink(int busid, int m, int x, int y, int l, int rDir);
+        bool bending_available_at_source(int busid, int m, int x, int y, int l, int rDir);
+
         int num_spacing_violations(int bitid, int x[], int y[], int l, int width, int spacing, bool vertical);
         int num_spacing_violations_ndr(int bitid, int x[], int y[], int l);
     };
