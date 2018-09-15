@@ -315,10 +315,12 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
                             theTrack->llx == track.llx;
                             theTrack->lly = track.lly;
                             merge = true;
+                            break;
                         } else if ( theTrack->urx == track.llx && theTrack->ury == track.lly ) {
                             theTrack->urx == track.urx;
                             theTrack->ury == track.ury;
                             merge = true;
+                            break;
                         }
                     }
 
@@ -345,6 +347,9 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
 
                         //printf("Track Offset %d\n", track.offset);
                         this->tracks.push_back(track);
+                    }
+                    else {
+                        cout << " Merged !!" << endl;
                     }
                 }
             }
