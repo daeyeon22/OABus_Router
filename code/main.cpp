@@ -58,31 +58,21 @@ int main(int argc, char** argv){
     string defName;
     int numThreads = 4;
 
-    for(int i=1; i < argc; i++){
-        if(i+1 != argc){
-            if(strncmp(argv[i], "-input", 6) == 0){
-                inputFileName = argv[++i];   
-                string tmp = inputFileName;
-                tmp = tmp.substr(0, tmp.find_last_of("."));
-                benchName = tmp.substr(tmp.find_last_of("/")+1, tmp.size());
+//    if( argc != 3 ) {
+//        cerr << "Invalid use.. Usage : ./bus_router <input file name> <output file name>" << endl;
+//        exit(1);
+//    }
 
-                
-                //size_t found1 = tmp.find_last_of("/");
-                //size_t found2 = tmp.find_last_of(".");
-                //cout << found1 << " " << found2 << endl;
-                //benchName = tmp.substr(0,found2);//tmp.substr(found1+1,found2);
-            }
-            else if(strncmp(argv[i], "-output", 7) == 0){
+    inputFileName = argv[1];
+    string tmp = inputFileName;
+    tmp = tmp.substr(0, tmp.find_last_of("."));
+    benchName = tmp.substr(tmp.find_last_of("/")+1,tmp.size());
 
-                outputFileName = argv[++i];
-                string tmp = outputFileName;
-                tmp = tmp.substr(0, tmp.find_last_of("/"));
-                outDirName = tmp;
-                logDirName = "../log" + tmp.substr(tmp.find_last_of("/"), tmp.size());
-            }
-        }
-    }
-
+    outputFileName = argv[2];
+    tmp = outputFileName;
+    tmp = tmp.substr(0, tmp.find_last_of("/"));
+    outDirName = tmp;
+    logDirName = "../log" + tmp.substr(tmp.find_last_of("/"), tmp.size());
 
     cout << "< Argument Report >" << endl;
     cout << "Input      : " << inputFileName << endl;

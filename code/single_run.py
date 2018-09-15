@@ -14,7 +14,7 @@ from datetime import datetime
 
 benchDirList = ["../bench"]
 dirpos = "../bench"
-binaryName = "./iccad18obr"
+binaryName = "./bus_router"
 evalpos = "../eval/eval_1.0-a7"
 evaluator = "eval"
 outpos = "../output"
@@ -74,7 +74,6 @@ else:
     exeEval = False
 
 
-
 if runAll == False: 
     #benchName = benchList[benchNum]
     benchList = []
@@ -90,7 +89,7 @@ for fileName in benchList:
     rmlogStr = "rm %s/%s_*" % (logpos, benchName)
     ExecuteCommand(rmlogStr)
     startTime = time.time();
-    exeStr = "%s -input %s/%s.input -output %s/%s.out | tee %s/%s_%s.log" % (binaryName, dirpos, benchName, outpos, benchName, logpos, benchName, curTime)
+    exeStr = "%s %s/%s.input %s/%s.out | tee %s/%s_%s.log" % (binaryName, dirpos, benchName, outpos, benchName, logpos, benchName, curTime)
     ExecuteCommand(exeStr)
     endTime = time.time();
     evalStr = "%s/%s %s/%s.input %s/%s.out | tee %s/%s.eval" % (evalpos, evaluator, dirpos, benchName, outpos, benchName, logpos, benchName)

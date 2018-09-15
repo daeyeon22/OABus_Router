@@ -291,7 +291,7 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
                     string widthStr = *iter++;
                     
                     //printf("Track coord %s %s %s %s\n", llxStr.c_str(), llyStr.c_str(), urxStr.c_str(), uryStr.c_str());
-
+                    bool merge = false;
                     Track track;
                     track.id = this->tracks.size();
                     track.width = atoi(widthStr.c_str());
@@ -302,33 +302,50 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
                     track.l = this->layerHashMap[layerName];
                     Layer* layer = &this->layers[this->layerHashMap[layerName]];
                     layer->min_width = min(layer->min_width,track.width);
-                    layer->tracks.push_back(track.id);
-
                     assert(track.l == layer->id);
 
-                    if( layer->is_vertical() == true ) {
-                        track.start.x = track.llx;;
-                        track.start.y = track.lly;
-                        track.end.x = track.urx;
-                        track.end.y = track.ury;
-                    } else {
-                        track.start.x = track.llx;
-                        track.start.y = track.lly;
-                        track.end.x = track.urx;
-                        track.end.y = track.ury;
+                    for(int i=0; i < tracks.size(); i++) {
+                        Track* theTrack = &tracks[i];
+                        if( theTrack->l != track.l )
+                            continue;
+                        else if ( theTrack->width != track.width )
+                            continue;
+
+                        if( theTrack->llx == track.urx && theTrack->lly == track.ury ) {
+                            theTrack->llx == track.llx;
+                            theTrack->lly = track.lly;
+                            merge = true;
+                        } else if ( theTrack->urx == track.llx && theTrack->ury == track.lly ) {
+                            theTrack->urx == track.urx;
+                            theTrack->ury == track.ury;
+                            merge = true;
+                        }
                     }
 
-                    track.offset = (layer->is_vertical())?track.llx:track.lly;
-                    layer->trackOffsets.push_back(track.offset);
-                    
-                    if(layer->offsets.find(track.offset) == layer->offsets.end())
-                        layer->offsets.insert(track.offset); // (layer->is_vertical())?track.llx:track.lly);
-                    
-                    //printf("Track Offset %d\n", track.offset);
-                    this->tracks.push_back(track);
-                    
-                    //pair<string,int> info(track.layer,track.offset);
-                    //this->trackHashMap[GetHashKey(info)] = track.id; 
+                    if ( merge == false ) {
+                        layer->tracks.push_back(track.id);
+
+                        if( layer->is_vertical() == true ) {
+                            track.start.x = track.llx;;
+                            track.start.y = track.lly;
+                            track.end.x = track.urx;
+                            track.end.y = track.ury;
+                        } else {
+                            track.start.x = track.llx;
+                            track.start.y = track.lly;
+                            track.end.x = track.urx;
+                            track.end.y = track.ury;
+                        }
+
+                        track.offset = (layer->is_vertical())?track.llx:track.lly;
+                        layer->trackOffsets.push_back(track.offset);
+
+                        if(layer->offsets.find(track.offset) == layer->offsets.end())
+                            layer->offsets.insert(track.offset); // (layer->is_vertical())?track.llx:track.lly);
+
+                        //printf("Track Offset %d\n", track.offset);
+                        this->tracks.push_back(track);
+                    }
                 }
             }
         }

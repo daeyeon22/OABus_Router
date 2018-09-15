@@ -1,4 +1,4 @@
-EXE = iccad18obr
+EXE = bus_router
 CXX = g++
 
 CFLAGS = -std=c++11 -m64 -O3 -g -ggdb -DNDEBUG $(LIBINCLUDE)

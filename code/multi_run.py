@@ -16,7 +16,7 @@ from datetime import datetime
 
 benchDirList = [ "../bench" ]
 dirpos =  "../bench"
-binaryName = "./iccad18obr"
+binaryName = "./bus_router"
 evalpos = "../eval/eval_1.0-a4"
 evaluator = "eval"
 outpos = "../output"
@@ -50,7 +50,7 @@ def ExecuteBinary( benchName ):
     resultDic = {}
     benchName = benchName.split('.')[0]
 
-    runCommand = "%s -input %s/%s.input -output %s/%s.out > %s/%s.log" % (binaryName, dirpos, benchName, outDir, benchName, logDir, benchName)
+    runCommand = "%s %s/%s.input %s/%s.out > %s/%s.log" % (binaryName, dirpos, benchName, outDir, benchName, logDir, benchName)
     startTime = time.time()
     ExecuteCommand(runCommand)
     endTime = time.time()
@@ -104,8 +104,8 @@ if __name__ == '__main__':
     os.makedirs(logDir)
     os.makedirs(outDir)
     
-    if len(sys.argv) > 3:
-        exeEval = (sys.argv[3] == "eval")
+    if len(sys.argv) > 2:
+        exeEval = (sys.argv[2] == "eval")
     else:
         exeEval = False
 
