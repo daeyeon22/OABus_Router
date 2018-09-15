@@ -361,6 +361,7 @@ namespace OABusRouter
         bool route_twopin_net_v7(int busid, int m1, int m2, vector<Segment>& tp);
         bool route_twopin_net_v8(int busid, int m1, int m2, vector<Segment>& tp);
         bool route_multipin_to_tp(int busid, int m, vector<Segment>& tp);
+        bool route_multipin_to_tp_v2(int busid, int m, vector<Segment>& tp);
         bool reroute(int busid);
         bool set_neighbor(int w1, int w2, int x, int y);
         bool get_intersection(int w1, int w2, int &x, int &y);

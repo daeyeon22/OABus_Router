@@ -106,6 +106,115 @@ bool intersects(seg s1, seg s2)
     return bg::intersects(s1, s2);
 }
 
+
+
+bool intersection(seg s1, seg s2, int xPrev, int yPrev, int &x, int &y)
+{
+    int llx1, lly1, urx1, ury1;
+    int llx2, lly2, urx2, ury2;
+    bool vertical1, vertical2;
+    lpt(s1, llx1, lly1);
+    upt(s1, urx1, ury1);
+    lpt(s2, llx2, lly2);
+    upt(s2, urx2, ury2);
+    vertical1 = (llx1 == urx1) ? true : false;
+    vertical2 = (llx2 == urx2) ? true : false;
+
+    bool valid = false;
+
+
+    if(vertical1 && !vertical2)
+    {
+        x = llx1;
+        y = lly2;
+        valid = true;
+    }
+    else if(!vertical1 && vertical2)
+    {
+        x = llx2;
+        y = lly1;
+        valid = true;
+    }
+    else
+    {
+        if(llx1 == urx2 && lly1 == ury2)
+        {
+            x = llx1;
+            y = lly1;
+            valid = true;
+        }
+        else if(urx1 == llx2 && ury1 == lly2)
+        {
+            x = urx1;
+            y = ury1;
+            valid = true;
+        }
+        else
+        {
+            using namespace std;
+
+            if(vertical1)
+            {
+                if(yPrev < lly2)
+                {
+                    x = llx2;
+                    y = lly2;
+                    valid = true;
+                }
+                else if(yPrev > ury2)
+                {
+                    x = urx2;
+                    y = ury2;
+                    valid = true;
+                }
+                else
+                {
+                    x = xPrev;
+                    y = yPrev;
+                    /*
+                    cout << bg::dsv(s1) << endl;
+                    cout << bg::dsv(s2) << endl;
+                    cout << xPrev << " " << yPrev << endl;
+                    cout << "exception case..." << endl;
+                    exit(0);
+                    */
+                }
+            }   
+            else
+            {
+                if(xPrev < llx2)
+                {
+                    x = llx2;
+                    y = lly2;
+                    valid = true;
+                }
+                else if(xPrev > urx2)
+                {
+                    x = urx2;
+                    y = ury2;
+                    valid = true;
+                }
+                else
+                {
+                    x = xPrev;
+                    y = yPrev;
+                    /*
+                    cout << bg::dsv(s1) << endl;
+                    cout << bg::dsv(s2) << endl;
+                    cout << xPrev << " " << yPrev << endl;
+                    cout << "exception case..." << endl;
+                    exit(0);
+                    */
+                }
+            }
+        }
+    }
+    return valid;
+
+}
+
+
+
 bool intersection(seg s1, seg s2, int &x, int &y)
 {
     int llx1, lly1, urx1, ury1;
@@ -144,6 +253,10 @@ bool intersection(seg s1, seg s2, int &x, int &y)
             x = urx1;
             y = ury1;
             valid = true;
+        }
+        else
+        {
+                        
         }
     }
 #ifdef DEBUG_FUNC
