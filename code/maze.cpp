@@ -216,10 +216,13 @@ void OABusRouter::Router::route_all()
             int y2 = circuit->buses[right].lly; //(int)( 1.0 * ( circuit->buses[right].lly + circuit->buses[right].ury ) / 2 );
             int numBits1 = circuit->buses[left].numBits;
             int numBits2 = circuit->buses[right].numBits;
-            if(circuit->width > circuit->height)
-                return (x1 > x2);
-            else
+            //if(circuit->width > circuit->height)
+            //    return (x1 > x2);
+            //else
+            //if(numBits1 == numBits2)    
                 return (y1 > y2); // || ((y1 == y2) && (x1 < x2));
+            //else
+            //    return numBits1 > numBits2;
             });
 
     cout << "< Sorted Bus Sequence >\n" << endl;
@@ -1086,17 +1089,6 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
                     }
                    
 
-                    // compactness check
-                    if(isRef)
-                    {
-                        if(dep1 == 0)
-                        {
-
-                        }
-
-                    }
-
-
                     // first condition
                     if(dep1 == 0)
                     {
@@ -1117,22 +1109,45 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
                     }
                     
                     
-                    /*
-                    if(isRef)
-                    {
-                        if(!local_rtree_o.bending_available(busid, x2, y2, l1, l2, curDir))
-                            c3 += NOTCOMPACT;
-                    }
-                    */
                     // check spacing violation
                     into_array(min(x1, x2), max(x1, x2), min(y1, y2), max(y1, y2), xs, ys);
                     numSpacingVio = local_rtree_o.num_spacing_violations(bitid, xs, ys, l1, width[l1], spacing[l1], vertical1);
-
 
                     // check short violation
                     expand_width(xs, ys, width[l1], vertical1);
                     if(bit_rtree.short_violation(xs, ys, l1, except1, except2))
                         continue;
+
+                    /////////////////////////////////////////
+                    if(vertical_arrange1 == vertical1)
+                    {
+                        if(vertical1)
+                        {
+                            if(mx1[0] <= x2 && x2 <= mx1[1])
+                                continue;
+                        }
+                        else
+                        {
+                            if(my1[0] <= y2 && y2 <= my1[1])
+                                continue;
+                        }
+                    }
+
+                    if(vertical_arrange2 == vertical1)
+                    {
+                         if(vertical1)
+                        {
+                            if(mx2[0] <= x2 && x2 <= mx2[1])
+                                continue;
+                        }
+                        else
+                        {
+                            if(my2[0] <= y2 && y2 <= my2[1])
+                                continue;
+                        }                       
+                    }
+                    /////////////////////////////////////////
+
 
                     if(isDestination)
                     {
@@ -1153,12 +1168,12 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
                         //
                         if(isRef && backtrace[e1] != e1)
                         {
-                            int dir1, dir2;
-                            int prev = backtrace[e1];
-                            dir1 = routing_direction(iterPtx[prev], iterPty[prev], x1, y1, local_rtree_t.is_vertical(prev));
-                            dir2 = routing_direction(x2, y2, x3, y3, vertical2);
-                            if(dir1 != dir2)
-                                dir2 = routing_direction(x3, y3, x2, y2, vertical2);
+                            //int dir1, dir2;
+                            //int prev = backtrace[e1];
+                            //dir1 = routing_direction(iterPtx[prev], iterPty[prev], x1, y1, local_rtree_t.is_vertical(prev));
+                            //dir2 = routing_direction(x2, y2, x3, y3, vertical2);
+                            //if(dir1 != dir2)
+                            int dir2 = routing_direction(x3, y3, x2, y2, vertical2);
 
                             //if(!local_rtree_o.bending_available_at_source(busid, m2, x2, y2, l1, dir2))
                             //    c3 += NOTCOMPACT;
@@ -1170,7 +1185,6 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
                         into_array(min(x2, x3), max(x2, x3), min(y2, y3), max(y2, y3), xs, ys);
                         numSpacingVio += local_rtree_o.num_spacing_violations(bitid, xs, ys, l2, width[l2], spacing[l2], vertical2);
                         
-                        
                         expand_width(xs, ys, width[l2], vertical2);
                         if(bit_rtree.short_violation(xs, ys, l2, except1, except2))
                             continue;
@@ -1181,123 +1195,6 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
                     c3 += numSpacingVio * SPACING_VIOLATION;
 
                     
-                    /*
-                    if(isDestination && isRef)
-                    {
-                        vector<int> xOrig;
-                        vector<int> yOrig;
-                        vector<int> xMoved;
-                        vector<int> yMoved;
-                        int curl, sDir1, sDir2, rDir1, rDir2;
-                        int xOrig1, xOrig2, yOrig1, yOrig2;
-                        int xMoved1, xMoved2, yMoved1, yMoved2;
-                        int firstElem;
-                        sDir2 = get_stack_direction(mp2->id, pin2->id);
-                        rDir2 = routing_direction(x2, y2, x3, y3, vertical2);
-                        xOrig2 = x3;
-                        yOrig2 = y3;
-                        xMoved2 = xOrig2;
-                        yMoved2 = yOrig2;
-                        move_pt_loc(xMoved2, yMoved2, numbits, width[l2], spacing[l2], sDir2);
-                        vector<polygon> areas;
-                        vector<int> arealNum;
-                        for(int iter_e=e2; iter_e != backtrace[iter_e]; iter_e = backtrace[iter_e])
-                        {
-                            if(x2 == x3 && y2 == y3)
-                                continue;
-
-                            //sDir1 = iter_e == e2 ? get_stack_direction(prevSdir[iter_e];
-                            int prevElem = (iter_e == e2) ? e1 : backtrace[iter_e];
-                            curl = local_rtree_t.get_layer(iter_e);
-                            xOrig1 = (iter_e == e2) ? x2 : iterPtx[iter_e]; //x2;
-                            yOrig1 = (iter_e == e2) ? y2 : iterPty[iter_e]; //y2;
-                            if(iter_e == e2)
-                            {
-                                rDir1 = routing_direction(iterPtx[prevElem], iterPty[prevElem], xOrig1, yOrig1, local_rtree_t.is_vertical(prevElem));
-                                sDir1 = get_stack_direction(rDir2, sDir2, rDir1, reverse); 
-                            }
-                            else
-                            {
-                                rDir1 = prevRdir[iter_e];
-                                sDir1 = prevSdir[iter_e];
-                            }
-
-                            xMoved1 = xOrig1;
-                            yMoved1 = yOrig1;
-                            move_pt_loc(xMoved1, yMoved1, numbits, width[curl], spacing[curl], sDir2);
-                            move_pt_loc(xMoved1, yMoved1, numbits, width[curl], spacing[curl], sDir1);
-
-                            polygon area;
-                            bg::append(area.outer(), pt(xOrig1, yOrig1));
-                            bg::append(area.outer(), pt(xOrig2, yOrig2));
-                            bg::append(area.outer(), pt(xMoved2, yMoved2));
-                            bg::append(area.outer(), pt(xMoved1, yMoved1));
-                            
-                            //
-                            areas.insert(areas.begin(), area);
-                            arealNum.insert(arealNum.begin(), curl);
-
-
-                            if(iter_e != e2)
-                            {
-                                if(!local_rtree_o.compactness_check(busid, curl, area))
-                                    c3 += NOTCOMPACT; //SPACING_VIOLATION;
-                            }
-
-                            xMoved2 = xMoved1;
-                            yMoved2 = yMoved1;
-                            xOrig2 = xOrig1;
-                            yOrig2 = yOrig1;
-                            sDir2 = sDir1;
-                            firstElem = backtrace[iter_e];
-                        }
-
-                        xOrig1 = iterPtx[firstElem];
-                        yOrig1 = iterPty[firstElem];
-                        xMoved1 = xOrig1;
-                        yMoved1 = yOrig1;
-                        curl = local_rtree_t.get_layer(firstElem);
-                        move_pt_loc(xMoved1, yMoved1, numbits, width[curl], spacing[curl], initSdir);
-                        polygon area;
-                        bg::append(area.outer(), pt(xOrig1, yOrig1));
-                        bg::append(area.outer(), pt(xOrig2, yOrig2));
-                        bg::append(area.outer(), pt(xMoved2, yMoved2));
-                        bg::append(area.outer(), pt(xMoved1, yMoved1));
-                        areas.insert(areas.begin(), area);
-                        arealNum.insert(arealNum.begin(), curl);
-                        
-                        
-                        bool valid = true;
-                        for(int j=0; j < areas.size(); j++)
-                        {
-                            cout << bg::dsv(areas[j]) << " m" << arealNum[j] << endl;
-                            
-                            for(int k=j+1; k < areas.size(); k++)
-                            {
-                                if(arealNum[j] == arealNum[k])
-                                {
-                                    if(bg::intersects(areas[j], areas[k]))
-                                    {
-                                        cout << bg::dsv(areas[j]) << endl;
-                                        cout << bg::dsv(areas[k]) << endl;
-                                        valid = false;
-                                    }
-                                }
-                                if(!valid)
-                                    break;
-                            }
-                            if(!valid)
-                                break;
-                                
-                        }
-                        cout << endl;
-                        if(!valid)
-                            c3 += SPACING_VIOLATION;
-                            //continue;
-                        //
-                    }
-                    */ 
-
                     if(elemCost[e2] <= c1 + c2 + c3)
                         continue;
 
@@ -1455,19 +1352,21 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
                     w2 = w1;
                     e2 = e1;
                 }
+#ifdef DEBUG_ROUTE_TWOPIN_NET
                 /////////////////////////////////////////////
                 //if(isRef)
                 //{
                     printf("\n< Trace Point / Direction %dth >\n", i);
                     for(int j=0; j <= maxDepth; j++)
                     {
-                        printf("%s (%d %d) depth : %d ->", ckt->bits[bitid].name.c_str(), tracePtx[j], tracePty[j], j);
+                        printf("%s (%d %d) M%d depth : %d ->", ckt->bits[bitid].name.c_str(), tracePtx[j], tracePty[j], tracelNum[j], j);
                         print_dir(traceDir[j], true);
                     }
+                    printf("%s (%d %d) M%d last\n", ckt->bits[bitid].name.c_str(), x3, y3, tracelNum[maxDepth]);
                     cout << endl;
                 //}
                 /////////////////////////////////////////////
-
+#endif
             }
             else
             {
@@ -3961,6 +3860,124 @@ void OABusRouter::Router::penalty_cost()
 /////////////////
 // BACKUP CODE //
 /////////////////
+
+/*
+                    if(isDestination && isRef)
+                    {
+                        vector<int> xOrig;
+                        vector<int> yOrig;
+                        vector<int> xMoved;
+                        vector<int> yMoved;
+                        int curl, sDir1, sDir2, rDir1, rDir2;
+                        int xOrig1, xOrig2, yOrig1, yOrig2;
+                        int xMoved1, xMoved2, yMoved1, yMoved2;
+                        int firstElem;
+                        sDir2 = get_stack_direction(mp2->id, pin2->id);
+                        rDir2 = routing_direction(x2, y2, x3, y3, vertical2);
+                        xOrig2 = x3;
+                        yOrig2 = y3;
+                        xMoved2 = xOrig2;
+                        yMoved2 = yOrig2;
+                        move_pt_loc(xMoved2, yMoved2, numbits, width[l2], spacing[l2], sDir2);
+                        vector<polygon> areas;
+                        vector<int> arealNum;
+                        for(int iter_e=e2; iter_e != backtrace[iter_e]; iter_e = backtrace[iter_e])
+                        {
+                            if(x2 == x3 && y2 == y3)
+                                continue;
+
+                            //sDir1 = iter_e == e2 ? get_stack_direction(prevSdir[iter_e];
+                            int prevElem = (iter_e == e2) ? e1 : backtrace[iter_e];
+                            curl = local_rtree_t.get_layer(iter_e);
+                            xOrig1 = (iter_e == e2) ? x2 : iterPtx[iter_e]; //x2;
+                            yOrig1 = (iter_e == e2) ? y2 : iterPty[iter_e]; //y2;
+                            if(iter_e == e2)
+                            {
+                                rDir1 = routing_direction(iterPtx[prevElem], iterPty[prevElem], xOrig1, yOrig1, local_rtree_t.is_vertical(prevElem));
+                                sDir1 = get_stack_direction(rDir2, sDir2, rDir1, reverse); 
+                            }
+                            else
+                            {
+                                rDir1 = prevRdir[iter_e];
+                                sDir1 = prevSdir[iter_e];
+                            }
+
+                            xMoved1 = xOrig1;
+                            yMoved1 = yOrig1;
+                            move_pt_loc(xMoved1, yMoved1, numbits, width[curl], spacing[curl], sDir2);
+                            move_pt_loc(xMoved1, yMoved1, numbits, width[curl], spacing[curl], sDir1);
+
+                            polygon area;
+                            bg::append(area.outer(), pt(xOrig1, yOrig1));
+                            bg::append(area.outer(), pt(xOrig2, yOrig2));
+                            bg::append(area.outer(), pt(xMoved2, yMoved2));
+                            bg::append(area.outer(), pt(xMoved1, yMoved1));
+                            
+                            //
+                            areas.insert(areas.begin(), area);
+                            arealNum.insert(arealNum.begin(), curl);
+
+
+                            if(iter_e != e2)
+                            {
+                                if(!local_rtree_o.compactness_check(busid, curl, area))
+                                    c3 += NOTCOMPACT; //SPACING_VIOLATION;
+                            }
+
+                            xMoved2 = xMoved1;
+                            yMoved2 = yMoved1;
+                            xOrig2 = xOrig1;
+                            yOrig2 = yOrig1;
+                            sDir2 = sDir1;
+                            firstElem = backtrace[iter_e];
+                        }
+
+                        xOrig1 = iterPtx[firstElem];
+                        yOrig1 = iterPty[firstElem];
+                        xMoved1 = xOrig1;
+                        yMoved1 = yOrig1;
+                        curl = local_rtree_t.get_layer(firstElem);
+                        move_pt_loc(xMoved1, yMoved1, numbits, width[curl], spacing[curl], initSdir);
+                        polygon area;
+                        bg::append(area.outer(), pt(xOrig1, yOrig1));
+                        bg::append(area.outer(), pt(xOrig2, yOrig2));
+                        bg::append(area.outer(), pt(xMoved2, yMoved2));
+                        bg::append(area.outer(), pt(xMoved1, yMoved1));
+                        areas.insert(areas.begin(), area);
+                        arealNum.insert(arealNum.begin(), curl);
+                        
+                        
+                        bool valid = true;
+                        for(int j=0; j < areas.size(); j++)
+                        {
+                            cout << bg::dsv(areas[j]) << " m" << arealNum[j] << endl;
+                            
+                            for(int k=j+1; k < areas.size(); k++)
+                            {
+                                if(arealNum[j] == arealNum[k])
+                                {
+                                    if(bg::intersects(areas[j], areas[k]))
+                                    {
+                                        cout << bg::dsv(areas[j]) << endl;
+                                        cout << bg::dsv(areas[k]) << endl;
+                                        valid = false;
+                                    }
+                                }
+                                if(!valid)
+                                    break;
+                            }
+                            if(!valid)
+                                break;
+                                
+                        }
+                        cout << endl;
+                        if(!valid)
+                            c3 += SPACING_VIOLATION;
+                            //continue;
+                        //
+                    }
+                    */ 
+
 
 /*
    if(tracelx[dep] != traceux[dep] && tracely[dep] != traceuy[dep])

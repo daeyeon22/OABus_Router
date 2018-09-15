@@ -312,13 +312,13 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
                             continue;
 
                         if( theTrack->llx == track.urx && theTrack->lly == track.ury ) {
-                            theTrack->llx == track.llx;
+                            theTrack->llx = track.llx;
                             theTrack->lly = track.lly;
                             merge = true;
                             break;
                         } else if ( theTrack->urx == track.llx && theTrack->ury == track.lly ) {
-                            theTrack->urx == track.urx;
-                            theTrack->ury == track.ury;
+                            theTrack->urx = track.urx;
+                            theTrack->ury = track.ury;
                             merge = true;
                             break;
                         }
@@ -349,7 +349,7 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
                         this->tracks.push_back(track);
                     }
                     else {
-                        cout << " Merged !!" << endl;
+                        //cout << " Merged !!" << endl;
                     }
                 }
             }

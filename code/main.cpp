@@ -101,8 +101,8 @@ int main(int argc, char** argv){
     cout << "[INFO] start Write def & lef file" << endl;
     lefName = logDirName + "/" + benchName + ".lef";
     defName = logDirName + "/" + benchName + ".def";
-    ckt->lef_write(lefName);
-    ckt->def_write(defName);
+    //ckt->lef_write(lefName);
+    //ckt->def_write(defName);
 
     //rou->penalty_cost();
 

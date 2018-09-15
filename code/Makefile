@@ -1,7 +1,7 @@
 EXE = bus_router
 CXX = g++
 
-CFLAGS = -std=c++11 -m64 -O3 -g -ggdb -DNDEBUG $(LIBINCLUDE)
+CFLAGS = -std=c++11 -fopenmp -m64 -O3 -g -ggdb -DNDEBUG $(LIBINCLUDE)
 #CFLAGS = -std=c++11 -m64 -O3 -mtune=native -fpermissive -fopenmp -g -ggdb -DNDEBUG -DIL_STD $(LIBINCLUDE)
 
 # include library settings..
