@@ -654,6 +654,139 @@ bool OABusRouter::Router::routability_check(int m, int t, int dir)
     }
 }
 
+bool OABusRouter::ObstacleRtree::bending_available_at_source(int busid, int m, int x, int y, int l, int rDir)
+{
+    int xs[2], ys[2];
+    Bus* curbus = &ckt->buses[busid];
+    MultiPin* mp = &ckt->multipins[m];
+    int numBits = curbus->numBits;
+    int lenReq = numBits * (rou->spacing[l] + curbus->width[l]);
+
+
+    polygon area1, area2;
+    if(rDir == Direction::Left)
+    {
+        bg::append(area1.outer(), pt(x, mp->lly));
+        bg::append(area1.outer(), pt(x, mp->ury));
+        bg::append(area1.outer(), pt(x - lenReq, mp->lly));
+        
+        bg::append(area1.outer(), pt(x, mp->lly));
+        bg::append(area1.outer(), pt(x, mp->ury));
+        bg::append(area1.outer(), pt(x - lenReq, mp->ury));
+    }
+    else if(rDir == Direction::Right)
+    {
+
+        bg::append(area1.outer(), pt(x, mp->lly));
+        bg::append(area1.outer(), pt(x, mp->ury));
+        bg::append(area1.outer(), pt(x + lenReq, mp->lly));
+        
+        bg::append(area1.outer(), pt(x, mp->lly));
+        bg::append(area1.outer(), pt(x, mp->ury));
+        bg::append(area1.outer(), pt(x + lenReq, mp->ury));
+    }
+    else if(rDir == Direction::Down)
+    {
+        bg::append(area1.outer(), pt(mp->llx, y));
+        bg::append(area1.outer(), pt(mp->urx, y));
+        bg::append(area1.outer(), pt(mp->llx, y - lenReq));
+
+        bg::append(area1.outer(), pt(mp->llx, y));
+        bg::append(area1.outer(), pt(mp->urx, y));
+        bg::append(area1.outer(), pt(mp->urx, y - lenReq));
+    }
+    else if(rDir == Direction::Up)
+    {
+        bg::append(area1.outer(), pt(mp->llx, y));
+        bg::append(area1.outer(), pt(mp->urx, y));
+        bg::append(area1.outer(), pt(mp->llx, y + lenReq));
+
+        bg::append(area1.outer(), pt(mp->llx, y));
+        bg::append(area1.outer(), pt(mp->urx, y));
+        bg::append(area1.outer(), pt(mp->urx, y + lenReq));
+    }
+    else
+    {
+        return true;
+    }
+        
+    if(!spacing_violations(busid, l, area1) || !spacing_violations(busid, l, area2))
+        return true;
+    else
+        return false;    
+
+}
+
+bool OABusRouter::ObstacleRtree::bending_available_at_sink(int busid, int m, int x, int y, int l, int rDir)
+{
+
+    return true;
+}
+
+bool OABusRouter::ObstacleRtree::bending_available(int busid, int x, int y, int l1, int l2, int rDir)
+{
+    
+    Bus* curbus = &ckt->buses[busid];
+    int numBits = curbus->numBits;
+    int lenReq1 = numBits * (rou->spacing[l1] + curbus->width[l1]);
+    int lenReq2 = numBits * (rou->spacing[l2] + curbus->width[l2]);
+
+
+    polygon area1, area2;
+    if(rDir == Direction::Left)
+    {
+        bg::append(area1.outer(), pt(x, y));
+        bg::append(area1.outer(), pt(x, y - lenReq2));
+        bg::append(area1.outer(), pt(x - lenReq1, y - lenReq2));
+
+        bg::append(area2.outer(), pt(x, y));
+        bg::append(area2.outer(), pt(x, y + lenReq2));
+        bg::append(area2.outer(), pt(x - lenReq1, y + lenReq2));
+
+    }
+    else if(rDir == Direction::Right)
+    {
+        bg::append(area1.outer(), pt(x, y));
+        bg::append(area1.outer(), pt(x, y - lenReq2));
+        bg::append(area1.outer(), pt(x + lenReq1, y - lenReq2));
+
+        bg::append(area2.outer(), pt(x, y));
+        bg::append(area2.outer(), pt(x, y + lenReq2));
+        bg::append(area2.outer(), pt(x + lenReq1, y + lenReq2));
+
+    }
+    else if(rDir == Direction::Down)
+    {
+        bg::append(area1.outer(), pt(x, y));
+        bg::append(area1.outer(), pt(x - lenReq2, y));
+        bg::append(area1.outer(), pt(x - lenReq2, y - lenReq1));
+
+        bg::append(area2.outer(), pt(x, y));
+        bg::append(area2.outer(), pt(x + lenReq2, y));
+        bg::append(area2.outer(), pt(x + lenReq2, y - lenReq1));
+    }
+    else if(rDir == Direction::Up)
+    {
+        bg::append(area1.outer(), pt(x, y));
+        bg::append(area1.outer(), pt(x - lenReq2, y));
+        bg::append(area1.outer(), pt(x - lenReq2, y + lenReq1));
+
+        bg::append(area2.outer(), pt(x, y));
+        bg::append(area2.outer(), pt(x + lenReq2, y));
+        bg::append(area2.outer(), pt(x + lenReq2, y + lenReq1));
+    }
+    else
+    {
+        return true;
+    }
+        
+    if(!spacing_violations(busid, l1, area1) || !spacing_violations(busid, l1, area2))
+        return true;
+    else
+        return false;
+}
+
+
 
 bool OABusRouter::ObstacleRtree::compactness_check(int busid, int l, polygon& geo)
 {
