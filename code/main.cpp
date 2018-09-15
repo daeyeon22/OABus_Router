@@ -45,7 +45,7 @@ int main(int argc, char** argv){
     
     cout << "================================================================" <<endl;
     cout << "    ICCAD 2018 Contest on Obstacle-aware Bus Routing            " <<endl;
-    cout << "    Authors : Daeyeon Kim, Seungwon Kim                         " <<endl;
+    cout << "    Authors : Daeyeon Kim, SangGi Do                            " <<endl;
     cout << "    Advisor : Seok-Hyeong Kang                                  " <<endl;
     cout << "================================================================" <<endl;
 

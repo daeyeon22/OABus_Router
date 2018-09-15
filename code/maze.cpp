@@ -313,12 +313,12 @@ bool OABusRouter::Router::route_bus(int busid)
         // routing topologies
         vector<Segment> tp;
 
-        cout << "[INFO] start route twopin net" << endl;
+//        cout << "[INFO] start route twopin net" << endl;
         if(route_twopin_net_v8(busid, mp1, mp2, tp))
         {
 
-            cout << "[INFO] success route twopin net" << endl;
-            cout << "[INFO] start wire re-ordering" << endl;
+//            cout << "[INFO] success route twopin net" << endl;
+//            cout << "[INFO] start wire re-ordering" << endl;
             //wire_reordering(busid, tp);
             
             routing_success = true;
@@ -340,7 +340,7 @@ bool OABusRouter::Router::route_bus(int busid)
                 // route target multipin to net topologies (tp)
                 
                 
-                cout << "[INFO] start route mp to tp" << endl;
+//                cout << "[INFO] start route mp to tp" << endl;
                 if(!route_multipin_to_tp(busid, mp1, tp))
                 {
 
@@ -354,7 +354,7 @@ bool OABusRouter::Router::route_bus(int busid)
                     routing_success = false;
                     break;
                 }
-                cout << "[INFO] finished route mp to tp" << endl;
+//                cout << "[INFO] finished route mp to tp" << endl;
             }
 
             
@@ -746,12 +746,12 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
             pin_area(pin1x, pin1y, align1, width[pin1->l], ext1);
             pin_area(pin2x, pin2y, align2, width[pin2->l], ext2);
 
-            if(isRef)
-            {
-                initSdir = get_stack_direction(m1, pin1->id);
-                printf("[INFO] start pin loc (%d %d) (%d %d) ", pin1->llx, pin1->lly, pin1->urx, pin1->ury);
-                print_dir(initSdir, true);
-            }
+//            if(isRef)
+//            {
+//                initSdir = get_stack_direction(m1, pin1->id);
+//                printf("[INFO] start pin loc (%d %d) (%d %d) ", pin1->llx, pin1->lly, pin1->urx, pin1->ury);
+//                print_dir(initSdir, true);
+//            }
 
 
             BitRtree bit_rtree;
@@ -1438,20 +1438,20 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
                 /////////////////////////////////////////////
                 //if(isRef)
                 //{
-                    printf("\n< Trace Point / Direction %dth >\n", i);
-                    for(int j=0; j <= maxDepth; j++)
-                    {
-                        printf("%s (%d %d) depth : %d ->", ckt->bits[bitid].name.c_str(), tracePtx[j], tracePty[j], j);
-                        print_dir(traceDir[j], true);
-                    }
-                    cout << endl;
+//                    printf("\n< Trace Point / Direction %dth >\n", i);
+//                    for(int j=0; j <= maxDepth; j++)
+//                    {
+//                        printf("%s (%d %d) depth : %d ->", ckt->bits[bitid].name.c_str(), tracePtx[j], tracePty[j], j);
+//                        print_dir(traceDir[j], true);
+//                    }
+//                    cout << endl;
                 //}
                 /////////////////////////////////////////////
 
             }
             else
             {
-                cout << "[INFO] " << curbus->name << " routing failed at seq " << seq << endl << endl;
+//                cout << "[INFO] " << curbus->name << " routing failed at seq " << seq << endl << endl;
                 solution = false;
                 failed_tw++;
                 failed_count++;
@@ -1538,19 +1538,20 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
             failed_count++;
         }
     }
-    
-    cout << "< Route Twopin Net Report >" << endl;
-    cout << "[INFO] Bus        : " << curbus->name << endl;
-    cout << "[INFO] MultiPin1  : ("
-        << multipin2llx[m1] << " " << multipin2lly[m1] << ") ("
-        << multipin2urx[m1] << " " << multipin2ury[m1] << ") M" << mp1->l << endl;
-    cout << "[INFO] MultiPin2  : ("
-        << multipin2llx[m2] << " " << multipin2lly[m2] << ") ("
-        << multipin2urx[m2] << " " << multipin2ury[m2] << ") M" << mp2->l << endl;
-    cout << "[INFO] # visiting : " << visit_count << endl;
-    cout << "[INFO] # failed   : " << failed_count << endl;
-    cout << "[INFO] " << totalSPV << " * " <<  DELTA << " penalty occurs" << endl << endl;
-    
+
+    if( false ) {    
+        cout << "< Route Twopin Net Report >" << endl;
+        cout << "[INFO] Bus        : " << curbus->name << endl;
+        cout << "[INFO] MultiPin1  : ("
+            << multipin2llx[m1] << " " << multipin2lly[m1] << ") ("
+            << multipin2urx[m1] << " " << multipin2ury[m1] << ") M" << mp1->l << endl;
+        cout << "[INFO] MultiPin2  : ("
+            << multipin2llx[m2] << " " << multipin2lly[m2] << ") ("
+            << multipin2urx[m2] << " " << multipin2ury[m2] << ") M" << mp2->l << endl;
+        cout << "[INFO] # visiting : " << visit_count << endl;
+        cout << "[INFO] # failed   : " << failed_count << endl;
+        cout << "[INFO] " << totalSPV << " * " <<  DELTA << " penalty occurs" << endl << endl;
+    }
     return solution;
 }
 
