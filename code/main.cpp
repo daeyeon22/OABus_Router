@@ -56,7 +56,7 @@ int main(int argc, char** argv){
     string outDirName;
     string lefName;
     string defName;
-    int numThreads;
+    int numThreads = 4;
 
     for(int i=1; i < argc; i++){
         if(i+1 != argc){
@@ -72,10 +72,7 @@ int main(int argc, char** argv){
                 //cout << found1 << " " << found2 << endl;
                 //benchName = tmp.substr(0,found2);//tmp.substr(found1+1,found2);
             }
-            if(strncmp(argv[i], "-threads", 8) == 0){
-                numThreads = atoi(argv[++i]);
-            }
-            if(strncmp(argv[i], "-output", 7) == 0){
+            else if(strncmp(argv[i], "-output", 7) == 0){
 
                 outputFileName = argv[++i];
                 string tmp = outputFileName;

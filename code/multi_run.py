@@ -14,10 +14,10 @@ from multiprocessing import Process, Pool
 from datetime import datetime
 
 
-benchDirList = [ "../bench", "../bench_big" ]
+benchDirList = [ "../bench" ]
 dirpos =  "../bench"
 binaryName = "./iccad18obr"
-evalpos = "../eval/eval_1.0-a7"
+evalpos = "../eval/eval_1.0-a4"
 evaluator = "eval"
 outpos = "../output"
 logpos = "../log"
@@ -49,9 +49,8 @@ def ReadScore( outputFile ):
 def ExecuteBinary( benchName ):
     resultDic = {}
     benchName = benchName.split('.')[0]
-    #curTime = datetime.now().strftime('%Y-%m-%d')
 
-    runCommand = "%s -input %s/%s.input -threads %d -output %s/%s.out > %s/%s.log" % (binaryName, dirpos, benchName, numThreads, outDir, benchName, logDir, benchName)
+    runCommand = "%s -input %s/%s.input -output %s/%s.out > %s/%s.log" % (binaryName, dirpos, benchName, outDir, benchName, logDir, benchName)
     startTime = time.time()
     ExecuteCommand(runCommand)
     endTime = time.time()
@@ -73,27 +72,16 @@ def ExecuteCommand( curCmd ):
     print( curCmd )
     sp.call( curCmd , shell=True)
 
-
-
-
 if __name__ == '__main__':
-    if len(sys.argv) <=2:
-        print("usage:   ./run.py <benchname or number> <# Threads>")
+    if len(sys.argv) <=1:
+        print("usage:   ./multi_run.py <benchname or number>")
         print("Example: ")
-        print("         ./run.py 4 1")
-        print("         ./run.py example_2 1")
+        print("         ./multi_run.py 4 ")
+        print("         ./multi_run.py example_2 ")
         sys.exit(1)
-
-
-    if len(sys.argv) > 4:
-        if sys.argv[4] == "big":
-            dirpos = benchDirList[1]
-    else:
-        dirpos = benchDirList[0]
 
     benchNum = -1
     benchName = ""
-    benchList = []
     execProcs = []
     evalProcs = []
     evalFiles = []
@@ -109,7 +97,6 @@ if __name__ == '__main__':
     else:
         benchName = sys.argv[1]
 
-    numThreads = int(sys.argv[2])
     #curTime = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
     curTime = datetime.now().strftime('%m_%d_%H_%M_%S')
     logDir = "%s/%s" % (logpos, curTime)

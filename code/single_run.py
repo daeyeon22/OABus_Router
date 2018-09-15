@@ -12,7 +12,7 @@ import subprocess as sp
 import time
 from datetime import datetime
 
-benchDirList = ["../bench", "../bench_big"]
+benchDirList = ["../bench"]
 dirpos = "../bench"
 binaryName = "./iccad18obr"
 evalpos = "../eval/eval_1.0-a7"
@@ -47,20 +47,12 @@ def ExecuteCommand( curCmd ):
     sp.call( curCmd , shell=True)
 
 
-if len(sys.argv) <=2:
-    print("usage:   ./run.py <benchname or number> <# Threads>")
+if len(sys.argv) <=1:
+    print("usage:   ./single_run.py <benchname or number> ")
     print("Example: ")
-    print("         ./run.py 4 1")
-    print("         ./run.py example_2 1")
+    print("         ./single_run.py 4 ")
+    print("         ./single_run.py example_2 ")
     sys.exit(1)
-
-if(len(sys.argv) >4):
-    if(sys.argv[4] == "big"):
-        dirpos = benchDirList[1]
-    
-
-
-
 
 benchNum = -1
 benchName = ""
@@ -75,10 +67,9 @@ elif sys.argv[1] == "all":
 else:
     benchName = sys.argv[1]
 
-numThreads = int(sys.argv[2])
 curTime = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
-if len(sys.argv) > 3:
-    exeEval = (sys.argv[3] == "eval")
+if len(sys.argv) > 2:
+    exeEval = (sys.argv[2] == "eval")
 else:
     exeEval = False
 
@@ -99,11 +90,10 @@ for fileName in benchList:
     rmlogStr = "rm %s/%s_*" % (logpos, benchName)
     ExecuteCommand(rmlogStr)
     startTime = time.time();
-    exeStr = "%s -input %s/%s.input -threads %d -output %s/%s.out | tee %s/%s_%s.log" % (binaryName, dirpos, benchName, numThreads, outpos, benchName, logpos, benchName, curTime)
+    exeStr = "%s -input %s/%s.input -output %s/%s.out | tee %s/%s_%s.log" % (binaryName, dirpos, benchName, outpos, benchName, logpos, benchName, curTime)
     ExecuteCommand(exeStr)
     endTime = time.time();
     evalStr = "%s/%s %s/%s.input %s/%s.out | tee %s/%s.eval" % (evalpos, evaluator, dirpos, benchName, outpos, benchName, logpos, benchName)
-    #evalStr = "%s/%s %s/%s.input %s/%s.out > %s/%s.eval" % (evalpos, evaluator, dirpos, benchName, outpos, benchName, logpos, benchName)
     if exeEval == True:
         ExecuteCommand(evalStr)
         evalFile = "%s/%s.eval" % (logpos, benchName)
