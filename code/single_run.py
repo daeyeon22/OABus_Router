@@ -12,7 +12,7 @@ import subprocess as sp
 import time
 from datetime import datetime
 
-benchDirList = ["../bench"]
+benchDirList = ["../bench", "../bench_big" ]
 dirpos = "../bench"
 binaryName = "./bus_router"
 evalpos = "../eval/eval_1.0-a7"
@@ -53,6 +53,10 @@ if len(sys.argv) <=1:
     print("         ./single_run.py 4 ")
     print("         ./single_run.py example_2 ")
     sys.exit(1)
+
+if len(sys.argv) > 3:
+    dirpos = benchDirList[1]
+
 
 benchNum = -1
 benchName = ""

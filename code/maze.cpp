@@ -57,6 +57,12 @@ void print_dir(int dir, bool endline)
         cout << "down ";
     else if(dir == Direction::Point)
         cout << "point ";
+    else if(dir == Direction::T_Junction)
+        cout << "t junction";
+    else if(dir == Direction::EndPointLL)
+        cout << "end point ll";
+    else if(dir == Direction::EndPointUR)
+        cout << "end point ur";
     if(endline)
         cout << endl;
 }
@@ -210,7 +216,10 @@ void OABusRouter::Router::route_all()
             int y2 = circuit->buses[right].lly; //(int)( 1.0 * ( circuit->buses[right].lly + circuit->buses[right].ury ) / 2 );
             int numBits1 = circuit->buses[left].numBits;
             int numBits2 = circuit->buses[right].numBits;
-            return (y1 > y2); // || ((y1 == y2) && (x1 < x2));
+            if(circuit->width > circuit->height)
+                return (x1 > x2);
+            else
+                return (y1 > y2); // || ((y1 == y2) && (x1 < x2));
             });
 
     cout << "< Sorted Bus Sequence >\n" << endl;
@@ -355,7 +364,7 @@ bool OABusRouter::Router::route_bus(int busid)
                 
                 
 //                cout << "[INFO] start route mp to tp" << endl;
-                if(!route_multipin_to_tp(busid, mp1, tp))
+                if(!route_multipin_to_tp_v2(busid, mp1, tp))
                 {
 
                     // rip-up
@@ -937,10 +946,7 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
 
                 queries.clear();
                 if(isRef)
-                {
-                    local_rtree_t.query(QueryMode::Intersects, elem1, l1-1, queries);
-                    local_rtree_t.query(QueryMode::Intersects, elem1, l1+1, queries);
-                }
+                    local_rtree_t.query(QueryMode::Intersects, elem1, l1-1, l1+1, queries);
                 else
                     local_rtree_t.query(QueryMode::Intersects, elem1, tracelNum[dep1+1], queries);
 
@@ -973,7 +979,7 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
                     if(!intersection(elem1, elem2, x2, y2))
                         continue;
 
-                    c1 = cost1 + manhatan_distance(x1, y1, x2, y2) + abs(l1-l2) * VIA_COST + DEPTH_COST;
+                    c1 = cost1 + manhatan_distance(x1, y1, x2, y2) + abs(l1-l2) * DEPTH_COST;//VIA_COST + DEPTH_COST;
                     c2 = 0;
                     c3 = cost3;
                     curDir = routing_direction(x1, y1, x2, y2, vertical1);
@@ -1300,8 +1306,8 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
                     {
                         if(isRef)
                         {
-                            prevRdir[e2] = routing_direction(x1, y1, x2, y2, vertical1);
-                            prevSdir[e2] = (dep1 == 0)? initSdir : get_stack_direction(prevRdir[e1], prevSdir[e1], prevRdir[e2], reverse);
+                            //prevRdir[e2] = routing_direction(x1, y1, x2, y2, vertical1);
+                            //prevSdir[e2] = (dep1 == 0)? initSdir : get_stack_direction(prevRdir[e1], prevSdir[e1], prevRdir[e2], reverse);
                         }
 
                         element[e2] = elem2;
@@ -1452,20 +1458,20 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
                 /////////////////////////////////////////////
                 //if(isRef)
                 //{
-//                    printf("\n< Trace Point / Direction %dth >\n", i);
-//                    for(int j=0; j <= maxDepth; j++)
-//                    {
-//                        printf("%s (%d %d) depth : %d ->", ckt->bits[bitid].name.c_str(), tracePtx[j], tracePty[j], j);
-//                        print_dir(traceDir[j], true);
-//                    }
-//                    cout << endl;
+                    printf("\n< Trace Point / Direction %dth >\n", i);
+                    for(int j=0; j <= maxDepth; j++)
+                    {
+                        printf("%s (%d %d) depth : %d ->", ckt->bits[bitid].name.c_str(), tracePtx[j], tracePty[j], j);
+                        print_dir(traceDir[j], true);
+                    }
+                    cout << endl;
                 //}
                 /////////////////////////////////////////////
 
             }
             else
             {
-//                cout << "[INFO] " << curbus->name << " routing failed at seq " << seq << endl << endl;
+                cout << "[INFO] " << curbus->name << " routing failed at seq " << seq << endl << endl;
                 solution = false;
                 failed_tw++;
                 failed_count++;
@@ -1553,7 +1559,7 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
         }
     }
 
-    if( false ) {    
+    if( true ) {    
         cout << "< Route Twopin Net Report >" << endl;
         cout << "[INFO] Bus        : " << curbus->name << endl;
         cout << "[INFO] MultiPin1  : ("
@@ -1639,6 +1645,985 @@ void OABusRouter::Router::range_of_tj(Segment& target, int ll[], int ur[])
         ur[0] = is_vertical ? max(curw->x2, ur[0]) : min(curw->x2, ur[0]);
         ur[1] = is_vertical ? min(curw->y2, ur[1]) : max(curw->y2, ur[1]);
     }
+}
+
+
+bool OABusRouter::Router::route_multipin_to_tp_v2(int busid, int m, vector<Segment> &tp)
+{
+    // check elapse time and runtime limit
+    if(should_stop())
+        return false;
+
+    typedef PointBG pt;
+    typedef SegmentBG seg;
+    typedef BoxBG box;
+    typedef tuple<int,int,int> ituple;
+
+    // Global variables
+    int i, wireid, bitid, trackid, l, seq;
+    int numwires, numpins, numbits, count, index, align;
+    int totalSPV, numDestSPV, maxDepth, minPanelty;
+    int llx, lly, urx, ury;
+    int ll[2], ur[2], mx[2], my[2], pinx[2], piny[2], segx[2], segy[2];
+    bool isRef, reverse, solution, vertical_align;
+    bool t_junction, ep_ll, ep_ur; 
+    
+
+    dense_hash_map<int,int> width;
+    dense_hash_map<int,int> sequence;
+    sequence.set_empty_key(INT_MAX);
+    
+    Pin* curpin;
+    Bus* curbus;
+    Wire* tarwire;
+    MultiPin* curmp;
+    Circuit* circuit;
+    Segment target;
+    
+    curbus = &ckt->buses[busid];
+    curmp = &ckt->multipins[m];
+    numbits = curbus->numBits;
+    width = curbus->width;
+    circuit = ckt;
+    align = curmp->align;
+    numpins = curmp->pins.size();
+
+    llx = multipin2llx[m];
+    lly = multipin2lly[m];
+    urx = multipin2urx[m];
+    ury = multipin2ury[m];
+    into_array(llx, urx, lly, ury, mx, my);
+    l = curmp->l;
+    vertical_align = (curmp->align == VERTICAL)? true : false;
+
+
+    for(i = 0; i < numpins; i++)
+        sequence[curmp->pins[i]] = i;
+   
+    auto cmp1 = [&,llx,lly,urx,ury,l](const Segment& left, const Segment& right){
+        int dist1 = 
+            (int)(bg::distance(box(pt(llx,lly), pt(urx,ury)), box(pt(left.x1, left.y1), pt(left.x2, left.y2)))) 
+            + abs(l-left.l)*VIA_COST;
+
+        int dist2 = 
+            (int)(bg::distance(box(pt(llx,lly), pt(urx,ury)), box(pt(right.x1, right.y1), pt(right.x2, right.y2)))) 
+            + abs(l-right.l)*VIA_COST;
+        return dist1 > dist2;
+    };
+
+    priority_queue<Segment, vector<Segment>, decltype(cmp1)> PQ1(cmp1);
+    //
+
+    // segment list
+    for(auto seg : tp)
+        PQ1.push(seg);
+    
+    int total_visit_count=0;
+    int iterCount=0;
+    int firstDir;
+    bool retry = false;
+    bool ref_fail = false;
+    
+    while(PQ1.size() > 0)
+    {
+        // check elapse time and runtime limit
+        if(should_stop())
+            return false;
+
+        target  = PQ1.top();
+        //PQ1.pop();
+        
+        if(!retry)
+        {
+            ep_ll = true;
+            ep_ur = true;
+            into_array(target.x1, target.x2, target.y1, target.y2, segx, segy);
+            t_junction = t_junction_available(busid, segx, segy, target.l);
+            if(t_junction)
+                range_of_tj(target, ll, ur);
+        }
+           
+        // copy local rtree
+        TrackRtree local_rtree_t(rtree_t);
+        ObstacleRtree local_rtree_o(rtree_o);
+        vector<Segment> topology;
+        vector<Wire> created;
+        // element { local id, local id } 
+        vector<pair<int, int>> local_edges;
+        vector<pair<int, int>> local_pts;
+        // element { local id, global id }
+        vector<pair<int, int>> global_edges;
+        vector<pair<int, int>> global_pts;
+
+        int lastRoutingShape;        
+        vector<int> sorted;
+        vector<int> tracelNum;  // trace layer number
+        vector<int> traceDir;   // trace direction
+        vector<int> tracelx, tracely, traceux, traceuy;
+        vector<int> tracePtx, tracePty;
+        //sorted = curmp->pins;
+
+        llx = target.x1;
+        lly = target.y1;
+        urx = target.x2;
+        ury = target.y2;
+
+        // Ordering
+        Pin* firstPin = &ckt->pins[curmp->pins[0]];
+        Pin* lastPin = &ckt->pins[curmp->pins[numpins-1]];
+        Wire* firstWire = &wires[target.wires[0]];
+        Wire* lastWire = &wires[target.wires[numpins-1]];
+        box b1(pt(firstPin->llx, firstPin->lly), pt(firstPin->urx, firstPin->ury));
+        box b2(pt(lastPin->llx, lastPin->lly), pt(lastPin->urx, lastPin->ury));
+        seg s1(pt(firstWire->x1, firstWire->y1), pt(firstWire->x2, firstWire->y2));
+        seg s2(pt(lastWire->x1, lastWire->y1), pt(lastWire->x2, lastWire->y2));
+        float dist1 = bg::distance(b1, s1);
+        float dist2 = bg::distance(b2, s2);
+        
+        if(dist1 < dist2)
+            sorted.insert(sorted.end(), curmp->pins.begin(), curmp->pins.end());
+        else
+            sorted.insert(sorted.end(), curmp->pins.rbegin(), curmp->pins.rend()); 
+        
+        //
+        for(i=0; i < numpins; i++)
+        {
+            // check elapse time and runtime limit
+            if(should_stop())
+                return false;
+
+            seq = sequence[sorted[i]];
+            curpin = &ckt->pins[sorted[i]];
+            tarwire = &wires[target.wires[seq]];
+            bitid = curbus->bits[seq];
+            
+            box ext;
+            box orig;
+            seg wireseg(pt(tarwire->x1, tarwire->y1), pt(tarwire->x2, tarwire->y2));
+            // get 
+            into_array(curpin->llx, curpin->urx, curpin->lly, curpin->ury, pinx, piny);
+            orig = box(pt(pinx[0], piny[0]), pt(pinx[1], piny[1]));
+            pin_area(pinx, piny, align, width[curpin->l], ext);
+          
+            ///////////////////////////////////////
+            BitRtree bit_rtree;
+            construct_bit_rtree(bitid, bit_rtree);
+            set<int> except1;
+            set<int> except2;
+            except1.insert(curpin->id);
+            except2.insert(tarwire->id);
+
+            isRef = (i==0) ? true : false;
+            maxDepth = (i==0) ? INT_MAX : maxDepth;
+            solution = true;
+
+            // variables
+            bool hasMinElem;
+            int minElem, minCost;
+            int numelems;
+            numelems = local_rtree_t.elemindex;
+            dense_hash_map<int,int> numSV;
+            dense_hash_map<int,int> backtrace;
+            dense_hash_map<int,int> depth;
+            dense_hash_map<int,int> iterPtx;
+            dense_hash_map<int,int> iterPty;
+            dense_hash_map<int,int> lastPtx;
+            dense_hash_map<int,int> lastPty;
+            dense_hash_map<int,seg> element;
+            dense_hash_map<int,int> wirelength;
+            dense_hash_map<int,int> penalty;
+
+            // wire length, penalty
+            wirelength.set_empty_key(INT_MAX);
+            penalty.set_empty_key(INT_MAX);
+            numSV.set_empty_key(INT_MAX);
+            backtrace.set_empty_key(INT_MAX);
+            depth.set_empty_key(INT_MAX);
+            iterPtx.set_empty_key(INT_MAX);
+            iterPty.set_empty_key(INT_MAX);
+            lastPtx.set_empty_key(INT_MAX);
+            lastPty.set_empty_key(INT_MAX);
+            element.set_empty_key(INT_MAX);
+            vector<int> elemCost(numelems, INT_MAX);
+            vector<pair<seg, int>> queries;
+
+            auto cmp2 = [](const ituple &left, const ituple &right){
+                return (get<1>(left) + get<2>(left) > get<1>(right) + get<2>(right));
+            };
+            priority_queue<ituple , vector<ituple>, decltype(cmp2)> PQ2(cmp2);
+
+
+
+            for(int k=0; k < 2; k++)
+            {
+                minElem = INT_MAX;
+                minCost = INT_MAX;
+                hasMinElem = false;
+
+                queries.clear();
+                if(vertical_align == ckt->is_vertical(curpin->l))
+                {
+                    local_rtree_t.query(QueryMode::Intersects, orig, curpin->l-1, queries);
+                    local_rtree_t.query(QueryMode::Intersects, orig, curpin->l+1, queries);
+                }
+                else
+                {
+                    if(k==0)
+                        local_rtree_t.query(QueryMode::Intersects, orig, curpin->l, queries);
+                    else
+                        local_rtree_t.query(QueryMode::Intersects, ext, curpin->l, queries);
+                }
+
+                // Initial candidates
+                #pragma omp parallel for num_threads(NUM_THREADS)
+                for(int j=0; j < queries.size(); j ++)
+                {
+                    // local variables
+                    int e1, t1, l1, x1, y1, x2, y2, c1, c2, dep1;
+                    int maxWidth, numSpacingVio, curShape, curDir;
+                    int xs[2], ys[2];
+                    bool isDestination, vertical1;
+                    seg elem1;
+
+                    elem1 = queries[j].first;
+                    e1 = queries[j].second;
+                    t1 = local_rtree_t.get_trackid(e1);
+                    l1 = local_rtree_t.get_layer(e1);
+                    dep1 = 0;
+                    vertical1 = local_rtree_t.is_vertical(e1);
+                    maxWidth = local_rtree_t.get_width(e1);
+
+                    // width constraint
+                    if(maxWidth < width[l1])
+                        continue;
+
+                    
+                    c1 = VIA_COST * abs(curpin->l - l1);
+                    c2 = 0;
+                    numSpacingVio = 0;
+
+                    get_intersection_pin(pinx, piny, curpin->l, elem1, l1, -1, -1, x1, y1);
+                    
+                    if(abs(tarwire->l - l1) <= 1 && bg::intersects(elem1, wireseg))
+                        isDestination = true;
+                    else 
+                        isDestination = false;
+
+                    if(isDestination)
+                    {
+                        intersection(elem1, wireseg, x1, y1, x2, y2);
+                        curDir = routing_direction(x1, y1, x2, y2, vertical1);
+
+                        into_array(min(x1, x2), max(x1, x2), min(y1, y2), max(y1, y2), xs, ys);
+                        numSpacingVio = local_rtree_o.num_spacing_violations(bitid, xs, ys, l1, width[l1], spacing[l1], vertical1);
+
+                        into_array(min(x1, x2), max(x1, x2), min(y1, y2), max(y1, y2), xs, ys);
+                        expand_width(xs, ys, width[l1],vertical1);
+                        if(bit_rtree.short_violation(xs, ys, l1, except1, except2))
+                            continue;
+
+                        c1 += manhatan_distance(x1, y1, x2, y2);
+                        
+                        // Routing Shape
+                        if(x2 == tarwire->x1 && y2 == tarwire->y1)
+                            curShape = Direction::EndPointLL;
+                        else if(x2 == tarwire->x2 && y2 == tarwire->y2)
+                            curShape = Direction::EndPointUR;
+                        else
+                            curShape = Direction::T_Junction;
+
+
+                        if(isRef)
+                        {
+                            if(curShape == Direction::T_Junction)
+                                if(!t_junction)
+                                    continue;
+                                else if(!is_inside(x2,y2,ll,ur))
+                                    continue;
+
+                            if(curShape == Direction::EndPointLL && !ep_ll)
+                                continue;
+
+                            if(curShape == Direction::EndPointUR && !ep_ur)
+                                continue;
+                        }
+                        else
+                        {
+                            if(traceDir[dep1] != curDir)
+                                continue;
+                            
+                            if(curShape != lastRoutingShape)
+                                continue;
+
+                            if(maxDepth != depth[e1])
+                                continue;
+                        }
+                    }
+                    c2 += numSpacingVio * SPACING_VIOLATION;
+
+                    #pragma omp critical(GLOBAL)
+                    {
+                        // visit
+                        backtrace[e1] = e1; // root
+                        element[e1] = elem1;
+                        depth[e1] = dep1;
+                        iterPtx[e1] = x1;
+                        iterPty[e1] = y1;
+                        elemCost[e1] = c1 + c2;
+                        wirelength[e1] = c1;
+                        penalty[e1] = c2;
+                        numSV[e1] = numSpacingVio;
+
+                        PQ2.push(make_tuple(e1, c1, c2));
+
+                        if(isDestination && minCost > c1 + c2)
+                        {
+                            hasMinElem = true;
+                            minCost = c1 + c2;
+                            minElem = e1;
+                            numDestSPV = numSV[e1];
+                            lastPtx[e1] = x2;
+                            lastPty[e1] = y2;
+                        }
+                    
+                    }
+                }
+                
+                if(PQ2.size() > 0)
+                    break;
+            }
+
+            //
+            while(PQ2.size() > 0)
+            {
+
+                int e1, t1, l1, x1, y1, dep1, cost1, cost2;
+                int maxWidth1;
+                bool vertical1;
+                seg elem1;
+                ituple e = PQ2.top();
+                PQ2.pop();
+
+                e1 = get<0>(e);
+                cost1 = get<1>(e);
+                cost2 = get<2>(e);
+
+                if(e1 == minElem)
+                    break;
+
+                if(elemCost[e1] < cost1 + cost2)
+                    continue;
+
+                if(minCost <= cost1 + cost2)
+                    continue;
+
+                // depth condition
+                if(maxDepth <= depth[e1])
+                    continue;
+                // 
+
+                elem1 = element[e1];
+                t1 = local_rtree_t.get_trackid(e1);
+                l1 = local_rtree_t.get_layer(e1);
+                x1 = iterPtx[e1];
+                y1 = iterPty[e1];
+                vertical1 = local_rtree_t.is_vertical(e1);
+                dep1 = depth[e1];
+
+               
+                // query
+                queries.clear();
+                if(isRef)
+                    local_rtree_t.query(QueryMode::Intersects, elem1, l1-1, l1+1, queries);
+                else
+                    local_rtree_t.query(QueryMode::Intersects, elem1, tracelNum[dep1+1], queries);
+
+
+                #pragma omp parallel for num_threads(NUM_THREADS)
+                for(int j=0; j < queries.size(); j++)
+                {
+                    int e2, t2, l2, x2, y2, x3, y3, dep2, c1, c2;
+                    int maxWidth2, curDir, numSpacingVio, curShape;
+                    int xs[2], ys[2];
+                    bool vertical2, isDestination;
+                    seg elem2;
+
+                    elem2 = queries[j].first;
+                    e2 = queries[j].second;
+                    t2 = local_rtree_t.get_trackid(e2);
+                    l2 = local_rtree_t.get_layer(e2);
+                    maxWidth2 = local_rtree_t.get_width(e2);
+                    dep2 = dep1 + 1;
+                    vertical2 = local_rtree_t.is_vertical(e2);
+
+                    if(e1 == e2)
+                        continue;
+                  
+                    if(!intersection(elem1, elem2, x2, y2))
+                        continue;
+
+        
+                    // cost
+                    c1 = cost1 + manhatan_distance(x1, y1, x2, y2) + abs(l1-l2) * DEPTH_COST;
+                    c2 = cost2;
+                    curDir = routing_direction(x1, y1, x2, y2, vertical1);
+
+                    // width constraint
+                    if(maxWidth2 < width[l2])
+                        continue;
+
+                    // condition
+                    if(depth[e1] == 0)
+                    {
+                        if(x1 == x2 && y1 == y2)
+                            continue;
+
+                        if(isRef)
+                        {
+                            curDir = routing_direction(x1, y1, x2, y2, vertical1);
+                            
+                            if(!local_rtree_o.compactness((numbits-i), mx, my, x2, y2, l1, l2, align, curDir, width[l2], spacing[l2]))
+                                c2 += NOTCOMPACT;
+                        }
+                    }
+
+
+                    if(!isRef)
+                    {
+                        // layer sequence
+                        if(tracelNum[dep2] != l2)
+                            continue;
+                       
+                        if(traceDir[dep1] != curDir)
+                            continue;
+
+                        if(curDir != Direction::Point)
+                        {
+                            if(tracelx[dep2] != traceux[dep2])
+                            {
+                                if(tracePtx[dep2] == tracelx[dep2])
+                                {
+                                    if(tracePtx[dep2] <= x2)
+                                        continue;
+                                }
+
+                                if(tracePtx[dep2] == traceux[dep2])
+                                {
+                                    if(tracePtx[dep2] >= x2)
+                                        continue;
+                                }
+                            }
+
+                            if(tracely[dep2] != traceuy[dep2])
+                            {
+                                if(tracePty[dep2] == tracely[dep2])
+                                {
+                                    if(tracePty[dep2] <= y2)
+                                        continue;
+                                }
+
+                                if(tracePty[dep2] == traceuy[dep2])
+                                {
+                                    if(tracePty[dep2] >= y2)
+                                        continue;
+                                }
+                            }
+                        }
+
+                        //cout << "pass wire ordering" << endl;
+                        c2 += manhatan_distance(tracePtx[dep2], tracePty[dep2], x2, y2);
+                    }
+               
+
+                    // check spacing violation
+                    into_array(min(x1,x2), max(x1,x2), min(y1, y2), max(y1, y2), xs, ys);
+                    numSpacingVio = local_rtree_o.num_spacing_violations(bitid, xs, ys, l1, width[l1], spacing[l1], vertical1);
+
+                    // short violation
+                    into_array(min(x1,x2), max(x1,x2), min(y1, y2), max(y1, y2), xs, ys);
+                    expand_width(xs, ys, width[l1], vertical1);
+                    if(bit_rtree.short_violation(xs, ys, l1, except1, except2))
+                        continue;
+                    ///////////////////////////////////////////////////////
+
+                    if(abs(tarwire->l - l2) <= 1 && bg::intersects(elem2, wireseg))
+                        isDestination = true;
+                    else
+                        isDestination = false;
+
+                    if(isDestination)
+                    {
+                        intersection(elem2, wireseg, x2, y2, x3, y3);
+                        
+                        // Routing Shape
+                        if(x3 == tarwire->x1 && y3 == tarwire->y1)
+                            curShape = Direction::EndPointLL;
+                        else if(x3 == tarwire->x2 && y3 == tarwire->y2)
+                            curShape = Direction::EndPointUR;
+                        else
+                            curShape = Direction::T_Junction;
+
+                        if(isRef)
+                        {
+                            if(curShape == Direction::T_Junction)
+                                if(!t_junction)
+                                    continue;
+                                else if(!is_inside(x3,y3,ll,ur))
+                                    continue;
+
+                            if(curShape == Direction::EndPointLL && !ep_ll)
+                                continue;
+
+                            if(curShape == Direction::EndPointUR && !ep_ur)
+                                continue;
+                        }
+                        else
+                        {
+                            if(curShape != lastRoutingShape)
+                                continue;
+                            
+                            if(maxDepth != dep2)
+                                continue;
+                            
+                            if(traceDir[dep2] != routing_direction(x2, y2, x3, y3, vertical2))
+                                continue;
+                        }
+                        // short violation
+                        /*
+                        into_array(min(x2, x3), max(x2, x3), min(y2, y3), max(y2, y3), xs, ys);
+                        expand_width(xs, ys, width[l2], vertical2);
+                        if(bit_rtree.short_violation(xs, ys, l2, except1, except2))
+                            continue;
+                        */
+                        // spacing violation
+                        into_array(min(x2, x3), max(x2, x3), min(y2, y3), max(y2, y3), xs, ys);
+                        numSpacingVio += local_rtree_o.num_spacing_violations(bitid, xs, ys, l2, width[l2], spacing[l2], vertical2);
+                        
+                        // WL
+                        c1 += manhatan_distance(x2, y2, x3, y3);
+                    }
+
+
+                    c2 += numSpacingVio * SPACING_VIOLATION;        
+                    if(elemCost[e2] <= c1 + c2)
+                        continue;
+
+
+                    #pragma omp critical(GLOBAL)
+                    {
+                        element[e2] = elem2;
+                        depth[e2] = dep2;
+                        backtrace[e2] = e1;
+                        iterPtx[e2] = x2;
+                        iterPty[e2] = y2;
+                        elemCost[e2] = c1 + c2;
+                        wirelength[e2] = c1;
+                        penalty[e2] = c2;
+                        numSV[e2] = numSV[e1] + numSpacingVio;
+                        
+                        PQ2.push(make_tuple(e2, c1, c2));
+
+                        if(isDestination && minCost > c1 + c2)
+                        {
+                            lastPtx[e2] = x3;
+                            lastPty[e2] = y3;
+                            numDestSPV = numSV[e2];
+                            hasMinElem = true;
+                            minCost = c1 + c2;
+                            minElem = e2;
+                        }
+
+                    }
+                }
+            }
+
+
+            if(hasMinElem)
+            {
+                int e1, e2, x1, x2, y1, y2, x3, y3, w1, w2;
+                int t1, t2, l1, l2, count, index, curDir;
+                bool vertical1, vertical2, pin;
+                int xs[2], ys[2], wirex[2], wirey[2];
+                
+                e2 = minElem;
+                l2 = local_rtree_t.get_layer(e2);
+                
+                if(!isRef)
+                {
+                    int tmp = e2;//minElem;
+                    printf("\n\n< Destination! > %dth\n", i);
+                    printf("pin loc (%d %d) (%d %d) M%d\n",
+                            curpin->llx, curpin->lly, curpin->urx, curpin->ury, curpin->l);
+                    printf("tar loc (%d %d) (%d %d) M%d\n", 
+                            tarwire->x1, tarwire->y1, tarwire->x2, tarwire->y2, tarwire->l);
+                    printf("(%d %d) (%d %d) M%d\n", lastPtx[minElem], lastPty[minElem], iterPtx[e2], iterPty[e2], local_rtree_t.get_layer(e2));
+                    while(tmp != backtrace[tmp])
+                    {
+                        int tmp2 = tmp;
+                        tmp = backtrace[tmp];
+                        printf("(%d %d) (%d %d) M%d\n", iterPtx[tmp], iterPty[tmp], iterPtx[tmp2], iterPty[tmp2], local_rtree_t.get_layer(tmp));
+                    }
+                    printf("\n");
+                }
+                // if reference routing, store
+                if(isRef)
+                {
+                    totalSPV = 0;
+                    maxDepth = depth[e2];
+
+                    if(lastPtx[e2] == tarwire->x1 && lastPty[e2] == tarwire->y1)
+                        lastRoutingShape = Direction::EndPointLL;        
+                    else if(lastPtx[e2] == tarwire->x2 && lastPty[e2] == tarwire->y2)
+                        lastRoutingShape = Direction::EndPointUR;
+                    else
+                        lastRoutingShape = Direction::T_Junction;
+
+                    curDir = routing_direction(iterPtx[e2], iterPty[e2], lastPtx[e2], lastPty[e2], local_rtree_t.is_vertical(e2));
+                    tracelNum.insert(tracelNum.begin(), l2);
+                    traceDir.insert(traceDir.begin(), curDir);
+                    tracelx = vector<int>((maxDepth+1), INT_MAX);
+                    tracely = vector<int>((maxDepth+1), INT_MAX);
+                    traceux = vector<int>((maxDepth+1), INT_MIN);
+                    traceuy = vector<int>((maxDepth+1), INT_MIN);
+                    tracePtx = vector<int>((maxDepth+1), INT_MIN);
+                    tracePty = vector<int>((maxDepth+1), INT_MIN);
+                    created = vector<Wire>((maxDepth+1)*numbits);
+                }
+
+                count = maxDepth;
+                totalSPV += numDestSPV;
+                
+                w2 = (maxDepth+1)*seq + count--;
+                x2 = iterPtx[e2];
+                y2 = iterPty[e2];
+                x3 = lastPtx[e2];
+                y3 = lastPty[e2];
+                vertical2 = local_rtree_t.is_vertical(e2);
+                trackid = local_rtree_t.get_trackid(e2);
+                pin = (backtrace[e2] == e2)? true : false;
+
+                into_array(min(x2,x3), max(x2,x3), min(y2,y3), max(y2,y3), xs, ys);
+                wirex[0] = xs[0];
+                wirex[1] = xs[1];
+                wirey[0] = ys[0];
+                wirey[1] = ys[1];
+                expand_width(wirex, wirey, width[l2], vertical2); //local_rtree_t.is_vertical(e2));
+
+                created[w2].get_info(bitid, trackid, xs, ys, l2, seq, pin);
+                created[w2].add_intersection(PINTYPE, {lastPtx[e2], lastPty[e2]});
+                // rtree update
+                local_rtree_t.insert_element(trackid, xs, ys, l2, true);
+                local_rtree_o.insert_obstacle(bitid, wirex, wirey, l2, false); 
+
+                if(pin)
+                    created[w2].add_intersection(PINTYPE, {iterPtx[e2], iterPty[e2]});
+
+                //
+                global_edges.push_back({w2, tarwire->id});
+                global_pts.push_back({lastPtx[e2], lastPty[e2]});
+
+                while(backtrace[e2] != e2)
+                {
+                    e1 = backtrace[e2];
+                    x1 = iterPtx[e1];
+                    y1 = iterPty[e1];
+                    x2 = iterPtx[e2];
+                    y2 = iterPty[e2];
+                    l1 = local_rtree_t.get_layer(e1);
+                    vertical1 = local_rtree_t.is_vertical(e1);
+                    
+                    //
+                    tracelx[depth[e2]] = min(x2, tracelx[depth[e2]]);
+                    tracely[depth[e2]] = min(y2, tracely[depth[e2]]);
+                    traceux[depth[e2]] = max(x2, traceux[depth[e2]]);
+                    traceuy[depth[e2]] = max(y2, traceuy[depth[e2]]);
+                    tracePtx[depth[e2]] = x2;
+                    tracePty[depth[e2]] = y2;
+
+                    if(isRef)
+                    {
+                        tracelNum.insert(tracelNum.begin(), l1);
+                        traceDir.insert(traceDir.begin(), routing_direction(x1, y1, x2, y2, vertical1));
+                    }
+
+                    // data
+                    w1 = (maxDepth+1)*seq + count--;
+                    pin = (e1 == backtrace[e1]) ? true : false;
+                    //trackid = localrtree.trackid(e1);
+                    trackid = local_rtree_t.get_trackid(e1);
+                    into_array(min(x1,x2), max(x1,x2), min(y1,y2), max(y1,y2), xs, ys);
+
+                    wirex[0] = xs[0];
+                    wirex[1] = xs[1];
+                    wirey[0] = ys[0];
+                    wirey[1] = ys[1];
+                    expand_width(wirex, wirey, width[l1], local_rtree_t.is_vertical(e1));
+
+                    created[w1].get_info(bitid, trackid, xs, ys, l1, seq, pin);
+                    local_rtree_t.insert_element(trackid, xs, ys, l1, true);
+                    local_rtree_o.insert_obstacle(bitid, wirex, wirey, l1, false);
+
+                    if(pin)
+                        created[w1].add_intersection(PINTYPE, {x1, y1});
+
+                    local_edges.push_back({w1,w2});
+                    local_pts.push_back({x2,y2});
+                    w2 = w1;
+                    e2 = e1;
+                }
+// #ifdef DEBUG_ROUTE_MP_TO_TP
+                if(isRef)
+                {
+                    printf("< MP to TP Routing Report %dth >\n", i);
+                    for(int tmp = minElem; ; tmp = backtrace[tmp])
+                    {
+                        if(tmp == minElem)
+                        {
+                            printf("bus name : %s\n", curbus->name.c_str());
+                            printf("pin loc (%d %d) (%d %d) M%d\n",
+                                    curpin->llx, curpin->lly, curpin->urx, curpin->ury, curpin->l);
+                            printf("tar loc (%d %d) (%d %d) M%d\n", 
+                                    tarwire->x1, tarwire->y1, tarwire->x2, tarwire->y2, tarwire->l);
+                            printf("trace layer num = { ");
+                            printf("M%d (%d %d) -> ", tracelNum[depth[tmp]], lastPtx[tmp], lastPty[tmp]);
+                        }
+                        
+                        if(tmp == backtrace[tmp])
+                        {
+                            printf("M%d (%d %d) }\n", tracelNum[depth[tmp]], iterPtx[tmp], iterPty[tmp]);
+                            break;
+                        }
+                        else
+                            printf("M%d (%d %d) -> ", tracelNum[depth[tmp]], iterPtx[tmp], iterPty[tmp]);
+                    }
+
+                    for(int tmp = minElem; ; tmp = backtrace[tmp])
+                    //for(int tmp = minElem; tmp != backtrace[tmp]; tmp = backtrace[tmp])
+                    {
+                        if(tmp == minElem)
+                            printf("trace direction = { ");
+                        if(traceDir[depth[tmp]] == Direction::Left)
+                            printf("Left ");
+                        if(traceDir[depth[tmp]] == Direction::Right)     
+                            printf("Right ");
+                        if(traceDir[depth[tmp]] == Direction::Up)     
+                            printf("Up ");
+                        if(traceDir[depth[tmp]] == Direction::Down)     
+                            printf("Down ");
+                        if(traceDir[depth[tmp]] == Direction::Point)     
+                            printf("Point ");
+                        if(tmp == backtrace[tmp])
+                        {
+                            printf("}\n");
+                            printf("routing shape   = { ");
+                            switch(lastRoutingShape)
+                            {
+                                case Direction::EndPointLL:
+                                    printf("end point LL }\n");
+                                    break;
+                                case Direction::EndPointUR:
+                                    printf("end point UR }\n");
+                                    break;
+                                case Direction::T_Junction:
+                                    printf("T junction }\n ");
+                                    break;
+                                default:
+                                    printf("?? }\n");
+                                    break;
+                            }
+                            break;
+                        }
+                        else
+                            printf("<- ");
+                    }
+                    printf("\n\n");
+                }
+//#endif
+            }
+            else
+            {
+                solution = false;
+                
+                failed_tp++;
+                printf("[Info] %s mp to tp routing failed (cur seq %d)\n", curbus->name.c_str(), seq);
+#ifdef DEBUG_ROUTE_MP_TO_TP
+                //printf("%s routing to tp failed\n", curbus->name.c_str());
+                //printf("current sequence %d\n", seq);
+#endif
+                break;
+            }
+            //
+            isRef = false;
+        }
+        //
+
+        // if spacing violation penalty bigger enough,
+        // retry
+        
+        if(EPSILON < 2 * DELTA * totalSPV)
+           solution = false;
+
+        if(solution)
+        {
+            bool pin;
+            int xs[2], ys[2];
+ 
+            //printf("get solution\n");
+            dense_hash_map<int,int> local2global;
+            local2global.set_empty_key(INT_MAX);
+            topology = vector<Segment>(maxDepth+1);
+
+            for(i=0; i < numbits; i++)
+            {   
+                for(count = 0; count < maxDepth+1 ; count++)
+                {
+                    index = i*(maxDepth+1) + count;
+                    //wireid = wires.size();
+                    Wire* curw = &created[index];
+                    into_array(curw->x1, curw->x2, curw->y1, curw->y2, xs, ys);
+                    l = curw->l;
+                    seq = curw->seq;
+                    pin = curw->pin;
+                    trackid = curw->trackid;
+                    bitid = curw->bitid;
+
+                    //curw = CreateWire(bitid, trackid, xs, ys, l, seq, pin);
+                    wireid = create_wire(bitid, trackid, xs, ys, l, seq, pin);
+#ifdef DEBUG_ROUTE_MP_TO_TP
+                    curpin = &ckt->pins[curmp->pins[i]];
+                    if(count==0)
+                    {
+                        printf("\n\np %d (%d %d) (%d %d) M%d -> \n",
+                                curpin->id, curpin->llx, curpin->lly, curpin->urx, curpin->ury, curpin->l);
+                    }
+
+                    printf("%s w%d (%d %d) (%d %d) M%d\n",
+                            ckt->bits[bitid].name.c_str(), wireid, xs[0], ys[0], xs[1], ys[1], l);
+
+                    if(count == maxDepth)
+                    {
+                        tarwire = &wires[target.wires[i]];
+                        printf("%s w%d (%d %d) (%d %d) M%d\n",
+                                ckt->bits[bitid].name.c_str(), tarwire->id, tarwire->x1, tarwire->y1, tarwire->x2, tarwire->y2, tarwire->l);
+                    }
+#endif
+                    local2global[index] = wireid;
+                    if(count == 0)
+                    {
+                        pin2wire[curmp->pins[i]] = wireid;
+                        wire2pin[wireid] = curmp->pins[i];
+                        wires[wireid].add_intersection(PINTYPE, created[index].intersection[PINTYPE]);
+                    }
+                    topology[count].wires.push_back(wireid);
+                    topology[count].x1 = min(topology[count].x1, curw->x1);
+                    topology[count].y1 = min(topology[count].y1, curw->y1);
+                    topology[count].x2 = max(topology[count].x2, curw->x2);
+                    topology[count].y2 = max(topology[count].y2, curw->y2);
+                    topology[count].l = curw->l;
+                    topology[count].vertical = curw->vertical;
+                }
+            }
+
+            for(count = 0; count < maxDepth+1; count++)
+                sort(topology[count].wires.begin(), topology[count].wires.end(), [&,this](int left, int right){
+                        return this->wires[left].seq < this->wires[right].seq;
+                        });
+
+            for(i=0; i < local_edges.size(); i++)
+            {
+                int w1 = local2global[local_edges[i].first];
+                int w2 = local2global[local_edges[i].second];
+                set_neighbor(w1, w2, local_pts[i].first, local_pts[i].second);
+            }
+
+            for(i=0; i < global_edges.size(); i++)
+            {
+                int w1 = local2global[global_edges[i].first];
+                int w2 = global_edges[i].second;
+                set_neighbor(w1, w2, global_pts[i].first, global_pts[i].second);
+            }
+
+            // update topology
+            for(i=0; i < topology.size(); i++)
+            {
+                Segment &seg = topology[i];
+                seg.id = tp.size();
+                tp.push_back(seg);
+                tp[count].leaf = (i == 0) ? true : false;
+                if(i != 0)
+                {
+                    tp[seg.id].neighbor.push_back(seg.id-1);
+                    tp[seg.id-1].neighbor.push_back(seg.id);
+                }
+
+                if(i == topology.size() -1)
+                {
+                    tp[seg.id].neighbor.push_back(target.id);
+                    tp[target.id].neighbor.push_back(seg.id);
+                }
+            }
+
+
+            //tp.insert(tp.end(), topology.begin(), topology.end());
+            break;
+        }
+        else
+        {
+            // re try
+            ref_fail = isRef ? true : false;
+            
+            if(!retry && !ref_fail)
+            {
+                retry = true;
+                
+                if(lastRoutingShape == Direction::T_Junction)
+                    t_junction = false;
+
+                if(lastRoutingShape == Direction::EndPointLL)
+                {
+                    ep_ll = false;
+                    ep_ur = true;
+                }
+                
+                if(lastRoutingShape == Direction::EndPointUR)
+                {
+                    ep_ll = true;
+                    ep_ur = false;
+                }
+            }
+            else
+            {
+                PQ1.pop();
+                ref_fail = false;
+                ep_ur = true;
+                ep_ll = true;
+                retry = false;
+            }
+        
+        }
+        //
+    }
+
+    if(!solution)
+    {
+        cout << "[INFO] " << curbus->name << " mp to tp routing failed" << endl;
+        failed++;
+    }
+    else
+    {
+
+        cout << "< Route Multipin to tp Report >" << endl;
+        cout << "Bus        : " << curbus->name << endl;
+        cout << "MultiPin   : (" 
+            << mx[0] << " " << my[0] << ") (" << mx[1] << " " << my[1] << ") M" << l << endl;
+        cout << "Segment    : ("
+            << segx[0] << " " << segy[0] << ") (" << segx[1] << " " << segy[1] << ") M" << target.l << endl;
+        cout << "# visiting : " << total_visit_count << endl;
+        cout << "# failed   : " << failed_tp << endl << endl;
+        
+        cout << "[INFO] " << totalSPV << " * " << DELTA << " penalty occurs" << endl << endl;
+    }
+    return solution;
 }
 
 bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment> &tp)
@@ -2256,7 +3241,7 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                     if(abs(tarwire->l - l2) <= 1 && bg::intersects(elem, wireseg))
                     {
 
-                        intersection(elem, wireseg, ptx, pty); //
+                        intersection(elem, wireseg, x, y, ptx, pty); //
                         into_array(min(x, ptx), max(x, ptx), min(y, pty), max(y, pty), xs, ys);
                         vertical = local_rtree_t.is_vertical(e2);
                         // Routing Shape
@@ -2344,8 +3329,27 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
 
             if(hasMinElem)
             {
+
                 e2 = minElem;
                 l2 = local_rtree_t.get_layer(e2);
+                
+                if(!isRef)
+                {
+                    int tmp = e2;//minElem;
+                    printf("\n\n< Destination! > %dth\n", i);
+                    printf("pin loc (%d %d) (%d %d) M%d\n",
+                            curpin->llx, curpin->lly, curpin->urx, curpin->ury, curpin->l);
+                    printf("tar loc (%d %d) (%d %d) M%d\n", 
+                            tarwire->x1, tarwire->y1, tarwire->x2, tarwire->y2, tarwire->l);
+                    printf("(%d %d) (%d %d) M%d\n", lastPtx[minElem], lastPty[minElem], iterPtx[e2], iterPty[e2], local_rtree_t.get_layer(e2));
+                    while(tmp != backtrace[tmp])
+                    {
+                        int tmp2 = tmp;
+                        tmp = backtrace[tmp];
+                        printf("(%d %d) (%d %d) M%d\n", iterPtx[tmp], iterPty[tmp], iterPtx[tmp2], iterPty[tmp2], local_rtree_t.get_layer(tmp));
+                    }
+                    printf("\n");
+                }
                 // if reference routing, store
                 if(isRef)
                 {
@@ -2450,10 +3454,10 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                     w2 = w1;
                     e2 = e1;
                 }
-                
+// #ifdef DEBUG_ROUTE_MP_TO_TP
                 if(isRef)
                 {
-                    printf("< Reference Bit Routing Report >\n");
+                    printf("< MP to TP Routing Report %dth >\n", i);
                     for(int tmp = minElem; ; tmp = backtrace[tmp])
                     {
                         if(tmp == minElem)
@@ -2517,9 +3521,9 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                     }
                     printf("\n\n");
                 }
-#ifdef DEBUG_ROUTE_MP_TO_TP
-#endif
+//#endif
 
+               
             }
             else
             {

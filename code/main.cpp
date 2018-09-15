@@ -98,11 +98,11 @@ int main(int argc, char** argv){
     //rou->create_plot(benchName.c_str());
     cout << "[INFO] start Write out file" << endl;
     ckt->out_write(outputFileName);
-    //cout << "[INFO] start Write def & lef file" << endl;
-    //lefName = logDirName + "/" + benchName + ".lef";
-    //defName = logDirName + "/" + benchName + ".def";
-    //ckt->lef_write(lefName);
-    //ckt->def_write(defName);
+    cout << "[INFO] start Write def & lef file" << endl;
+    lefName = logDirName + "/" + benchName + ".lef";
+    defName = logDirName + "/" + benchName + ".def";
+    ckt->lef_write(lefName);
+    ckt->def_write(defName);
 
     //rou->penalty_cost();
 

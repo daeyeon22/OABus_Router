@@ -14,7 +14,7 @@ from multiprocessing import Process, Pool
 from datetime import datetime
 
 
-benchDirList = [ "../bench" ]
+benchDirList = [ "../bench", "../bench_big" ]
 dirpos =  "../bench"
 binaryName = "./bus_router"
 evalpos = "../eval/eval_1.0-a4"
@@ -80,6 +80,10 @@ if __name__ == '__main__':
         print("         ./multi_run.py example_2 ")
         sys.exit(1)
 
+    if len(sys.argv) > 3:
+        dirpos = benchDirList[1]
+    
+        
     benchNum = -1
     benchName = ""
     execProcs = []
@@ -108,6 +112,8 @@ if __name__ == '__main__':
         exeEval = (sys.argv[2] == "eval")
     else:
         exeEval = False
+
+
 
     # read benchmark list
     if runAll == False: 

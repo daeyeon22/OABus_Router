@@ -28,6 +28,7 @@ extern void lpt(seg s, int &x, int &y);
 extern void upt(seg s, int &x, int &y);
 extern bool intersects(seg s1, seg s2);
 extern bool intersection(seg s1, seg s2, int &x, int &y);
+extern bool intersection(seg s1, seg s2, int xPrev, int yPrev, int &x, int &y);
 
 //extern void into_array(int x1, int x2, int y1, int y2, int x[], int y[]);
 //extern void into_array(int v1, int v2, int v[]);

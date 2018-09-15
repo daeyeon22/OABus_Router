@@ -879,7 +879,7 @@ int OABusRouter::Router::create_wire(int bitid, int trackid, int x[], int y[], i
     // add into the bit
     ckt->bits[w.bitid].wires.push_back(w.id);
     // rtree update for track
-    rtree_t.insert_element(trackid, x, y, l, true);
+    //rtree_t.insert_element(trackid, x, y, l, true);
     // rtree update for wire
     int xs[2], ys[2];
     xs[0] = (w.vertical) ? x[0] - (int)(1.0*w.width / 2) : x[0];
