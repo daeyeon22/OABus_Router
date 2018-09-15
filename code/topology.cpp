@@ -71,23 +71,24 @@ int DirLUT::get_strack_direction(int prevRdir, int prevSdir, int curRdir, bool r
 
 static DirLUT *dirlut = nullptr;
 
+
 void OABusRouter::Router::move_pt_loc(int &xMoved, int &yMoved, int numBits, int width, int spac, int sDir)
 {
     if(sDir == Direction::Left)
     {
-        xMoved -= numBits*(width + spac);
+        xMoved -= 2*numBits*(width + spac);
     }   
     else if(sDir == Direction::Right)
     {
-        xMoved += numBits*(width + spac);
+        xMoved += 2*numBits*(width + spac);
     }
     else if(sDir == Direction::Down)
     {
-        yMoved -= numBits*(width + spac);
+        yMoved -= 2*numBits*(width + spac);
     }
     else if(sDir == Direction::Up)
     {
-        yMoved += numBits*(width + spac);
+        yMoved += 2*numBits*(width + spac);
     }
 }
 

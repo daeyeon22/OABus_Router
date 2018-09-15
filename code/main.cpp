@@ -104,7 +104,6 @@ int main(int argc, char** argv){
     ckt->initialize();
     cout << "[INFO] start route all" << endl;
     rou->route_all();
-
     
     cout << "[INFO] start Create Path" << endl;
     ckt->create_path();
@@ -125,6 +124,12 @@ int main(int argc, char** argv){
     measure.stop_clock("All");
     measure.print_clock();
 
+//    cout << "[INFO] start Write lef & def file" << endl;
+//    lefName = logDirName + "/" + benchName + ".lef";
+//    defName = logDirName + "/" + benchName + ".def";
+//    ckt->lef_write(lefName);
+//    ckt->def_write(defName);
+    
     return 0;
 }
 
