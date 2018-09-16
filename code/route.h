@@ -370,10 +370,11 @@ namespace OABusRouter
         bool t_junction_available(int busid, int x[], int y[], int l);
         bool routability_check(int m, int t, int dir);
         bool get_middle_seg(int s1, int s2, int& tar); 
+        void get_panelty_cost(vector<int> &panelty);
         void penalty_cost();
         void remove_all(int busid);
         void remove_wire(int wireid);
-
+        void reconstruction(int busid, vector<int> &ws);
         bool should_stop();
         void construct_bit_rtree(int bitid, BitRtree& bitrtree);
 

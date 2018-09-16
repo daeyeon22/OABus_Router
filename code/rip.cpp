@@ -1,3 +1,4 @@
+#include "circuit.h"
 #include "route.h"
 
 
@@ -12,6 +13,7 @@ int OABusRouter::Router::get_congested_bus(int busid)
 
     return 0;
 }
+
 
 void OABusRouter::Router::rip_up(int busid)
 {
