@@ -17,8 +17,8 @@
 
 #define DELTA ckt->delta
 #define EPSILON ckt->epsilon
-#define DEBUG_ROUTE_MP_TO_TP
-#define REPORT
+//#define DEBUG_ROUTE_MP_TO_TP
+//#define REPORT
 
 //#define DEBUG_ROUTE_TWOPIN_NET
 //#define DEBUG_MAZE

@@ -2,9 +2,7 @@
 #include "circuit.h"
 #include "route.h"
 
-#define REPORT
-
-
+//#define REPORT
 using namespace std;
 
 // Static variables
@@ -21,8 +19,6 @@ OABusRouter::Router* OABusRouter::Router::shared(){
 }
 //
 
-
-
 bool OABusRouter::Circuit::should_stop()
 {
     double elapse_time = measure.elapse_time();
@@ -37,8 +33,8 @@ bool OABusRouter::Circuit::should_stop()
         printf("[INFO] Elapse time     : %.2f\n", elapse_time);
         printf("\n");
 #endif
-        return false;
-        //return true;
+        //return false;
+        return true;
     }
     else
         return false;

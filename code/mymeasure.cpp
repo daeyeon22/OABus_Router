@@ -28,9 +28,21 @@ using namespace std;
 //void CMeasure::process_mem_usage(double& vm_usage, double& resident_set)
 double CMeasure::elapse_time()
 {
-	clock_t cend = clock();
-	double celapsed = (cend - cbegin)/CLOCKS_PER_SEC;
-    return celapsed;
+	double wend = 0;
+	struct timeval* time = new timeval;
+	if(gettimeofday(time, NULL))
+		wend = 0;
+	else
+		wend = time->tv_sec + .000001 * time->tv_usec;
+
+	delete time;
+
+	double welapsed = wend - wbegin;
+    return welapsed;
+	
+	//clock_t cend = clock();
+    //double celapsed = (cend - cbegin)/CLOCKS_PER_SEC;
+    //return celapsed;
 }
 
 void CMeasure::process_mem_usage(){
