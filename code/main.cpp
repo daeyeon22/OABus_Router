@@ -1,7 +1,6 @@
 
 #include "circuit.h"
 #include "route.h"
-
 //#define REPORT
 using namespace std;
 
@@ -18,6 +17,13 @@ OABusRouter::Router* OABusRouter::Router::shared(){
     return instance;
 }
 //
+
+
+void print_welapse_time()
+{
+    double elapse_time = measure.elapse_time();
+    printf("[INFO] wall elapse time %.f s\n", elapse_time);
+}
 
 bool OABusRouter::Circuit::should_stop()
 {
@@ -127,6 +133,7 @@ int main(int argc, char** argv){
     measure.stop_clock("All");
     measure.print_clock();
 
+    print_welapse_time();
 
     return 0;
 }

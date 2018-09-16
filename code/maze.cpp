@@ -233,13 +233,17 @@ void OABusRouter::Router::route_all()
 #ifdef REPORT
     cout << "< Sorted Bus Sequence >\n" << endl;
 #endif
+
     for(auto& busid : sorted)
     {
         Bus* curbus = &ckt->buses[busid];
+
 #ifdef REPORT
         printf("%s (%d %d) (%d %d)\n", curbus->name.c_str(), curbus->llx, curbus->lly, curbus->urx, curbus->ury);
 #endif
+
     }
+
 #ifdef REPORT
     cout << endl;
 #endif
@@ -263,9 +267,11 @@ void OABusRouter::Router::route_all()
         {
             curbus->assign = false;
             remove_all(busid);
+
 #ifdef REPORT
             cout << "[INFO] " << curbus->name << " routing failed" << endl;
 #endif
+
         }
         
     }
@@ -284,6 +290,7 @@ void OABusRouter::Router::route_all()
 #ifdef REPORT
     printf("\n< Start reroute >\n");
 #endif
+
     vector<int> panelty;
     get_panelty_cost(panelty);
 
@@ -4002,13 +4009,16 @@ void OABusRouter::Router::get_panelty_cost(vector<int> &panelty)
         // end wires
     }
     // end bits
+
+    for(i=0; i < numBuses; i++)
+        panelty[i] = Ps[i];
+
 #ifdef REPORT 
     printf("\n------------------------------------\n");
     printf("Ps : #Spacing violations * %d\nPf : #routing failed * %d\n\n", delta, epsilon);
     for(i=0; i < numBuses; i++)
     {
         printf("%s  -> Ps %d\n", ckt->buses[i].name.c_str(), Ps[i]);
-        panelty[i] = Ps[i];
     }
     printf("total SV %d\n", SV.size());
     printf("\n------------------------------------\n");
