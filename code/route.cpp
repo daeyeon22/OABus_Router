@@ -314,9 +314,9 @@ void OABusRouter::Router::update_net_tp(int busid, vector<Segment> &tp)
     int i, j, s1, s2, x1, x2, y1, y2, l;
     set<pair<int,int>> edges;
     dense_hash_map<int,int> local2global;
-    Topology* top = &topologies[busid];
+    //Topology* top = &topologies[busid];
     local2global.set_empty_key(INT_MAX);
-
+    //top->segs.clear();
 
     for(i=0; i < tp.size(); i++)
     {

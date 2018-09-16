@@ -14,7 +14,7 @@ from multiprocessing import Process, Pool
 from datetime import datetime
 
 
-benchDirList = [ "../bench", "../bench_big" ]
+benchDirList = [ "../bench", "../bench_big", "../bench_new" ]
 dirpos =  "../bench_official"
 binaryName = "./bus_router"
 evalpos = "../eval/eval_1.0-a7"
@@ -81,9 +81,13 @@ if __name__ == '__main__':
         sys.exit(1)
 
     if len(sys.argv) > 3:
-        dirpos = benchDirList[1]
-    
-        
+        if sys.argv[3] == "big":
+            dirpos = benchDirList[1]
+        elif sys.argv[3] == "new":
+            dirpos = benchDirList[2]
+            evalpos = "../eval/eval_1.0-a4"
+
+
     benchNum = -1
     benchName = ""
     execProcs = []

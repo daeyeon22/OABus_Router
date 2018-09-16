@@ -2,6 +2,9 @@
 #include "circuit.h"
 #include "route.h"
 
+#define REPORT
+
+
 using namespace std;
 
 // Static variables
@@ -34,7 +37,8 @@ bool OABusRouter::Circuit::should_stop()
         printf("[INFO] Elapse time     : %.2f\n", elapse_time);
         printf("\n");
 #endif
-        return true;
+        return false;
+        //return true;
     }
     else
         return false;
