@@ -982,9 +982,10 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
                     if(!intersection(elem1, elem2, x2, y2))
                         continue;
 
+
                     //
-                    if(manhatan_distance(x1, y1, x2, y2) <= width[l2])
-                        continue;
+                    //if(manhatan_distance(x1, y1, x2, y2) <= width[l2])
+                    //    continue;
 
                     //into_array(x1, x2, y1, y2, xs, ys);
                     coefWL = 1 + rtree_p.num_diff_pins_on_track(bitid, t1, width[l1], spacing[l1]);
@@ -1094,7 +1095,8 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
                             
                         }
 
-                        c3 += 2 * coefWL * manhatan_distance(tracePtx[dep2], tracePty[dep2], x2, y2);
+                        //c3 += 2 * coefWL * manhatan_distance(tracePtx[dep2], tracePty[dep2], x2, y2);
+                        c3 += manhatan_distance(tracePtx[dep2], tracePty[dep2], x2, y2);
                     }
                    
 
@@ -1364,7 +1366,7 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
                     w2 = w1;
                     e2 = e1;
                 }
-//#ifdef DEBUG_ROUTE_TWOPIN_NET
+#ifdef DEBUG_ROUTE_TWOPIN_NET
                 /////////////////////////////////////////////
                 //if(isRef)
                 //{
@@ -1378,7 +1380,7 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
                     cout << endl;
                 //}
                 /////////////////////////////////////////////
-//#endif
+#endif
             }
             else
             {
@@ -1462,6 +1464,13 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
                 int w2 = local2global[edges[i].second];
                 set_neighbor(w1, w2, pts[i].first, pts[i].second);
             }
+
+            //
+            rtree_p.remove_pins(mp1->pins);
+            rtree_p.remove_pins(mp2->pins);
+
+
+
 
             break;
         }else{
@@ -2159,6 +2168,7 @@ bool OABusRouter::Router::route_multipin_to_tp_v2(int busid, int m, vector<Segme
                 e2 = minElem;
                 l2 = local_rtree_t.get_layer(e2);
                 
+#ifdef DEBUG_ROUTE_MP_TO_TP
                 if(!isRef)
                 {
                     int tmp = e2;//minElem;
@@ -2176,6 +2186,9 @@ bool OABusRouter::Router::route_multipin_to_tp_v2(int busid, int m, vector<Segme
                     }
                     printf("\n");
                 }
+#endif
+
+
                 // if reference routing, store
                 if(isRef)
                 {
@@ -2282,7 +2295,7 @@ bool OABusRouter::Router::route_multipin_to_tp_v2(int busid, int m, vector<Segme
                     w2 = w1;
                     e2 = e1;
                 }
-// #ifdef DEBUG_ROUTE_MP_TO_TP
+ #ifdef DEBUG_ROUTE_MP_TO_TP
                 if(isRef)
                 {
                     printf("< MP to TP Routing Report %dth >\n", i);
@@ -2349,7 +2362,7 @@ bool OABusRouter::Router::route_multipin_to_tp_v2(int busid, int m, vector<Segme
                     }
                     printf("\n\n");
                 }
-//#endif
+#endif
             }
             else
             {

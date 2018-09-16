@@ -95,14 +95,14 @@ int main(int argc, char** argv){
     cout << "[INFO] start Create Path" << endl;
     ckt->create_path();
     cout << "[INFO] start Create Plot" << endl;
-    rou->create_plot(benchName.c_str());
+    //rou->create_plot(benchName.c_str());
     cout << "[INFO] start Write out file" << endl;
     ckt->out_write(outputFileName);
     cout << "[INFO] start Write def & lef file" << endl;
     lefName = logDirName + "/" + benchName + ".lef";
     defName = logDirName + "/" + benchName + ".def";
-    ckt->lef_write(lefName);
-    ckt->def_write(defName);
+    //ckt->lef_write(lefName);
+    //ckt->def_write(defName);
 
     //rou->penalty_cost();
 
