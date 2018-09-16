@@ -94,8 +94,8 @@ int main(int argc, char** argv){
     
     cout << "[INFO] start Create Path" << endl;
     ckt->create_path();
-    //cout << "[INFO] start Create Plot" << endl;
-    //rou->create_plot(benchName.c_str());
+    cout << "[INFO] start Create Plot" << endl;
+    rou->create_plot(benchName.c_str());
     cout << "[INFO] start Write out file" << endl;
     ckt->out_write(outputFileName);
     cout << "[INFO] start Write def & lef file" << endl;

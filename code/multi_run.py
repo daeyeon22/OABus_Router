@@ -17,7 +17,7 @@ from datetime import datetime
 benchDirList = [ "../bench", "../bench_big" ]
 dirpos =  "../bench"
 binaryName = "./bus_router"
-evalpos = "../eval/eval_1.0-a4"
+evalpos = "../eval/eval_1.0-a7"
 evaluator = "eval"
 outpos = "../output"
 logpos = "../log"

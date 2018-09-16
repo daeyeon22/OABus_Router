@@ -513,6 +513,8 @@ int OABusRouter::PinRtree::num_diff_pins_on_track(int bitid, int x[], int y[], i
         {
             if((rou->pin2align[it.second] == VERTICAL) ==  ckt->is_vertical(i))
                 continue;
+            if(rou->pin2bus[it.second] == rou->bit2bus[bitid])
+                continue;
 
             if(rou->pin2bit[it.second] != bitid)
                 diffCnt++;

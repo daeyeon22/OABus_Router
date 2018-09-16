@@ -982,8 +982,12 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
                     if(!intersection(elem1, elem2, x2, y2))
                         continue;
 
+                    //
+                    if(manhatan_distance(x1, y1, x2, y2) <= width[l2])
+                        continue;
+
                     //into_array(x1, x2, y1, y2, xs, ys);
-                    coefWL = 1; //+ rtree_p.num_diff_pins_on_track(bitid, t1, width[l1], spacing[l1]);
+                    coefWL = 1 + rtree_p.num_diff_pins_on_track(bitid, t1, width[l1], spacing[l1]);
                     //coefWL = 1 + rtree_p.num_diff_pins_on_track(bitid, elem1, l1);
 
 
@@ -1090,7 +1094,7 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
                             
                         }
 
-                        c3 += manhatan_distance(tracePtx[dep2], tracePty[dep2], x2, y2);
+                        c3 += 2 * coefWL * manhatan_distance(tracePtx[dep2], tracePty[dep2], x2, y2);
                     }
                    
 
@@ -1194,7 +1198,7 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
                         if(bit_rtree.short_violation(xs, ys, l2, except1, except2))
                             continue;
 
-                        coefWL = 1; // + rtree_p.num_diff_pins_on_track(bitid, t2, width[l2], spacing[l2]);
+                        coefWL = 1 + rtree_p.num_diff_pins_on_track(bitid, t2, width[l2], spacing[l2]);
                         //into_array(min(x2, x3), max(x2, x3), min(y2, y3), max(y2, y3), xs, ys);
                         //coefWL = 1  + rtree_p.num_diff_pins_on_track(bitid, xs, ys, l2, width[l2], spacing[l2]);
                         c1 += coefWL * manhatan_distance(x2, y2, x3, y3);
@@ -1360,7 +1364,7 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
                     w2 = w1;
                     e2 = e1;
                 }
-#ifdef DEBUG_ROUTE_TWOPIN_NET
+//#ifdef DEBUG_ROUTE_TWOPIN_NET
                 /////////////////////////////////////////////
                 //if(isRef)
                 //{
@@ -1374,7 +1378,7 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
                     cout << endl;
                 //}
                 /////////////////////////////////////////////
-#endif
+//#endif
             }
             else
             {
