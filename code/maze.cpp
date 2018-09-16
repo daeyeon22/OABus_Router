@@ -85,12 +85,15 @@ A pop_random(vector<A>& target)
 
 int routing_direction(int x1, int y1, int x2, int y2, bool vertical)
 {
+
+#ifdef DEBUG_MAZE
     if(vertical && (x1 != x2))
     {
         cout << "invalid routing direction..." << endl;
         cout << x1 << " " << y1 << " " << x2 << " " << y2 << endl;
         exit(0);
     }
+#endif
 
     if(vertical)
     {
@@ -140,12 +143,15 @@ void OABusRouter::Router::get_intersection_pin(int pinx[], int piny[], int l1, s
 
 void OABusRouter::Wire::get_info(int b, int t, int x[], int y[], int curl, int s, bool accessPin)
 {
+#ifdef DEBUG_MAZE
     if(x[0] != x[1] && y[0] != y[1])
     {
         printf("invalid get info ... (%d %d) (%d %d)\n", x[0], y[0], x[1], y[1]);
         exit(0);
 
     }
+#endif
+
     id = NOT_ASSIGN;
     x1 = x[0];
     y1 = y[0];
@@ -202,7 +208,9 @@ void OABusRouter::Router::route_all()
 {
     int total_buses = ckt->buses.size();
     int total_success = 0;
-    //gen_backbone();
+
+    
+    // sorting buses for routing order 
     vector<int> sorted;
     for(auto& b : ckt->buses)
         sorted.push_back(b.id);
@@ -214,25 +222,25 @@ void OABusRouter::Router::route_all()
             int y1 = circuit->buses[left].lly; //(int)( 1.0 * ( circuit->buses[left].lly + circuit->buses[left].ury ) / 2 );
             int x2 = circuit->buses[right].llx; //(int)( 1.0 * ( circuit->buses[right].llx + circuit->buses[right].urx ) / 2 );
             int y2 = circuit->buses[right].lly; //(int)( 1.0 * ( circuit->buses[right].lly + circuit->buses[right].ury ) / 2 );
-            int numBits1 = circuit->buses[left].numBits;
-            int numBits2 = circuit->buses[right].numBits;
-            //if(circuit->width > circuit->height)
-            //    return (x1 > x2);
-            //else
-            //if(numBits1 == numBits2)    
-                return (y1 > y2); // || ((y1 == y2) && (x1 < x2));
-            //else
-            //    return numBits1 > numBits2;
+            //int numBits1 = circuit->buses[left].numBits;
+            //int numBits2 = circuit->buses[right].numBits;
+            return (y1 > y2);
             });
 
+
+#ifdef REPORT
     cout << "< Sorted Bus Sequence >\n" << endl;
+#endif
     for(auto& busid : sorted)
     {
         Bus* curbus = &ckt->buses[busid];
+#ifdef REPORT
         printf("%s (%d %d) (%d %d)\n", curbus->name.c_str(), curbus->llx, curbus->lly, curbus->urx, curbus->ury);
+#endif
     }
+#ifdef REPORT
     cout << endl;
-
+#endif
 
     for(auto& busid : sorted){
         Bus* curbus = &ckt->buses[busid];
@@ -253,27 +261,42 @@ void OABusRouter::Router::route_all()
         {
             curbus->assign = false;
             remove_all(busid);
+#ifdef REPORT
             cout << "[INFO] " << curbus->name << " routing failed" << endl;
+#endif
         }
         
     }
 
+#ifdef REPORT
     printf("- - - - - - - - - - - - - - - - -\n");
+    printf("[INFO] routing phase 1 finished\n");
     printf("[INFO] # failed tw         : %d\n", failed_tw);
     printf("[INFO] # failed tp         : %d\n", failed_tp);
     printf("[INFO] # routing success   : %d\n", total_success);
     printf("[INFO] # routing failed    : %d\n", total_buses - total_success);
     printf("- - - - - - - - - - - - - - - - -\n");
+#endif
 
 
+#ifdef REPORT
     printf("\n< Start reroute >\n");
+#endif
     vector<int> panelty;
     get_panelty_cost(panelty);
 
     for(auto& busid : sorted)
     {
+        // check elapse time and runtime limit
+        if(should_stop())
+            break;
+
+
         int previous_Ps, current_Ps;
         previous_Ps = panelty[busid];
+        if(!ckt->buses[busid].assign)
+            continue;
+
         if(previous_Ps>0)
         {
             bool routing_success;
@@ -289,6 +312,7 @@ void OABusRouter::Router::route_all()
             remove_all(busid);
             routing_success = route_bus(busid);
 
+            // if routing failed, recreate previous wires
             if(!routing_success)
             {
                 pin2wire = backup_pin2wire;
@@ -301,29 +325,39 @@ void OABusRouter::Router::route_all()
             }
             else
             {
+                // compare previous Ps and current Ps score
                 get_panelty_cost(panelty);
                 current_Ps = panelty[busid];
-
-                printf("[INFO] %s reroute success %d cost improvement!\n", ckt->buses[busid].name.c_str(), previous_Ps - current_Ps);
+                
+                // if previous score is better, go back
+                if(previous_Ps < current_Ps)
+                {
+                    pin2wire = backup_pin2wire;
+                    wire2pin = backup_wire2pin;
+                    for(auto& bitid : ckt->buses[busid].bits)
+                    {
+                        ckt->bits[bitid].wires = backup_wires[bitid];
+                        reconstruction(busid, ckt->bits[bitid].wires);
+                    }
+                    get_panelty_cost(panelty);
+#ifdef REPORT
+                    printf("[INFO] %s reroute failed %d cost decrease... go back!\n", ckt->buses[busid].name.c_str(), previous_Ps - current_Ps);
+#endif
+                }
+                else
+                {
+#ifdef REPORT
+                    printf("[INFO] %s reroute success %d cost improvement!\n", ckt->buses[busid].name.c_str(), previous_Ps - current_Ps);
+#endif
+                }
             }
         }
-
-        
-        /*
-        if(5*panelty[busid] > EPSILON)
-        {
-            remove_all(busid);
-            ckt->buses[busid].assign = false;
-            if(route_bus(busid))
-            {
-                ckt->buses[busid].assign = true;
-            }
-        }
-        */
-
     }
-    printf("[INFO] reroute finished\n\n");
 
+#ifdef REPORT
+    printf("[INFO] reroute finished\n");
+    printf("[INFO] routing phase 2 finished\n\n");
+#endif
 }
 
 bool OABusRouter::Router::route_bus(int busid)
@@ -397,13 +431,16 @@ bool OABusRouter::Router::route_bus(int busid)
         // pick two multipins for routing
         // routing topologies
         vector<Segment> tp;
-
-//        cout << "[INFO] start route twopin net" << endl;
+#ifdef REPORT
+        cout << "[INFO] start route twopin net" << endl;
+#endif
         if(route_twopin_net_v8(busid, mp1, mp2, tp))
         {
 
-//            cout << "[INFO] success route twopin net" << endl;
-//            cout << "[INFO] start wire re-ordering" << endl;
+#ifdef REPORT
+            cout << "[INFO] success route twopin net" << endl;
+            cout << "[INFO] start wire re-ordering" << endl;
+#endif
             //wire_reordering(busid, tp);
             
             routing_success = true;
@@ -425,7 +462,9 @@ bool OABusRouter::Router::route_bus(int busid)
                 // route target multipin to net topologies (tp)
                 
                 
-//                cout << "[INFO] start route mp to tp" << endl;
+#ifdef REPORT
+                cout << "[INFO] start route mp to tp" << endl;
+#endif
                 if(!route_multipin_to_tp(busid, mp1, tp))
                 {
 
@@ -439,7 +478,9 @@ bool OABusRouter::Router::route_bus(int busid)
                     routing_success = false;
                     break;
                 }
-//                cout << "[INFO] finished route mp to tp" << endl;
+#ifdef REPORT
+                cout << "[INFO] finished route mp to tp" << endl;
+#endif
             }
 
             
@@ -555,15 +596,6 @@ void OABusRouter::Router::sort_pins_routing_sequence(int m1, int m2, bool revers
         }
     }
  
-    /* 
-    if(sDir > 14 || sDir < 10)
-    {
-        cout << "initial direction invalid..." << endl;
-        exit(0);
-    }
-    */
-
-    
     if(reverse)
     {
         vector<int> tmp;
@@ -1443,7 +1475,9 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
             }
             else
             {
+#ifdef REPORT
                 cout << "[INFO] " << curbus->name << " routing failed at seq " << seq << endl << endl;
+#endif
                 solution = false;
                 failed_tw++;
                 failed_count++;
@@ -1538,19 +1572,19 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
         }
     }
 
-    if( true ) {    
-        cout << "< Route Twopin Net Report >" << endl;
-        cout << "[INFO] Bus        : " << curbus->name << endl;
-        cout << "[INFO] MultiPin1  : ("
-            << multipin2llx[m1] << " " << multipin2lly[m1] << ") ("
-            << multipin2urx[m1] << " " << multipin2ury[m1] << ") M" << mp1->l << endl;
-        cout << "[INFO] MultiPin2  : ("
-            << multipin2llx[m2] << " " << multipin2lly[m2] << ") ("
-            << multipin2urx[m2] << " " << multipin2ury[m2] << ") M" << mp2->l << endl;
-        cout << "[INFO] # visiting : " << visit_count << endl;
-        cout << "[INFO] # failed   : " << failed_count << endl;
-        cout << "[INFO] " << totalSPV << " * " <<  DELTA << " penalty occurs" << endl << endl;
-    }
+#ifdef REPORT
+    cout << "< Route Twopin Net Report >" << endl;
+    cout << "[INFO] Bus        : " << curbus->name << endl;
+    cout << "[INFO] MultiPin1  : ("
+        << multipin2llx[m1] << " " << multipin2lly[m1] << ") ("
+        << multipin2urx[m1] << " " << multipin2ury[m1] << ") M" << mp1->l << endl;
+    cout << "[INFO] MultiPin2  : ("
+        << multipin2llx[m2] << " " << multipin2lly[m2] << ") ("
+        << multipin2urx[m2] << " " << multipin2ury[m2] << ") M" << mp2->l << endl;
+    cout << "[INFO] # visiting : " << visit_count << endl;
+    cout << "[INFO] # failed   : " << failed_count << endl;
+    cout << "[INFO] " << totalSPV << " * " <<  DELTA << " penalty occurs" << endl << endl;
+#endif
     return solution;
 }
 
@@ -2589,12 +2623,14 @@ bool OABusRouter::Router::route_multipin_to_tp_v2(int busid, int m, vector<Segme
 
     if(!solution)
     {
+#ifdef REPORT
         cout << "[INFO] " << curbus->name << " mp to tp routing failed" << endl;
+#endif
         failed++;
     }
     else
     {
-
+#ifdef REPORT
         cout << "< Route Multipin to tp Report >" << endl;
         cout << "Bus        : " << curbus->name << endl;
         cout << "MultiPin   : (" 
@@ -2605,6 +2641,7 @@ bool OABusRouter::Router::route_multipin_to_tp_v2(int busid, int m, vector<Segme
         cout << "# failed   : " << failed_tp << endl << endl;
         
         cout << "[INFO] " << totalSPV << " * " << DELTA << " penalty occurs" << endl << endl;
+#endif
     }
     return solution;
 }
@@ -3316,6 +3353,7 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                 e2 = minElem;
                 l2 = local_rtree_t.get_layer(e2);
                 
+ #ifdef DEBUG_ROUTE_MP_TO_TP
                 if(!isRef)
                 {
                     int tmp = e2;//minElem;
@@ -3333,6 +3371,7 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                     }
                     printf("\n");
                 }
+#endif
                 // if reference routing, store
                 if(isRef)
                 {
@@ -3438,6 +3477,7 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                     e2 = e1;
                 }
 // #ifdef DEBUG_ROUTE_MP_TO_TP
+#ifdef REPORT
                 if(isRef)
                 {
                     printf("< MP to TP Routing Report %dth >\n", i);
@@ -3504,7 +3544,7 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
                     }
                     printf("\n\n");
                 }
-//#endif
+#endif
 
                
             }
@@ -3671,12 +3711,15 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
 
     if(!solution)
     {
+#ifdef REPORT
         cout << "[INFO] " << curbus->name << " mp to tp routing failed" << endl;
         failed++;
+#endif
     }
     else
     {
 
+#ifdef REPORT
         cout << "< Route Multipin to tp Report >" << endl;
         cout << "Bus        : " << curbus->name << endl;
         cout << "MultiPin   : (" 
@@ -3687,6 +3730,7 @@ bool OABusRouter::Router::route_multipin_to_tp(int busid, int m, vector<Segment>
         cout << "# failed   : " << failed_tp << endl << endl;
         
         cout << "[INFO] " << totalSPV << " * " << DELTA << " penalty occurs" << endl << endl;
+#endif
     }
     return solution;
 }
@@ -3959,8 +4003,8 @@ void OABusRouter::Router::get_panelty_cost(vector<int> &panelty)
         // end wires
     }
     // end bits
-  
-    printf("\n\n------------------------------------\n\n");
+#ifdef REPORT 
+    printf("\n------------------------------------\n");
     printf("Ps : #Spacing violations * %d\nPf : #routing failed * %d\n\n", delta, epsilon);
     for(i=0; i < numBuses; i++)
     {
@@ -3968,7 +4012,8 @@ void OABusRouter::Router::get_panelty_cost(vector<int> &panelty)
         panelty[i] = Ps[i];
     }
     printf("total SV %d\n", SV.size());
-    printf("\n\n------------------------------------\n\n");
+    printf("\n------------------------------------\n");
+#endif
 }
 
 void OABusRouter::Router::penalty_cost()
@@ -4170,8 +4215,8 @@ void OABusRouter::Router::penalty_cost()
         // end wires
     }
     // end bits
-  
-    printf("\n\n------------------------------------\n\n");
+#ifdef REPORT 
+    printf("\n------------------------------------\n");
     printf("Ps : #Spacing violations * %d\nPf : #routing failed * %d\n\n", delta, epsilon);
     for(i=0; i < numBuses; i++)
     {
@@ -4179,8 +4224,8 @@ void OABusRouter::Router::penalty_cost()
         
     }
     printf("total SV %d\n", SV.size());
-    printf("\n\n------------------------------------\n\n");
-
+    printf("\n------------------------------------\n");
+#endif
 }
 
 /////////////////

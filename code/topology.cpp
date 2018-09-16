@@ -120,7 +120,7 @@ int OABusRouter::Router::get_stack_direction(int prevRdir, int prevSdir, int cur
         dirlut = new DirLUT();
         dirlut->init();
     }
-
+#ifdef DEBUG_TOPOLOGY
     if(prevRdir > 14 || prevRdir < 10)
     {
         cout << "out of range..." << endl;
@@ -134,6 +134,7 @@ int OABusRouter::Router::get_stack_direction(int prevRdir, int prevSdir, int cur
         cout << "prevSdir : " << prevSdir << endl;
         exit(0);
     }
+#endif
 
     return dirlut->get_strack_direction(prevRdir, prevSdir, curRdir, reverse);
 }
