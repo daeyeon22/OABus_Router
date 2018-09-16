@@ -125,7 +125,15 @@ void OABusRouter::Circuit::initialize()
         }
     }
 
-    rou->DEPTH_COST = (height + width)*10/100;
+    for(i=0; i < multipins.size(); i++)
+    {
+        MultiPin* mp = &multipins[i];
+        for(j=0; j < mp->pins.size(); j++)
+            rou->pin2align[mp->pins[j]] = mp->align;
+    }
+
+
+    rou->DEPTH_COST = (height + width)*5/100;
     rou->VIA_COST = (height + width)*10/1000;
     rou->SPACING_VIOLATION = (height + width)*50/100;
     rou->NOTCOMPACT = (height + width)/5;

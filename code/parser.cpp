@@ -304,6 +304,7 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
                     layer->min_width = min(layer->min_width,track.width);
                     assert(track.l == layer->id);
 
+                    /*
                     for(int i=0; i < tracks.size(); i++) {
                         Track* theTrack = &tracks[i];
                         if( theTrack->l != track.l )
@@ -338,7 +339,6 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
                             track.end.x = track.urx;
                             track.end.y = track.ury;
                         }
-
                         track.offset = (layer->is_vertical())?track.llx:track.lly;
                         layer->trackOffsets.push_back(track.offset);
 
@@ -347,10 +347,22 @@ bool OABusRouter::Circuit::getTrackInfo(char* fileName){
 
                         //printf("Track Offset %d\n", track.offset);
                         this->tracks.push_back(track);
+
                     }
                     else {
                         //cout << " Merged !!" << endl;
                     }
+                    */
+                    layer->tracks.push_back(track.id);
+                    track.offset = (layer->is_vertical())?track.llx:track.lly;
+                    layer->trackOffsets.push_back(track.offset);
+
+                    if(layer->offsets.find(track.offset) == layer->offsets.end())
+                        layer->offsets.insert(track.offset); // (layer->is_vertical())?track.llx:track.lly);
+
+                    //printf("Track Offset %d\n", track.offset);
+                    this->tracks.push_back(track);
+                
                 }
             }
         }

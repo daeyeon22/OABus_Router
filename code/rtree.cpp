@@ -487,6 +487,92 @@ bool OABusRouter::ObstacleRtree::spacing_violations_ndr(int bitid, int x[], int 
     return false;
 }
 
+int OABusRouter::PinRtree::num_diff_pins_on_track(int bitid, int x[], int y[], int l, int width, int spacing)
+{
+    int xExt[2] = {x[0], x[1]};
+    int yExt[2] = {y[0], y[1]};
+    if(ckt->is_vertical(l))
+    {
+        xExt[0] -= width/2 + spacing;
+        xExt[1] += width/2 + spacing;
+    }
+    else
+    {
+        yExt[0] -= width/2 + spacing;
+        yExt[1] += width/2 + spacing;
+    }
+    int diffCnt = 0;
+    box area(pt(xExt[0], yExt[0]), pt(xExt[1], yExt[1]));
+    for(int i=l-1; i <= l+1; i++)
+    {
+        vector<pair<box,int>> queries;
+        if(i < 0 || i >= ckt->layers.size())
+            continue;
+        rtree[i].query(bgi::intersects(area), back_inserter(queries));
+        for(auto& it : queries)
+        {
+            if((rou->pin2align[it.second] == VERTICAL) ==  ckt->is_vertical(i))
+                continue;
+
+            if(rou->pin2bit[it.second] != bitid)
+                diffCnt++;
+        }
+
+
+    }
+    return diffCnt;
+}
+int OABusRouter::PinRtree::num_diff_pins_on_track(int bitid, int t, int width, int spacing)
+{
+    Track* curt = &ckt->tracks[t];
+    int x[2] = {curt->llx, curt->urx};
+    int y[2] = {curt->lly, curt->ury};
+    if(ckt->is_vertical(curt->l))
+    {
+        x[0] -= width/2 + spacing;
+        x[1] += width/2 + spacing;
+    }
+    else
+    {
+        y[0] -= width/2 + spacing;
+        y[1] += width/2 + spacing;
+    }
+    int diffCnt = 0;
+    box area(pt(x[0], y[0]), pt(x[1], y[1]));
+    vector<pair<box,int>> queries;
+    for(int i=curt->l-1; i <= curt->l+1; i++)
+    {
+        if(i < 0 || i >= ckt->layers.size())
+            continue;
+        rtree[i].query(bgi::intersects(area), back_inserter(queries));
+
+    }
+    for(auto& it : queries)
+    {
+        if((rou->pin2align[it.second] == VERTICAL) ==  ckt->is_vertical(curt->l))
+            continue;
+
+        if(rou->pin2bit[it.second] != bitid)
+            diffCnt++;
+    }
+
+    return diffCnt;
+}
+
+int OABusRouter::PinRtree::num_diff_pins_on_track(int bitid, seg elem, int l)
+{
+    int diffCnt = 0;
+    vector<pair<box,int>> queries;
+    rtree[l].query(bgi::intersects(elem), back_inserter(queries));
+    for(auto& it : queries)
+    {
+        if(rou->pin2bit[it.second] != bitid)
+            diffCnt++;
+    }
+
+    return diffCnt;
+}
+
 bool OABusRouter::BitRtree::short_violation(int x[], int y[], int l, set<int>& except1, set<int>& except2)
 {
     box area(pt(x[0], y[0]), pt(x[1], y[1]));
@@ -879,7 +965,7 @@ int OABusRouter::Router::create_wire(int bitid, int trackid, int x[], int y[], i
     // add into the bit
     ckt->bits[w.bitid].wires.push_back(w.id);
     // rtree update for track
-    rtree_t.insert_element(trackid, x, y, l, true);
+    //rtree_t.insert_element(trackid, x, y, l, true);
     // rtree update for wire
     int xs[2], ys[2];
     xs[0] = (w.vertical) ? x[0] - (int)(1.0*w.width / 2) : x[0];

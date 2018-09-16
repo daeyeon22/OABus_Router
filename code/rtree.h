@@ -110,6 +110,9 @@ namespace OABusRouter
 
         void remove_pins(vector<int> &pins);
         int num_diff_bus_between_twopins(int busid, int p1, int p2, int l);
+        int num_diff_pins_on_track(int busid, seg elem, int l);
+        int num_diff_pins_on_track(int busid, int t, int width, int spacing);
+        int num_diff_pins_on_track(int busid, int x[], int y[], int l, int width, int spacing);
     };
 
     struct BitRtree

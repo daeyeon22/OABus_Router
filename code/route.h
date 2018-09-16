@@ -251,6 +251,7 @@ namespace OABusRouter
         dense_hash_map<int,int> pin2wire;
         dense_hash_map<int,int> pin2bit;
         dense_hash_map<int,int> pin2bus;
+        dense_hash_map<int,int> pin2align;
         dense_hash_map<int,int> bit2bus;
 
         dense_hash_map<int,int> multipin2llx;
@@ -268,6 +269,7 @@ namespace OABusRouter
             pin2wire.set_empty_key(INT_MAX);
             pin2bit.set_empty_key(INT_MAX);
             pin2bus.set_empty_key(INT_MAX);
+            pin2align.set_empty_key(INT_MAX);
             bit2bus.set_empty_key(INT_MAX);
             //seg2bus.set_empty_key(INT_MAX);
             //junc2bus.set_empty_key(INT_MAX);

@@ -367,7 +367,7 @@ bool OABusRouter::Router::route_bus(int busid)
                 
                 
 //                cout << "[INFO] start route mp to tp" << endl;
-                if(!route_multipin_to_tp_v2(busid, mp1, tp))
+                if(!route_multipin_to_tp(busid, mp1, tp))
                 {
 
                     // rip-up
@@ -957,13 +957,13 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
                 #pragma omp parallel for num_threads(NUM_THREADS)
                 for(int j=0; j < queries.size(); j++)
                 {
-                    if(minPanelty == 0)
-                        continue;
+                    //if(minPanelty == 0)
+                    //    continue;
                     
                     
                     int e2, t2, l2, x2, y2, x3, y3, dep2, c1, c2, c3;
                     int maxWidth2, curDir, numSpacingVio;
-                    int sx1, sx2, sy1, sy2;
+                    int sx1, sx2, sy1, sy2, coefWL;
                     int wirex[2], wirey[2], xs[2], ys[2];
                     bool vertical2, isDestination;
                     seg elem2;
@@ -982,7 +982,12 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
                     if(!intersection(elem1, elem2, x2, y2))
                         continue;
 
-                    c1 = cost1 + manhatan_distance(x1, y1, x2, y2) + abs(l1-l2) * DEPTH_COST;//VIA_COST + DEPTH_COST;
+                    //into_array(x1, x2, y1, y2, xs, ys);
+                    coefWL = 1; //+ rtree_p.num_diff_pins_on_track(bitid, t1, width[l1], spacing[l1]);
+                    //coefWL = 1 + rtree_p.num_diff_pins_on_track(bitid, elem1, l1);
+
+
+                    c1 = cost1 + coefWL * manhatan_distance(x1, y1, x2, y2) + abs(l1-l2) * DEPTH_COST;//VIA_COST + DEPTH_COST;
                     c2 = 0;
                     c3 = cost3;
                     curDir = routing_direction(x1, y1, x2, y2, vertical1);
@@ -1189,7 +1194,10 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
                         if(bit_rtree.short_violation(xs, ys, l2, except1, except2))
                             continue;
 
-                        c1 += manhatan_distance(x2, y2, x3, y3);
+                        coefWL = 1; // + rtree_p.num_diff_pins_on_track(bitid, t2, width[l2], spacing[l2]);
+                        //into_array(min(x2, x3), max(x2, x3), min(y2, y3), max(y2, y3), xs, ys);
+                        //coefWL = 1  + rtree_p.num_diff_pins_on_track(bitid, xs, ys, l2, width[l2], spacing[l2]);
+                        c1 += coefWL * manhatan_distance(x2, y2, x3, y3);
                     }
 
                     c3 += numSpacingVio * SPACING_VIOLATION;
@@ -1235,8 +1243,8 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
                 }
 
                 //
-                if(minPanelty == 0)
-                    break;
+                //if(minPanelty == 0)
+                //    break;
 
             }
 
