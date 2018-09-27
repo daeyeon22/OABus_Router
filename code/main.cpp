@@ -1,7 +1,10 @@
 
 #include "circuit.h"
 #include "route.h"
-//#define REPORT
+#define REPORT
+
+
+
 using namespace std;
 
 // Static variables
@@ -133,7 +136,9 @@ int main(int argc, char** argv){
     measure.stop_clock("All");
     measure.print_clock();
 
+#ifdef REPORT
     print_welapse_time();
+#endif
 
     return 0;
 }

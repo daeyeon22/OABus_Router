@@ -39,6 +39,60 @@ bool OABusRouter::Router::should_stop()
     return ckt->should_stop();
 }
 
+////////////////////////////////////////////////////////////////////////////
+/*
+void OABusRouter::Router::wire_reordering_v2(int busid, vector<Segment>& tp)
+{
+    
+    for(auto& target : tp)
+    {
+        int totalSPV = 0;
+        Bus* curbus = &ckt->buses[busid];
+        dense_hash_map<int,int> width = curbus->width;
+
+        if(target.leaf)
+            continue;
+
+        for(auto& wireid : target.wires)
+        {
+            Wire* curw = &wires[wireid];
+            int xs[2] = { curw->x1, curw->x2 };
+            int ys[2] = { curw->y1, curw->y2 };
+            totalSPV += rtree_o.num_spacing_violations(curw->bitid, xs, ys, curw->l, width[curw->l], spacing[curw->l], curw->vertical);
+        }
+
+        for(auto& n : target.neighbor)
+        {
+            Segment* neighborS = &segs[n];
+            for(auto& wireid : neighborS->wires)
+            {
+                Wire* curw = &wires[wireid];
+                int xs[2] = { curw->x1, curw->x2 };
+                int ys[2] = { curw->y1, curw->y2 };
+                totalSPV += rtree_o.num_spacing_violations(curw->bitid, xs, ys, curw->l, width[curw->l], spacing[curw->l], curw->vertical);
+            }
+        }
+        
+        
+        if(totalSPV == 0)
+            continue;
+
+        int revisedSPV = 0;
+        dense_hash_map<int,int> trackid;
+        dense_hash_map<int,int> offset;
+        trackid.set_emtpy_key(INT_MAX);
+        offset.set_empty_key(INT_MAX);
+
+        for(int i=0; i < target.wires; i++)
+        {
+            trackid[i] = wires[target.wires[i]].trackid;
+            offset[i] = 
+        }
+    }
+}
+*/
+
+
 void OABusRouter::Router::wire_reordering(int busid, vector<Segment> &tp)
 {
 

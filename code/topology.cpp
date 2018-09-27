@@ -72,6 +72,8 @@ int DirLUT::get_strack_direction(int prevRdir, int prevSdir, int curRdir, bool r
 static DirLUT *dirlut = nullptr;
 
 
+
+
 void OABusRouter::Router::move_pt_loc(int &xMoved, int &yMoved, int numBits, int width, int spac, int sDir)
 {
     if(sDir == Direction::Left)

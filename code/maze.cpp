@@ -13,12 +13,12 @@
 
 #define MAX_ITERATION_COUNT 10
 #define DESTINATION -12311
-#define NUM_THREADS 4
+#define NUM_THREADS 8 
 
 #define DELTA ckt->delta
 #define EPSILON ckt->epsilon
 //#define DEBUG_ROUTE_MP_TO_TP
-//#define REPORT
+#define REPORT
 
 //#define DEBUG_ROUTE_TWOPIN_NET
 //#define DEBUG_MAZE
@@ -248,7 +248,14 @@ void OABusRouter::Router::route_all()
     cout << endl;
 #endif
 
+    //int count = 0;
+
+
     for(auto& busid : sorted){
+
+        //if(count++ > 15)
+        //    break;
+
         Bus* curbus = &ckt->buses[busid];
         
         // check elapse time and runtime limit
@@ -286,10 +293,14 @@ void OABusRouter::Router::route_all()
     printf("- - - - - - - - - - - - - - - - -\n");
 #endif
 
+    //return;
+
 
 #ifdef REPORT
     printf("\n< Start reroute >\n");
 #endif
+
+    
 
     vector<int> panelty;
     get_panelty_cost(panelty);
@@ -740,6 +751,9 @@ void OABusRouter::Router::local_search_area(int m1, int m2, int count, int ll[],
     }
 }
 
+
+//static bool left_to_right = true;
+
 bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<Segment> &tp)
 {
     //
@@ -772,13 +786,31 @@ bool OABusRouter::Router::route_twopin_net_v8(int busid, int m1, int m2, vector<
 
     mp1 = &ckt->multipins[m1];
     mp2 = &ckt->multipins[m2];
-
     if(mp1->llx > mp2->llx)
     {
         swap(mp1,mp2);
         swap(m1,m2);
     }
-
+   
+    /*
+    if(left_to_right)
+    {
+        if(mp1->llx > mp2->llx)
+        {
+            swap(mp1,mp2);
+            swap(m1,m2);
+        }
+    }
+    else
+    {
+        if(mp1->llx < mp2->llx)
+        {
+            swap(mp1,mp2);
+            swap(m1,m2);
+        }
+    }
+    left_to_right = !left_to_right;
+    */
     curbus = &ckt->buses[busid];
     numbits = curbus->numBits;
     width = curbus->width;
