@@ -1,4 +1,3 @@
-#include "func.h"
 #include "circuit.h"
 #include <boost/foreach.hpp>
 #include <boost/tokenizer.hpp>

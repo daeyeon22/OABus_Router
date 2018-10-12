@@ -103,6 +103,10 @@ int main(int argc, char** argv){
 #endif
     ckt->initialize();
 
+    cout << "[INFO] construct rtree" << endl;
+    rou->construct_rtree(); 
+
+    /*
 #ifdef REPORT
     cout << "[INFO] start route all" << endl;
 #endif
@@ -130,7 +134,7 @@ int main(int argc, char** argv){
     ckt->lef_write(lefName);
     ckt->def_write(defName);
 #endif
-
+    */
     cout << "[INFO] End program" << endl;
 
     measure.stop_clock("All");

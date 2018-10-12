@@ -1,355 +1,49 @@
 #include "func.h"
-#include <algorithm>
-#include <vector>
 
-
-int manhatan_distance(int x1, int y1, int x2, int y2)
+bool OABusRouter::intersection(seg s1, seg s2, int &x, int &y)
 {
-    return abs(x1 - x2) + abs(y1 - y2);
+
+    return true;
 }
 
-// lower point
-void lpt(seg s, int &x, int &y)
+bool OABusRouter::intersection(seg s1, seg s2, int x1, int y1, int &x2, int &y2)
 {
-    x = (int)(bg::get<0,0>(s) + 0.5);
-    y = (int)(bg::get<0,1>(s) + 0.5);
-#ifdef DEBUG_FUNC
-    if(x%10 != 0)
-    {
-        std::cout << "lpt" << std::endl;
-        std::cout << x << " " << y << std::endl;
-        exit(0);
-    }
-#endif
+
+    return true;
 }
 
-// upper point
-void upt(seg s, int &x, int &y)
+void OABusRouter::lpt(seg s, int &x, int &y)
 {
-    x = (int)(bg::get<1,0>(s) + 0.5);
-    y = (int)(bg::get<1,1>(s) + 0.5);
 
-#ifdef DEBUG_FUNC
-    if(x%10 != 0)
-    {
-        std::cout << "upt" << std::endl;
-        std::cout << x << " " << y << std::endl;
-        exit(0);
-    }
-#endif
 }
 
-
-bool intersects(seg s1, seg s2)
+void OABusRouter::upt(seg s, int &x, int &y)
 {
-    return bg::intersects(s1, s2);
+
 }
 
-
-
-bool intersection(seg s1, seg s2, int xPrev, int yPrev, int &x, int &y)
+void OABusRouter::pts(seg s, int &x1, int &y1, int &x2, int &y2)
 {
-    int llx1, lly1, urx1, ury1;
-    int llx2, lly2, urx2, ury2;
-    bool vertical1, vertical2;
-    lpt(s1, llx1, lly1);
-    upt(s1, urx1, ury1);
-    lpt(s2, llx2, lly2);
-    upt(s2, urx2, ury2);
-    vertical1 = (llx1 == urx1) ? true : false;
-    vertical2 = (llx2 == urx2) ? true : false;
-
-    bool valid = false;
-
-
-    if(vertical1 && !vertical2)
-    {
-        x = llx1;
-        y = lly2;
-        valid = true;
-    }
-    else if(!vertical1 && vertical2)
-    {
-        x = llx2;
-        y = lly1;
-        valid = true;
-    }
-    else
-    {
-        if(llx1 == urx2 && lly1 == ury2)
-        {
-            x = llx1;
-            y = lly1;
-            valid = true;
-        }
-        else if(urx1 == llx2 && ury1 == lly2)
-        {
-            x = urx1;
-            y = ury1;
-            valid = true;
-        }
-        else
-        {
-            using namespace std;
-
-            if(vertical1)
-            {
-                if(yPrev < lly2)
-                {
-                    x = llx2;
-                    y = lly2;
-                    valid = true;
-                }
-                else if(yPrev > ury2)
-                {
-                    x = urx2;
-                    y = ury2;
-                    valid = true;
-                }
-                else
-                {
-                    x = xPrev;
-                    y = yPrev;
-                    valid = true;
-                    /*
-                    cout << bg::dsv(s1) << endl;
-                    cout << bg::dsv(s2) << endl;
-                    cout << xPrev << " " << yPrev << endl;
-                    cout << "exception case..." << endl;
-                    exit(0);
-                    */
-                }
-            }   
-            else
-            {
-                if(xPrev < llx2)
-                {
-                    x = llx2;
-                    y = lly2;
-                    valid = true;
-                }
-                else if(xPrev > urx2)
-                {
-                    x = urx2;
-                    y = ury2;
-                    valid = true;
-                }
-                else
-                {
-                    x = xPrev;
-                    y = yPrev;
-                    valid = true;
-                    /*
-                    cout << bg::dsv(s1) << endl;
-                    cout << bg::dsv(s2) << endl;
-                    cout << xPrev << " " << yPrev << endl;
-                    cout << "exception case..." << endl;
-                    exit(0);
-                    */
-                }
-            }
-        }
-    }
-    return valid;
 
 }
 
-
-
-bool intersection(seg s1, seg s2, int &x, int &y)
+int OABusRouter::manhatan_distance(int x1, int y1, int x2, int y2)
 {
-    int llx1, lly1, urx1, ury1;
-    int llx2, lly2, urx2, ury2;
-    bool vertical1, vertical2;
-    lpt(s1, llx1, lly1);
-    upt(s1, urx1, ury1);
-    lpt(s2, llx2, lly2);
-    upt(s2, urx2, ury2);
-    vertical1 = (llx1 == urx1) ? true : false;
-    vertical2 = (llx2 == urx2) ? true : false;
 
-    bool valid = false;
-    if(vertical1 && !vertical2)
-    {
-        x = llx1;
-        y = lly2;
-        valid = true;
-    }
-    else if(!vertical1 && vertical2)
-    {
-        x = llx2;
-        y = lly1;
-        valid = true;
-    }
-    else
-    {
-        if(llx1 == urx2 && lly1 == ury2)
-        {
-            x = llx1;
-            y = lly1;
-            valid = true;
-        }
-        else if(urx1 == llx2 && ury1 == lly2)
-        {
-            x = urx1;
-            y = ury1;
-            valid = true;
-        }
-        else
-        {
-                        
-        }
-    }
-#ifdef DEBUG_FUNC
-    using namespace std;        
-    if(bg::get<0,0>(s1) == bg::get<1,0>(s1))
-    {
-        if(x != bg::get<0,0>(s1))
-        {
-            cout << "invalid intersection..." << endl;
-            cout << bg::dsv(s1) << endl;
-            cout << bg::dsv(s2) << endl;
-            cout << x << " " << y << endl;
-            exit(0);
-        }
-    }
-
-    if(bg::get<0,1>(s1) == bg::get<1,1>(s1))
-    {
-        if(y != bg::get<0,1>(s1))
-        {
-            cout << "invalid intersection..." << endl;
-            cout << bg::dsv(s1) << endl;
-            cout << bg::dsv(s2) << endl;
-            cout << x << " " << y << endl;
-            exit(0);
-        }
-    }
-    if(bg::get<0,0>(s2) == bg::get<1,0>(s2))
-    {
-        if(x != bg::get<0,0>(s2))
-        {
-            cout << "invalid intersection..." << endl;
-            cout << bg::dsv(s1) << endl;
-            cout << bg::dsv(s2) << endl;
-            cout << x << " " << y << endl;
-            exit(0);
-        }
-    }
-
-    if(bg::get<0,1>(s2) == bg::get<1,1>(s2))
-    {
-        if(y != bg::get<0,1>(s2))
-        {
-            cout << "invalid intersection..." << endl;
-            cout << bg::dsv(s1) << endl;
-            cout << bg::dsv(s2) << endl;
-            cout << x << " " << y << endl;
-            exit(0);
-        }
-    }
-
-    if(!valid)
-    {
-            cout << bg::dsv(s1) << endl;
-            cout << bg::dsv(s2) << endl;
-        cout << "Invalid intersection..." << endl;
-        exit(0);
-    }
-
-#endif
-    return valid;
-
+    return 0;
 }
-/*
-   std::vector<pt> _intersection;
-   bg::intersection(s1, s2, _intersection);
-   if(_intersection.size() == 0)
-   return false;
-   else
-   {
 
-   x = (int)(bg::get<0>(_intersection[0]) + 0.5);
-   y = (int)(bg::get<1>(_intersection[0]) + 0.5);
-
-   return true;
-   }
-   */
-size_t GetHashKey(std::pair<std::string,int> &value)
+double OABusRouter::routing_cost()
 {
-    using boost::hash_value;
-    using boost::hash_combine;
-    size_t seed = 0;
-    hash_combine(seed, hash_value(value.first));
-    hash_combine(seed, hash_value(value.second));
-    return seed;
+    return 0;
 }
 
-size_t GetHashKey(std::pair<int,int> &value)
+double OABusRouter::compactness_cost()
 {
-    using boost::hash_value;
-    using boost::hash_combine;
-    size_t seed = 0;
-    hash_combine(seed, hash_value(value.first));
-    hash_combine(seed, hash_value(value.second));
-    return seed;
+    return 0;
 }
 
-
-
-size_t GetHashKey(std::tuple<std::string,int,int> &value)
+double OABusRouter::segment_cost()
 {
-    using boost::hash_value;
-    using boost::hash_combine;
-    size_t seed = 0;
-    hash_combine(seed, hash_value(std::get<0>(value)));
-    hash_combine(seed, hash_value(std::get<1>(value)));
-    hash_combine(seed, hash_value(std::get<2>(value)));
-    return seed;
+    return 0;
 }
-
-int GetLowerBound(std::vector<int>& target, int crd)
-{
-    std::vector<int>::iterator it;
-    it = std::lower_bound(target.begin(), target.end(), crd);
-    return (it - target.begin());
-}
-
-int GetUpperBound(std::vector<int>& target, int crd)
-{
-    std::vector<int>::iterator it;
-    it = std::upper_bound(target.begin(), target.end(), crd);
-    return (it - target.begin());
-}
-
-
-
-
-
-template <typename A, typename B>
-size_t GetHashKey(std::pair<A,B> &value)
-{   
-    using boost::hash_value;
-    using boost::hash_combine;
-    size_t seed = 0;
-    hash_combine(seed, hash_value(value.first));
-    hash_combine(seed, hash_value(value.second));
-    return seed;
-}
-
-template <typename A>
-int GetLowerBound(std::vector<A>& target, A crd)
-{
-    typename std::vector<A>::iterator it;
-    it = std::lower_bound(target.begin(), target.end(), crd);
-    return (it - target.begin());
-}
-
-template <typename A>
-int GetUpperBound(std::vector<A>& target, A crd)
-{
-    typename std::vector<A>::iterator it;
-    it = std::upper_bound(target.begin(), target.end(), crd);
-    return (it - target.begin());
-}
-

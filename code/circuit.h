@@ -26,7 +26,6 @@
 #include <boost/icl/interval_set.hpp>
 #include <boost/icl/interval_base_map.hpp>
 
-#include "func.h"
 #include "mymeasure.h"
 //#include "flute.h"
 

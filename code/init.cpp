@@ -1,16 +1,14 @@
-#include "func.h"
 #include "circuit.h"
 #include "route.h"
+#include "typedef.h"
+#include "func.h"
 #include <tuple>
 
 using namespace OABusRouter;
-
-
+using OABusRouter::intersection;
 
 void OABusRouter::Circuit::initialize()
 {
-    typedef BoxBG box;
-    typedef PointBG pt;
     int i, j, k, l, align;
     int numpins, numbits, numbuses, numlayers;
     Bus* curbus;
@@ -137,197 +135,172 @@ void OABusRouter::Circuit::initialize()
     rou->VIA_COST = (height + width)*10/1000;
     rou->SPACING_VIOLATION = (height + width)*50/100;
     rou->NOTCOMPACT = (height + width)/5;
-
-
-    rou->initialize_rtree_new();
-    //rou->initialize_grid3d();
-
 }
 
 
-
-void OABusRouter::Router::initialize()
+void OABusRouter::Router::construct_rtree()
 {
-    for(auto& mp : ckt->multipins)
-    {
-        /*
-        int llx, lly, urx, ury;
-        llx = INT_MAX;
-        lly = INT_MAX;
-        urx = INT_MIN;
-        ury = INT_MIN;
-        for(auto& pinid : mp.pins)
-        {
-            Pin* curpin = &ckt->pins[pinid];
-            llx = min(llx, curpin->llx);
-            lly = min(lly, curpin->lly);
-            urx = max(urx, curpin->urx);
-            ury = max(ury, curpin->ury);
-        }
-        */
+    
+    int numTracks, numLayers, trackid;
 
-        multipin2llx[mp.id] = mp.llx;
-        multipin2lly[mp.id] = mp.lly;
-        multipin2urx[mp.id] = mp.urx;
-        multipin2ury[mp.id] = mp.ury;
+    numTracks = ckt->tracks.size();
+    numLayers = ckt->layers.size();
+    vector<PointRtree> ptrtree(numLayers);
+
+    rtree_t.trees = vector<SegRtree>(numLayers);
+    
+
+    for(int i=0; i < numTracks; i++)
+    {
+        Track* curtrack = &ckt->tracks[i];
+        RtreeNode n1;
+        n1.id = i;
+        n1.offset = curtrack->offset;
+        n1.x1 = curtrack->llx;
+        n1.x2 = curtrack->urx;
+        n1.y1 = curtrack->lly;
+        n1.y2 = curtrack->ury;
+        n1.l = curtrack->l;
+        n1.vertical = ckt->is_vertical(curtrack->l);
+        n1.width = curtrack->width;
+        //
+        seg s1(pt(n1.x1,n1.y1), pt(n1.x2,n1.y2));
+        pt p1((n1.x1 + n1.x2)/2, (n1.y1 + n1.y2)/2);
+        
+        vector<pair<seg,int>> queries;
+        for(int j=max(0, n1.l-1); j <= min(numLayers-1, n1.l+1); j++)
+        {
+            rtree_t[j]->query(bgi::intersects(s1), back_inserter(queries));
+        }
+
+        #pragma omp parallel for num_threads(NUM_THREADS)
+        for(int j=0; j < queries.size(); j++)
+        {
+            int x, y, t2;
+            seg s2 = queries[j].first;
+            t2 = queries[j].second;
+            if(trackid == t2)
+                continue;
+
+            if(!intersection(s1, s2, x, y))
+                continue;
+
+            #pragma omp critical(GLOBAL)
+            {
+                n1.neighbor.push_back(t2);
+                n1.intersection[t2] = {x,y};
+            }
+        }
+       
+        rtree_t.nodes.push_back(n1);
+        rtree_t[n1.l]->insert({s1,i});
+        ptrtree[n1.l].insert({p1,i});
     }
 
-    //initialize_rtree();
-    initialize_rtree_new();
-    //initialize_grid3d();
-}
+
+    
+    #pragma omp parallel for num_threads(NUM_THREADS) 
+    for(int i=0; i < numTracks; i++)
+    {
+        int l, x1, y1, x2, y2;
+        RtreeNode *n1, *n2;
+        n1 = rtree_t.get_node(i);
+        l = n1->l;
+        x1 = (n1->x1 + n1->x2)/2;
+        y1 = (n1->y1 + n1->y2)/2;
 
 
-void OABusRouter::Router::initialize_rtree_new()
-{
-    typedef SegmentBG seg;
-    typedef PointBG pt;
-    typedef BoxBG box;
+        for(PointRtree::const_query_iterator it = ptrtree[l].qbegin(bgi::nearest(pt(x1,y1), 10)); it != ptrtree[l].qend(); it++)
+        {
+            if(n1->upper != nullptr && n1->lower != nullptr)
+                break;
 
-    int numTracks, numObstacles, numLayers, numPins, tid, curl;
-    int trackid, l; 
-    int x1, y1, x2, y2, i, dir;
-    int offset;
-    int& elemindex = rtree_t.elemindex;
-    bool isVertical;
-    SegmentBG curS;
-    Track* curtrack;
-    Pin* curpin;
-    Obstacle* curobs;
-    Interval* interval;
+            n2 = rtree_t.get_node(it->second);
+            x2 = (n2->x1 + n2->x2)/2;
+            y2 = (n2->y1 + n2->y2)/2;
+            
+            if(n1->id == n2->id)
+                continue;
 
-    numTracks = ckt->tracks.size(); //interval.numtracks;
-    numObstacles = ckt->obstacles.size();
-    numLayers = ckt->layers.size();
-    numPins = ckt->pins.size();
-    elemindex=0;
-
-    // Initialize Intervals.
-    vector<SegRtree> trackrtree(numLayers);
-  
-    rtree_s = SegmentRtree(numLayers);
-    rtree_t = TrackRtree(numLayers, numTracks);
-    rtree_o = ObstacleRtree(numLayers);
-    rtree_p = PinRtree(numLayers);
-    rtree_p.elem2bus = pin2bus;
-    rtree_p.elem2bit = pin2bit;
+            if(n1->vertical)
+            {
+                if(x1 == x2)
+                    continue;
+                else if(x1 < x2)
+                {
+                    if(n1->upper == nullptr)
+                        n1->upper = n2;
+                }
+                else if(x1 > x2)
+                {
+                    if(n1->lower == nullptr)
+                        n1->lower = n2;
+                }
+                
+            }
+        }
+    }
+    
+    rtree_o.pins = vector<BoxRtree>(numLayers);
+    rtree_o.wires = vector<BoxRtree>(numLayers);
+    rtree_o.obstacles = vector<BoxRtree>(numLayers);
 
     rtree_o.db[0] = ckt->originX;
     rtree_o.db[1] = ckt->originY;
     rtree_o.db[2] = ckt->originX + ckt->width;
     rtree_o.db[3] = ckt->originY + ckt->height;
 
-
-    // track interval
-    for(i=0; i < numTracks; i++)
+    // for pins
+    for(int i=0; i < ckt->pins.size(); i++)
     {
-        curtrack = &ckt->tracks[i];
-        trackid = curtrack->id;
-        interval = rtree_t.get_interval(trackid);
-        interval->trackid = trackid;
-        interval->offset = curtrack->offset;
-        interval->l = curtrack->l;
-        interval->vertical = ckt->is_vertical(curtrack->l);
-        interval->width = curtrack->width;
-
-        x1 = curtrack->llx;
-        y1 = curtrack->lly;
-        x2 = curtrack->urx;
-        y2 = curtrack->ury;
-        l = curtrack->l;
-
-        seg s(pt(x1,y1), pt(x2,y2));
-        rtree_t[l]->insert({s, trackid});
-        
-        interval->empty += (interval->vertical)?
-            IntervalT::open(y1,y2) : IntervalT::open(x1,x2);
+        Pin* curPin = &ckt->pins[i];
+        box pinShape(pt(curPin->llx, curPin->lly), pt(curPin->urx, curPin->ury));
+        int bitid = rou->pin2bit[i];
+        rtree_o.pins[curPin->l].insert( {pinShape, bitid} );
     }
 
-
-    // obstacle
-    for(i=0; i < numObstacles; i++)
+    // for obstacles
+    for(int i=0; i < ckt->obstacles.size(); i++)
     {
-        curobs = &ckt->obstacles[i];
-        x1 = curobs->llx;
-        y1 = curobs->lly;
-        x2 = curobs->urx;
-        y2 = curobs->ury;
-        l = curobs->l;
+        Obstacle* curObs = &ckt->obstacles[i];
+        box obsShape(pt(curObs->llx, curObs->lly), pt(curObs->urx, curObs->ury));
+        rtree_o.obstacles[curObs->l].insert( {obsShape, OBSTACLE} );
+    }
 
-        box b(pt(x1,y1), pt(x2,y2));
-        rtree_o[l]->insert({b, OBSTACLE});
-    
+    // for wires
 
-        /* 
-        vector<pair<seg,int>> queries;
-        rtree_t[l]->query(bgi::intersects(b), back_inserter(queries));
 
-        for(auto& it : queries)
+
+
+
+
+    for(int i=0; i < numTracks; i++)
+    {
+        printf("\n");
+        RtreeNode* node = rtree_t.get_node(i);
+        printf("Node %d (%d %d) (%d %d) M%d\n", i, node->x1, node->y1, node->x2, node->y2, node->l);
+        if(node->lower != nullptr)
         {
-            trackid = it.second;
-            interval = rtree_t.get_interval(trackid);
-            interval->empty -= interval->vertical ?
-                IntervalT::open(y1,y2) : IntervalT::open(x1,x2);
+            printf("Lower (%d %d) (%d %d) M%d\n", node->lower->x1, node->lower->y1, node->lower->x2, node->lower->y2, node->lower->l);
         }
-        */
-    }
 
-    // Pin
-    for(i=0; i < numPins; i++)
-    {
-        curpin = &ckt->pins[i];
-        x1 = curpin->llx;
-        y1 = curpin->lly;
-        x2 = curpin->urx;
-        y2 = curpin->ury;
-        l = curpin->l;
-
-        box b(pt(x1,y1), pt(x2,y2));
-        rtree_o[l]->insert({b, pin2bit[curpin->id]});
-        //
-        rtree_p.elems.push_back(b);
-        rtree_p[l]->insert({b, curpin->id});
-
-        vector<pair<seg, int>> queries;
-        
-        rtree_t[l]->query(bgi::intersects(b), back_inserter(queries));
-        
-        for(auto& it : queries)
+        if(node->upper != nullptr)
         {
-            trackid = it.second;
-            interval = rtree_t.get_interval(trackid);
-            interval->empty -= interval->vertical ?
-                IntervalT::open(y1,y2) : IntervalT::open(x1,x2);           
+            printf("Upper (%d %d) (%d %d) M%d\n", node->upper->x1, node->upper->y1, node->upper->x2, node->upper->y2, node->upper->l);
         }
     }
 
 
-    // remove all
-    for(i=0; i < numLayers; i++)
-        rtree_t[i]->clear();
 
-    // update
-    for(i=0; i < numTracks; i++)
-    {
-        interval = rtree_t.get_interval(i);
-        IntervalSetT::iterator it = interval->empty.begin();
-        while(it != interval->empty.end())
-        {
-            x1 = interval->vertical ? interval->offset : it->lower();
-            x2 = interval->vertical ? interval->offset : it->upper();
-            y1 = interval->vertical ? it->lower() : interval->offset;
-            y2 = interval->vertical ? it->upper() : interval->offset;
-            l = interval->l;
-            seg s(pt(x1,y1), pt(x2,y2));
-            interval->segs.push_back(s);
-            interval->elems.push_back(elemindex);
-            
-            rtree_t[l]->insert({s, elemindex});
-            rtree_t.elem2track[elemindex] = i;
-            elemindex++;
-            it++;
-        }
-    }
+
+
+
+
+
+
+
+
+
 }
 
 
