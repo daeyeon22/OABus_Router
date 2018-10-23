@@ -10,6 +10,7 @@ import os
 import sys
 import subprocess as sp
 import time
+import argparse
 from multiprocessing import Process, Pool
 from datetime import datetime
 
@@ -68,6 +69,11 @@ def ExecuteBinary( benchName ):
     resultDic['RT'] = runTime
     return resultDic
 
+def ExecuteBinarySingle( benchName ):
+    runCommand = "%s %s/%s.input %s/%s.out | tee %s/%s.log" % (binaryName, dirpos, benchName, outDir, benchName, logDir, benchName)
+    ExecuteCommand(runCommand)
+
+
 def ExecuteCommand( curCmd ):
     print( curCmd )
     sp.call( curCmd , shell=True)
@@ -117,43 +123,39 @@ if __name__ == '__main__':
     else:
         exeEval = False
 
-
+    if len(sys.argv) > 3:
+        multi = (sys.argv[3] == "m")
+    else:
+        multi = False
 
     # read benchmark list
     if runAll == False: 
         benchList = []
         benchList.append(benchName)
 
-    # multiprocess start
-    pool = Pool(processes=len(benchList))
-    dics = pool.map(ExecuteBinary, [bn for bn in benchList])
-    pool.close()
+    if multi == True:
+        # multiprocess start
+        pool = Pool(processes=len(benchList))
+        dics = pool.map(ExecuteBinary, [bn for bn in benchList])
+        pool.close()
 
-    """
-    for fileName in benchList:
-        # remove previous logs    
-        benchName = fileName.split('.')[0]
-        proc = Process(target=ExecuteBinary,  args=(benchName, q))
-        execProcs.append(proc)
-        proc.start()
-        
-    # multiprocess join
-    for proc in execProcs:
-        proc.join()
-    """
+        keys = ['Bench', 'CR', 'Ps', 'Pf', 'cost', 'RT']
+        summary = open("%s/summary.txt" % (logDir), "w")
+
+        for dic in dics:
+            for key in keys:
+                if key == 'Bench':
+                    summary.write("< %s >\n" % (dic[key]))
+                elif key == 'RT':
+                    summary.write("%4s :    %3.4f(s)\n" % (key, float(dic[key])))
+                else:
+                    summary.write("%4s :    %7s\n" % (key, dic[key]))
+            summary.write("\n\n")
     
-    keys = ['Bench', 'CR', 'Ps', 'Pf', 'cost', 'RT']
-    summary = open("%s/summary.txt" % (logDir), "w")
-
-    for dic in dics:
-        for key in keys:
-            if key == 'Bench':
-                summary.write("< %s >\n" % (dic[key]))
-            elif key == 'RT':
-                summary.write("%4s :    %3.4f(s)\n" % (key, float(dic[key])))
-            else:
-                summary.write("%4s :    %7s\n" % (key, dic[key]))
-        summary.write("\n\n")
+    else:
+        # run single
+        ExecuteBinarySingle( benchList[0] )
+    
 
     print("Done")
 

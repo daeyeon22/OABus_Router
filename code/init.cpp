@@ -4,6 +4,8 @@
 #include "func.h"
 #include <tuple>
 
+//#define DEBUG_INIT
+
 using namespace OABusRouter;
 using OABusRouter::intersection;
 
@@ -148,38 +150,52 @@ void OABusRouter::Router::construct_rtree()
     vector<PointRtree> ptrtree(numLayers);
 
     rtree_t.trees = vector<SegRtree>(numLayers);
-    
+    rtree_t.nodes = vector<RtreeNode>(numTracks);
 
+    #pragma omp parallel for num_threads(NUM_THREADS)
     for(int i=0; i < numTracks; i++)
     {
         Track* curtrack = &ckt->tracks[i];
-        RtreeNode n1;
-        n1.id = i;
-        n1.offset = curtrack->offset;
-        n1.x1 = curtrack->llx;
-        n1.x2 = curtrack->urx;
-        n1.y1 = curtrack->lly;
-        n1.y2 = curtrack->ury;
-        n1.l = curtrack->l;
-        n1.vertical = ckt->is_vertical(curtrack->l);
-        n1.width = curtrack->width;
-        //
-        seg s1(pt(n1.x1,n1.y1), pt(n1.x2,n1.y2));
-        pt p1((n1.x1 + n1.x2)/2, (n1.y1 + n1.y2)/2);
-        
+        RtreeNode* n1 = rtree_t.get_node(i);
+        n1->id = i;
+        n1->offset = curtrack->offset;
+        n1->x1 = curtrack->llx;
+        n1->y1 = curtrack->lly;
+        n1->x2 = curtrack->urx;
+        n1->y2 = curtrack->ury;
+        n1->l = curtrack->l;
+        n1->vertical = is_vertical(curtrack->l);
+        n1->width = curtrack->width;
+
+        seg s1(pt(n1->x1, n1->y1), pt(n1->x2, n1->y2));
+        pt p1((n1->x1 + n1->x2)/2, (n1->y1 + n1->y2)/2);
+
+        #pragma omp critical(GLOBAL)
+        {
+            rtree_t[n1->l]->insert({s1, i});
+            ptrtree[n1->l].insert({p1, i});
+        }
+    }
+
+    #pragma omp parallel for num_threads(NUM_THREADS)
+    for(int i=0; i < numTracks; i++)
+    {
+        RtreeNode* n1 = rtree_t.get_node(i);
+        seg s1(pt(n1->x1, n1->y1), pt(n1->x2, n1->y2));
+
         vector<pair<seg,int>> queries;
-        for(int j=max(0, n1.l-1); j <= min(numLayers-1, n1.l+1); j++)
+        for(int j=max(0, n1->l-1); j <= min(numLayers-1, n1->l+1); j++)
         {
             rtree_t[j]->query(bgi::intersects(s1), back_inserter(queries));
         }
 
-        #pragma omp parallel for num_threads(NUM_THREADS)
         for(int j=0; j < queries.size(); j++)
         {
-            int x, y, t2;
+            int x, y;
+            RtreeNode* n2 = rtree_t.get_node(queries[j].second);
             seg s2 = queries[j].first;
-            t2 = queries[j].second;
-            if(trackid == t2)
+            
+            if(n1->id == n2->id)
                 continue;
 
             if(!intersection(s1, s2, x, y))
@@ -187,18 +203,15 @@ void OABusRouter::Router::construct_rtree()
 
             #pragma omp critical(GLOBAL)
             {
-                n1.neighbor.push_back(t2);
-                n1.intersection[t2] = {x,y};
+                n1->neighbor.push_back(n2->id);
+                n1->intersection[n2->id] = {x,y};
+                
+                rtree_t.edges.insert( {min(n1->id, n2->id), max(n1->id, n2->id)} );
             }
         }
-       
-        rtree_t.nodes.push_back(n1);
-        rtree_t[n1.l]->insert({s1,i});
-        ptrtree[n1.l].insert({p1,i});
     }
 
 
-    
     #pragma omp parallel for num_threads(NUM_THREADS) 
     for(int i=0; i < numTracks; i++)
     {
@@ -274,11 +287,12 @@ void OABusRouter::Router::construct_rtree()
 
 
 
+#ifdef DEBUG_INIT
     for(int i=0; i < numTracks; i++)
     {
         printf("\n");
         RtreeNode* node = rtree_t.get_node(i);
-        printf("Node %d (%d %d) (%d %d) M%d\n", i, node->x1, node->y1, node->x2, node->y2, node->l);
+        printf("Node %d (%d %d) (%d %d) M%d #neighbors %d\n", i, node->x1, node->y1, node->x2, node->y2, node->l, node->neighbor.size());
         if(node->lower != nullptr)
         {
             printf("Lower (%d %d) (%d %d) M%d\n", node->lower->x1, node->lower->y1, node->lower->x2, node->lower->y2, node->lower->l);
@@ -288,8 +302,9 @@ void OABusRouter::Router::construct_rtree()
         {
             printf("Upper (%d %d) (%d %d) M%d\n", node->upper->x1, node->upper->y1, node->upper->x2, node->upper->y2, node->upper->l);
         }
+        
     }
-
+#endif
 
 
 

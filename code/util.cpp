@@ -5,18 +5,13 @@
 
 #define _DEBUG
 
-
-using namespace svg;
-namespace br = OABusRouter;
-
 static string plotdir = "./plot/";
 static string plotall = "./plot/bus_all.svg";
-static bool show_track = true;
-static bool maze = false;
 static double scale = 1.0;
 
-void OABusRouter::Router::create_plot(const char* benchName)
+void OABusRouter::Router::create_plots(const char* benchName)
 {
+    
 
     int i, numBuses;
     numBuses = ckt->buses.size();
@@ -34,10 +29,13 @@ void OABusRouter::Router::create_plot(const char* benchName)
     create_bus_plot(true, 0, filename.c_str());
 }
 
-
-
-void create_bus_plot(bool all, int busid, const char* fileName)
+void OABusRouter::Router::create_bus_plot(bool all, int busid, const char* fileName)
 {
+
+
+    printf("[INFO] Create SVG %s\n", fileName);
+
+    using namespace svg;
 
     int layoutOffsetX, layoutOffsetY, layoutWidth, layoutHeight;
     int numGCs, numRows, numCols, numLayers, GW, GH;
@@ -54,8 +52,6 @@ void create_bus_plot(bool all, int busid, const char* fileName)
 #ifdef DEBUG_UTIL
     printf("Current Bus %d\n\n", busid);
 #endif
-
-
 
     layoutOffsetX = 0;//-ckt->originX;
     layoutOffsetY = 0;//-ckt->originY;
@@ -127,7 +123,7 @@ void create_bus_plot(bool all, int busid, const char* fileName)
 
     for(obsid=0; obsid < numObs; obsid++)
     {
-        br::Obstacle* obs = &ckt->obstacles[obsid];
+        Obstacle* obs = &ckt->obstacles[obsid];
         llx = obs->llx + layoutOffsetX;
         lly = obs->lly + layoutOffsetY;
         urx = obs->urx + layoutOffsetX;
@@ -135,31 +131,21 @@ void create_bus_plot(bool all, int busid, const char* fileName)
         Polygon poly(Fill(colors[obs->l], 0.7), Stroke(stroke_width, Color::Red));
         poly << Point(llx,lly) << Point(llx,ury) << Point(urx, ury) << Point(urx, lly);
         doc << poly;
-
     }   
 
 
-    if(show_track)
+    for(trackid=0; trackid < numTracks; trackid++)
     {
-        for(trackid=0; trackid < numTracks; trackid++)
-        {
-            br::Interval* interval = rou->rtree_t.get_interval(trackid);
-            
-            //br::Container* curct = &rou->rtree.containers[trackid];
-            curl = interval->l; //curct->l;
-            for(auto& it : interval->segs)
-            {
-                llx = (int)(bg::get<0,0>(it) +0.5) + layoutOffsetX;
-                lly = (int)(bg::get<0,1>(it) +0.5) + layoutOffsetY;
-                urx = (int)(bg::get<1,0>(it) +0.5) + layoutOffsetX;
-                ury = (int)(bg::get<1,1>(it) +0.5) + layoutOffsetY;
-                doc << Line(Point(llx, lly), Point(urx, ury), Stroke(2*stroke_width,colors[curl]));
-            }
-
-        }
+        Track* ct = &ckt->tracks[trackid];
+        curl = ct->l;
+        llx = ct->llx;
+        lly = ct->lly;
+        urx = ct->urx;
+        ury = ct->ury;
+        doc << Line(Point(llx, lly), Point(urx, ury), Stroke(2*stroke_width,colors[curl]));
 
     }
-       
+
     for(int i=0; i < numBuses; i++)
     {
         target = (i == busid)?true:false;
@@ -214,9 +200,9 @@ void create_bus_plot(bool all, int busid, const char* fileName)
     for(pinid=0; pinid < numPins; pinid++)
     {
          
-        br::Pin* curPin = &ckt->pins[pinid];
-        br::Bit* curBit = &ckt->bits[ckt->bitHashMap[curPin->bitName]];
-        br::Bus* curB = &ckt->buses[ckt->busHashMap[curBit->busName]];
+        Pin* curPin = &ckt->pins[pinid];
+        Bit* curBit = &ckt->bits[ckt->bitHashMap[curPin->bitName]];
+        Bus* curB = &ckt->buses[ckt->busHashMap[curBit->busName]];
         target = (curB->id == busid)?true:false;
         if(!target && !all) continue;   
         

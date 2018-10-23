@@ -11,8 +11,84 @@
 #include "typedef.h"
 #include "tree.h"
 
+#define rou OABusRouter::Router::shared()
+
 namespace OABusRouter
 {
+    
+    struct HeapNode
+    {
+        int id;
+        int depth;
+        int backtrace;
+        int ref;
+        
+        bool isDest;
+
+        double CR;
+        double PS;
+        vector<int> nodes;
+        vector<int> xPrev;
+        vector<int> yPrev;
+        vector<int> xLast;
+        vector<int> yLast;
+
+        HeapNode()
+        {}
+
+        HeapNode(int numBits) :
+            depth(0),
+            backtrace(-1),
+            CR(DBL_MAX),
+            PS(DBL_MAX)
+        {
+            nodes = vector<int>(numBits, -1);
+            xPrev = vector<int>(numBits, -1);
+            yPrev = vector<int>(numBits, -1);
+        }
+
+        HeapNode(const HeapNode& node):
+            id(node.id),
+            depth(node.depth),
+            backtrace(node.backtrace),
+            isDest(node.isDest),
+            CR(node.CR),
+            PS(node.PS),
+            nodes(node.nodes),
+            xPrev(node.xPrev),
+            yPrev(node.yPrev),
+            xLast(node.xLast),
+            yLast(node.yLast)
+        {}
+
+        double cost();
+    };
+
+
+    struct Heap
+    {
+        struct Comparison
+        {
+            bool operator() (HeapNode& n1, HeapNode& n2)
+            {
+                return n1.cost() > n2.cost();
+            }
+        };
+
+        priority_queue<HeapNode, vector<HeapNode>, Comparison> PQ;
+
+        // member functions
+        void push(vector<HeapNode> &next);
+        void push(HeapNode &next);
+        void pop();
+        bool empty();
+        int size();
+        HeapNode top();
+
+    };
+
+
+    
     struct Segment
     {
         int id;
@@ -203,17 +279,37 @@ namespace OABusRouter
 
         // Initialize Grid3D
         void construct_rtree();
-        bool should_stop();
 
 
+        // ILP
         void create_clips();
         void route_all();
 
+        // routing
+        bool route_bus(int busid);
+        bool route_twopin_net(int busid, int m1, int m2, vector<Segment> &tp);
+        bool route_multipin_to_tp(int busid, int m, vector<Segment> &tp);
+
+
+        // find heap node
+        bool get_next_node(int busid, bool fixed, HeapNode& curr, HeapNode& next);
+        bool get_drive_node(int mp, bool last, HeapNode& curr);
+        bool is_destination(int n, int p);
+
+
+        //
         // for maze routing
-        void get_drive_segment(int mp, vector<HeapNode> &nodes, vector<HeapNode> &next);
-        void get_iterating_segment(HeapNode* current, vector<HeapNode> &nodes, vector<HeapNode> &next);
+        void get_access_rtree_nodes(int mp, int p, vector<int> &nodes);
+        void get_access_point(int mp, bool last, HeapNode& curr);
         void pin_access_point(int xPin[], int yPin[], int lPin, int xSeg[], int ySeg[], int lSeg, int &x, int &y);
 
+        //
+        int get_routing_direction(int x1, int y1, int x2, int y2);
+        int create_wire(int b, int t, int x1, int y1, int x2, int y2, int l, int seq, int width);
+
+
+        void create_plots(const char* benchName);
+        void create_bus_plot(bool all, int busid, const char* fileName);
 
 
 

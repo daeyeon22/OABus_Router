@@ -5,6 +5,10 @@
 
 namespace OABusRouter
 {
+    
+    string direction(int dir);
+    bool should_stop();
+    bool is_vertical(int l);
     bool intersection(seg s1, seg s2, int &x, int &y);
     bool intersection(seg s1, seg s2, int x1, int y1, int &x2, int &y2);
     void lpt(seg s, int &x, int &y);
@@ -14,6 +18,9 @@ namespace OABusRouter
     double routing_cost();
     double compactness_cost();
     double segment_cost();
+
+    //
+
 };
 
 

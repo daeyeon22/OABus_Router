@@ -28,27 +28,6 @@ void print_welapse_time()
     printf("[INFO] wall elapse time %.f s\n", elapse_time);
 }
 
-bool OABusRouter::Circuit::should_stop()
-{
-    double elapse_time = measure.elapse_time();
-    double runtime_limit = (double)runtime * 60;
-
-    if(elapse_time > 0.9*runtime_limit)
-    {
-#ifdef REPORT
-        printf("\n");
-        printf("[INFO] elapse time over 80% runtime limit\n");
-        printf("[INFO] Runtime limit   : %.2f\n", runtime_limit);
-        printf("[INFO] Elapse time     : %.2f\n", elapse_time);
-        printf("\n");
-#endif
-        //return false;
-        return true;
-    }
-    else
-        return false;
-}
-
 
 int main(int argc, char** argv){
     
@@ -106,6 +85,18 @@ int main(int argc, char** argv){
     cout << "[INFO] construct rtree" << endl;
     rou->construct_rtree(); 
 
+    cout << "[INFO] route all" << endl;
+    rou->route_all();
+
+
+    cout << "[INFO] start Create Path" << endl;
+    ckt->create_path();
+    
+    cout << "[INFO] start Create Plot" << endl;
+    rou->create_plots(benchName.c_str());
+
+
+    
     /*
 #ifdef REPORT
     cout << "[INFO] start route all" << endl;

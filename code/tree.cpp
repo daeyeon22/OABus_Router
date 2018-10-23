@@ -1,12 +1,15 @@
 
 #include "tree.h"
 #include "typedef.h"
+#include "circuit.h"
+#include "route.h"
 
-bool OABusRouter::Rtree_o::insert(int type, int bitid, int x[], int y[], int l)
+//#define DEBUG_RTREE_T
+
+
+bool OABusRouter::Rtree_o::insert(int type, int bitid, int x1, int y1, int x2, int y2, int l)
 {
-    
-    
-    box elem(pt(x[0], y[0]), pt(x[1], y[1]));
+    box elem(pt(x1, y1), pt(x2, y2));
     switch(type)
     {
         case OBSTACLE:
@@ -29,9 +32,9 @@ bool OABusRouter::Rtree_o::insert(int type, int bitid, int x[], int y[], int l)
     return true;
 }
 
-bool OABusRouter::Rtree_o::remove(int type, int bitid, int x[], int y[], int l)
+bool OABusRouter::Rtree_o::remove(int type, int bitid, int x1, int y1, int x2, int y2, int l)
 {
-    box elem(pt(x[0], y[0]), pt(x[1], y[1]));
+    box elem(pt(x1, y1), pt(x2, y2));
     switch(type)
     {
         case OBSTACLE:
@@ -53,6 +56,31 @@ bool OABusRouter::Rtree_o::remove(int type, int bitid, int x[], int y[], int l)
     
     return true;
 }
+
+bool OABusRouter::Rtree_o::insert(int type, int bitid, int x[], int y[], int l)
+{
+    return insert(type, bitid, x[0], y[0], x[1], y[1], l);    
+}
+
+bool OABusRouter::Rtree_o::remove(int type, int bitid, int x[], int y[], int l)
+{
+    return remove(type, bitid, x[0], y[0], x[1], y[1], l);
+}
+
+
+bool OABusRouter::Rtree_o::spacing_violation_clean(int bitid, int x1, int y1, int x2, int y2, int l, int width, int spacing, bool vertical)
+{
+    return (num_spacing_violation(bitid, x1, y1, x2, y2, l, width, spacing, vertical) == 0) ? true : false;
+}
+
+
+int OABusRouter::Rtree_o::num_spacing_violation(int bitid, int x1, int y1, int x2, int y2, int l, int width, int spacing, bool vertical)
+{
+    int x[2] = {x1, x2};
+    int y[2] = {y1, y2};
+    return num_spacing_violation(bitid, x, y, l, width, spacing, vertical);
+}
+
 
 int OABusRouter::Rtree_o::num_spacing_violation(int bitid, int x[], int y[], int l, int width, int spacing, bool vertical)
 {
@@ -113,22 +141,73 @@ int OABusRouter::Rtree_o::num_spacing_violation(int bitid, int x[], int y[], int
     return totalSPV;
 }
 
-bool OABusRouter::Rtree_t::lower(RtreeNode* n1, RtreeNode* n2)
+bool OABusRouter::Rtree_t::next(int current, int &next, int neighbor, int width, int spacing, bool upper)
 {
-    if(n1->lower == nullptr)
-        return false;
-
-    n2 = n1->lower;
-    return true;
+    RtreeNode *n1, *n2;
+    n1 = get_node(current);
+#ifdef DEBUG_RTREE_T
+    printf("\n");
+    printf("- - - - - - Get next node - - - - - -\n");
+    printf("current : n%d (%d %d) (%d %d) M%d\n", n1->id, n1->x1, n1->y1, n1->x2, n1->y2, n1->l);
+#endif
+    
+    
+    for(n2 = upper ? n1->upper : n1->lower; n2 != nullptr; n2 = upper ? n2->upper : n2->lower)
+    {
+#ifdef DEBUG_RTREE_T
+        printf("next    : n%d (%d %d) (%d %d) M%d\n", n2->id, n2->x1, n2->y1, n2->x2, n2->y2, n2->l);
+#endif
+        
+        bool cond1 = (abs(n1->offset - n2->offset) >= width + spacing) ? true : false;
+        bool cond2 = (n2->width >= width) ? true : false;
+        bool cond3 = is_valid({min(neighbor, n2->id), max(neighbor, n2->id)});
+        
+        if(cond1 && cond2 && cond3)
+        {
+            next = n2->id;
+            return true;
+        }
+    }
+   
+    return false;
 }
 
-bool OABusRouter::Rtree_t::upper(RtreeNode* n1, RtreeNode* n2)
+bool OABusRouter::Rtree_t::lower(RtreeNode* n1, RtreeNode* n2, int prev, int width, int spacing)
 {
-    if(n2->upper == nullptr)
-        return false;
+    
+    
+    for(n2 = n1->lower; n2 != nullptr; n2 = n2->lower)
+    {
+        bool cond1 = (abs(n1->offset - n2->offset) >= width + spacing) ? true : false;
+        bool cond2 = (n2->width >= width) ? true : false;
+        bool cond3 = is_valid({min(prev, n2->id), max(prev, n2->id)});
+        
+        if(cond1 && cond2 && cond3)
+            return true;
+    }
 
-    n2 = n1->upper;
-    return true;
+
+
+
+
+    return false;
 }
 
+bool OABusRouter::Rtree_t::upper(RtreeNode* n1, RtreeNode* n2, int prev, int width, int spacing)
+{
+    for(n2 = n1->upper; n2 != nullptr; n2 = n2->upper)
+    {
+        bool cond1 = (abs(n1->offset - n2->offset) >= width + spacing) ? true : false;
+        bool cond2 = (n2->width >= width) ? true : false;
+        bool cond3 = is_valid({min(prev, n2->id), max(prev, n2->id)});
 
+        if(cond1 && cond2 && cond3)
+            return true;
+    }
+    return false;
+}
+
+bool OABusRouter::Rtree_t::is_valid(pair<int,int> e)
+{
+    return (edges.find(e) == edges.end()) ? false : true;
+}

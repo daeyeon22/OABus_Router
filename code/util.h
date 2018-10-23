@@ -40,12 +40,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <iostream>
 
 
-//extern void CreateBusPlotAll();
-extern void create_bus_plot(bool all, int busid, const char* filename);
-//int busid);
-//extern void GenBusPlot(int busid, const char* fileName);
-//extern void GenBusPlot_v2(int busid, const char* fileName);
-
 namespace svg
 {
     // Utility XML/String Functions.

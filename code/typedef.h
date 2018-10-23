@@ -1,3 +1,6 @@
+#ifndef __TYPEDEF_H__
+#define __TYPEDEF_H__
+
 #include <boost/geometry.hpp>
 #include <boost/icl/interval_map.hpp>
 #include <boost/icl/interval_set.hpp>
@@ -9,7 +12,9 @@
 #define PINTYPE -1212
 #define OBSTACLE -1232
 #define WIRETYPE -3319
-#define NUM_THREADS 4
+#define NUM_THREADS 1 
+
+
 
 
 using namespace std;
@@ -31,5 +36,14 @@ typedef bgi::rtree<pair<seg, int>, bgi::rstar<16>> SegRtree;
 typedef bgi::rtree<pair<box, int>, bgi::rstar<16>> BoxRtree;
 typedef pair<int,int> edge;
 
-#define rou OABusRouter::Router::shared()
-#define ckt OABusRouter::Circuit::shared()
+
+enum Direction
+{
+    Left,
+    Right,
+    Down,
+    Up,
+    Stack
+};
+
+#endif

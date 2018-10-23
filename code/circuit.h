@@ -40,11 +40,7 @@
 #define HORIZONTAL 222
 #endif
 
-//#define GCELL_WIDTH 2000
-//#define GCELL_HEIGHT 2000
 #define ckt OABusRouter::Circuit::shared()
-//#define GCELL_WIDTH ckt->GCELL_WIDTH
-//#define GCELL_HEIGHT ckt->GCELL_HEIGHT
 
 
 // Namespace
@@ -81,6 +77,7 @@ static CMeasure measure;
 // Obstacle-Aware On-Track Bus Router
 namespace OABusRouter
 {
+    /*
     struct Point
     {
         int x;
@@ -122,7 +119,7 @@ namespace OABusRouter
         void print();
         Point center();
     };
-
+    */
     
     struct Layer
     {
@@ -190,6 +187,7 @@ namespace OABusRouter
         void print(bool all);
     };
 
+    /*
     struct Contact
     {
         Point p;
@@ -221,6 +219,7 @@ namespace OABusRouter
             }
         void print();
     };
+    */
 
     struct Track
     {
@@ -230,9 +229,6 @@ namespace OABusRouter
         int llx, lly;
         int urx, ury;
         int l; // layer id
-
-        Point start;
-        Point end;
 
         vector<int> wires;  // rou->wires index 
         vector<int> contacts; // ckt->contacts index
@@ -260,9 +256,8 @@ namespace OABusRouter
             lly(tr.lly),
             urx(tr.urx),
             ury(tr.ury),
-            l(tr.l),
-            start(tr.start),
-            end(tr.end) {}
+            l(tr.l)
+            {}
 
         void print();
     };
@@ -508,7 +503,6 @@ namespace OABusRouter
         vector<Bit> bits;
         vector<Pin> pins;
         vector<MultiPin> multipins;
-        vector<Contact> contacts;
         
         // Hash Map
         dense_hash_map<string,int> bitHashMap;
@@ -563,23 +557,6 @@ namespace OABusRouter
         void lef_write();
         void lef_write(string filename);
         void out_write(string filename);
-
-        // pin_aceess.cpp
-        void pin_access();
-        void pin_access(int busid);
-        bool is_cross(Track* a, Track* b);
-        bool is_intersect(Point _a, Point _b, Point _c, Point _d);
-        bool rect_intersect(Point a, Point b, Point c, Point d);
-        bool is_intersect(Track* a, Track* b);
-        bool is_intersect(pair<pair<int,int>,pair<int,int> > line1, pair<pair<int,int>,pair<int,int> > line2);
-        void wire_track_mapping();
-        void pin_track_mapping();
-        void ContactMapping();
-        void debug();
-        int ccw(pair<int,int> a, pair<int,int> b, pair<int,int> c);
-
-        bgBoxT trackToBox(Track& _track);
-        poly buffered_track(Track& track);
 
         // init.cpp 
         void initialize();
