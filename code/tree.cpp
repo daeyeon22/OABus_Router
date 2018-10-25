@@ -3,8 +3,13 @@
 #include "typedef.h"
 #include "circuit.h"
 #include "route.h"
+#include "func.h"
+
 
 //#define DEBUG_RTREE_T
+using OABusRouter::design_ruled_area;
+using OABusRouter::is_vertical;
+
 
 
 bool OABusRouter::Rtree_o::insert(int type, int bitid, int x1, int y1, int x2, int y2, int l)
@@ -57,6 +62,23 @@ bool OABusRouter::Rtree_o::remove(int type, int bitid, int x1, int y1, int x2, i
     return true;
 }
 
+bool OABusRouter::Rtree_o::insert(int type, int bitid, int x1, int y1, int x2, int y2, int l, int width)
+{
+    int xDrd[2] = { min(x1, x2), max(x1, x2) };
+    int yDrd[2] = { min(y1, y2), max(y1, y2) };
+    design_ruled_area(xDrd, yDrd, width, 0, is_vertical(l));
+    return insert(type, bitid, xDrd, yDrd, l);
+}
+
+bool OABusRouter::Rtree_o::remove(int type, int bitid, int x1, int y1, int x2, int y2, int l, int width)
+{
+    int xDrd[2] = { min(x1, x2), max(x1, x2) };
+    int yDrd[2] = { min(y1, y2), max(y1, y2) };
+    design_ruled_area(xDrd, yDrd, width, 0, is_vertical(l));
+    return remove(type, bitid, xDrd, yDrd, l);
+}
+
+
 bool OABusRouter::Rtree_o::insert(int type, int bitid, int x[], int y[], int l)
 {
     return insert(type, bitid, x[0], y[0], x[1], y[1], l);    
@@ -76,8 +98,8 @@ bool OABusRouter::Rtree_o::spacing_violation_clean(int bitid, int x1, int y1, in
 
 int OABusRouter::Rtree_o::num_spacing_violation(int bitid, int x1, int y1, int x2, int y2, int l, int width, int spacing, bool vertical)
 {
-    int x[2] = {x1, x2};
-    int y[2] = {y1, y2};
+    int x[2] = { min(x1, x2), max(x1, x2) };
+    int y[2] = { min(y1, y2), max(y1, y2) };
     return num_spacing_violation(bitid, x, y, l, width, spacing, vertical);
 }
 
@@ -110,8 +132,8 @@ int OABusRouter::Rtree_o::num_spacing_violation(int bitid, int x[], int y[], int
     pins[l].query(bgi::intersects(wire_area_with_spac), back_inserter(queries));
     for(auto& it : queries)
     {
-        if(bg::touches(it.first, wire_area_with_spac))
-            continue;
+        //if(bg::touches(it.first, wire_area_with_spac))
+        //    continue;
 
         if(it.second != bitid)
             totalSPV++;
@@ -121,8 +143,8 @@ int OABusRouter::Rtree_o::num_spacing_violation(int bitid, int x[], int y[], int
     wires[l].query(bgi::intersects(wire_area_with_spac), back_inserter(queries));
     for(auto& it : queries)
     {
-        if(bg::touches(it.first, wire_area_with_spac))
-            continue;
+        //if(bg::touches(it.first, wire_area_with_spac))
+        //    continue;
 
         if(it.second != bitid)
             totalSPV++;
@@ -140,6 +162,7 @@ int OABusRouter::Rtree_o::num_spacing_violation(int bitid, int x[], int y[], int
 
     return totalSPV;
 }
+
 
 bool OABusRouter::Rtree_t::next(int current, int &next, int neighbor, int width, int spacing, bool upper)
 {
@@ -172,10 +195,9 @@ bool OABusRouter::Rtree_t::next(int current, int &next, int neighbor, int width,
     return false;
 }
 
+
 bool OABusRouter::Rtree_t::lower(RtreeNode* n1, RtreeNode* n2, int prev, int width, int spacing)
 {
-    
-    
     for(n2 = n1->lower; n2 != nullptr; n2 = n2->lower)
     {
         bool cond1 = (abs(n1->offset - n2->offset) >= width + spacing) ? true : false;
@@ -185,10 +207,6 @@ bool OABusRouter::Rtree_t::lower(RtreeNode* n1, RtreeNode* n2, int prev, int wid
         if(cond1 && cond2 && cond3)
             return true;
     }
-
-
-
-
 
     return false;
 }

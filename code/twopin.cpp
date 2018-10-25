@@ -4,6 +4,7 @@
 
 #define REPORT
 //#define DEBUG_NEXT_NODE
+//#define DEBUG_GET_DRIVE
 
 #define DELTA ckt->delta
 #define ALPHA ckt->alpha
@@ -37,23 +38,27 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
     // Queue, vector
     Heap PQ;
     //
-    Pin* refPin1 = &ckt->pins[mp1->pins[0]];
-    Pin* refPin2 = &ckt->pins[mp2->pins[0]];
-    int refBit = curBus->bits[0];
+    vector<int> bitSorted;
+    int refbit_index = 0;//get_refbit_index(m1, m2, bitSorted);
+    int refbit = curBus->bits[refbit_index];
+    Pin* refPin1 = &ckt->pins[mp1->pins[refbit_index]];
+    Pin* refPin2 = &ckt->pins[mp2->pins[refbit_index]];
     int minElem = INT_MAX;
     bool hasMinElem = false;
     double minCost = DBL_MAX;
+    double hpwl = HPWL(refPin1->id, refPin2->id);
 
-    
     // Get initial heap nodes
     vector<int> initHeapNodes;
     get_access_rtree_nodes(m1, refPin1->id, initHeapNodes);
 
+    
     for(int i=0; i < initHeapNodes.size(); i++)
     {
         int n = initHeapNodes[i];
         get_drive_node(m1, false, nodes[n]);
 
+        nodes[n].depth = 0;
         nodes[n].CR = 0;
         nodes[n].PS = 0;
         nodes[n].backtrace = n;
@@ -62,9 +67,8 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
     }
     
     printf("[INFO] route twopin net : %s\n", curBus->name.c_str());
-
-    printf("p1 (%d %d) (%d %d) M%d\n", refPin1->llx, refPin1->lly, refPin1->urx, refPin1->ury, refPin1->l);
-    printf("p2 (%d %d) (%d %d) M%d\n", refPin2->llx, refPin2->lly, refPin2->urx, refPin2->ury, refPin2->l);
+    //printf("p1 (%d %d) (%d %d) M%d\n", refPin1->llx, refPin1->lly, refPin1->urx, refPin1->ury, refPin1->l);
+    //printf("p2 (%d %d) (%d %d) M%d\n", refPin2->llx, refPin2->lly, refPin2->urx, refPin2->ury, refPin2->l);
     
     // Iterating Priority Queue
     while(!PQ.empty())
@@ -74,6 +78,7 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
 
         
         int n1 = currNode.id;
+        //printf("current node cost %f\n", currNode.cost());
         //printf("current (%d %d) (%d %d) M%d\n", 
         //        rtree_t.get_node(n1)->x1, rtree_t.get_node(n1)->y1, rtree_t.get_node(n1)->x2, rtree_t.get_node(n1)->y2, rtree_t.get_node(n1)->l);
 
@@ -81,6 +86,11 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
         if(currNode.id == minElem)
             break;
 
+        if(currNode.depth > 10)
+            continue;
+
+        if(currNode.cost() > minCost)
+            continue;
 
         //
         #pragma omp parallel for num_threads(NUM_THREADS)
@@ -94,22 +104,23 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
 
             if(currNode.cost() >= nodes[n2].cost())
             {
-                printf("%f %f\n", currNode.cost(), nodes[n2].cost());
+                //printf("%f %f\n", currNode.cost(), nodes[n2].cost());
                 continue;
             }
             
             bool valid = true;
-            bool isDestination = is_destination(n2, refPin2->id);
+            bool isDestination = is_destination(n2, m2, refPin2->id);
+
             HeapNode nextNode(nodes[n2]);
             
             // update node infomation
             if(isDestination)
             {
                 //////////////////////////////////////////
-                cout << "destination" << endl;
-                printf("n2 (%d %d) (%d %d) M%d\n", 
-                    rtree_t.get_node(n2)->x1, rtree_t.get_node(n2)->y1, rtree_t.get_node(n2)->x2, rtree_t.get_node(n2)->y2, rtree_t.get_node(n2)->l);
-                printf("p2 (%d %d) (%d %d) M%d\n", refPin2->llx, refPin2->lly, refPin2->urx, refPin2->ury, refPin2->l);
+                //cout << "destination" << endl;
+                //printf("n2 (%d %d) (%d %d) M%d\n", 
+                //    rtree_t.get_node(n2)->x1, rtree_t.get_node(n2)->y1, rtree_t.get_node(n2)->x2, rtree_t.get_node(n2)->y2, rtree_t.get_node(n2)->l);
+                //printf("p2 (%d %d) (%d %d) M%d\n", refPin2->llx, refPin2->lly, refPin2->urx, refPin2->ury, refPin2->l);
                 //////////////////////////////////////////
                 valid = get_drive_node(m2, true, nextNode);
             
@@ -127,7 +138,8 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
             if(valid)
             {
                 //cout << "get next node" << endl;
-                valid = get_next_node(busid, isDestination, currNode, nextNode); 
+                valid = get_next_node(busid, isDestination, hpwl, currNode, nextNode); 
+
             }
 
 
@@ -142,6 +154,13 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
             {
                 if(isDestination && minCost > nextNode.cost())
                 {
+#ifdef DEBUG_TWOPIN_NET
+                    if(hasMinElem)
+                    {
+                        printf("Minimum Element Changed node(%d) cost(%f) dep(%d) -> node(%d) cost(%f) dep(%d)\n",
+                                minElem, minCost, nodes[minElem].depth, n2, nextNode.cost(), nextNode.depth);
+                    }
+#endif
                     hasMinElem = true;
                     minElem = n2;
                     minCost = nextNode.cost();
@@ -156,7 +175,7 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
     // if solution exists, update
     if(hasMinElem)
     {
-cout << "Has Min Elem!" << endl;
+        //cout << "Has Min Elem!" << endl;
 
         vector<Segment> tpCreated(nodes[minElem].depth + 1);
         // 
@@ -170,12 +189,15 @@ cout << "Has Min Elem!" << endl;
         n2 = minElem;
         dep2 = nodes[n2].depth;
 
+        //printf("#SPV %d\n", (int)(nodes[n2].PS/DELTA));
+
+
         for(int i=0; i < dep2+1; i++)
         {
             tpCreated[i].wires = vector<int>(numBits);
         }
 
-cout << "Start backtrace" << endl;
+        //cout << "Start backtrace" << endl;
         
         while(n2 != nodes[n2].backtrace)
         {
@@ -197,7 +219,8 @@ cout << "Start backtrace" << endl;
                 // add
                 tpCreated[dep1].wires[i] = create_wire(curBus->bits[i], n1, x1, y1, x2, y2, l1, i, curBus->width[l1]);
                 // add into rtree
-                rtree_o.insert(WIRETYPE, curBus->bits[i], x1, y1, x2, y2, l1);
+                rtree_o.insert(WIRETYPE, curBus->bits[i], x1, y1, x2, y2, l1, curBus->width[l1]);
+
 
                 if(n2 == minElem)
                 {
@@ -207,7 +230,7 @@ cout << "Start backtrace" << endl;
                     tpCreated[dep2].wires[i] = create_wire(curBus->bits[i], n2, x2, y2, x3, y3, l2, i, curBus->width[l2]);
 
                     // add into rtree
-                    rtree_o.insert(WIRETYPE, curBus->bits[i], x2, y2, x3, y3, l2);
+                    rtree_o.insert(WIRETYPE, curBus->bits[i], x2, y2, x3, y3, l2, curBus->width[l2]);
                 }
 
                 w2 = tpCreated[dep2].wires[i];
@@ -229,6 +252,10 @@ cout << "Start backtrace" << endl;
                     wires[w2].intersection[PINTYPE] = { nodes[n2].xLast[i], nodes[n2].yLast[i] };
                 }
 
+                // VIA inserttion
+                 
+
+
                 // intersection (w1,w2)
                 wires[w2].intersection[w1] = {x2, y2};
                 wires[w1].intersection[w2] = {x2, y2};
@@ -236,6 +263,7 @@ cout << "Start backtrace" << endl;
             n2 = n1;
         }
 
+#ifdef DEBUG_TWOPIN_NET
         for(int dep=0; dep < maxDepth; dep++)
         {
             printf("\n<Depth %d>\n", dep);
@@ -250,22 +278,164 @@ cout << "Start backtrace" << endl;
                 printf("(%d %d) (%d %d) M%d\n", x1, y1, x2, y2, l1);
             }
         }
-        
+#endif
+
+        tp = tpCreated;
 
 
-cout << "End backtrace" << endl;
-        
+        //cout << "End backtrace" << endl;
     }
 
 
     return hasMinElem;
 }
 
+/*
+bool OABusRouter::Router::flip(int m1, int m2)
+{
+    namespace bi = boost:icl;
+    MultiPin* mp1 = &ckt->multipins[m1];
+    MultiPin* mp2 = &ckt->multipins[m2];
+    int align1, align2, l1, l2, refbit_index, refbit;
+    l1 = mp1->l;
+    l2 = mp2->l;
+    align1 = mp1->align;
+    align2 = mp2->align;
 
-bool OABusRouter::Router::is_destination(int n, int p)
+    Circuit* cir = ckt;
+    sorted.clear();
+    vector<int> pins = mp1->pins;
+    auto cmp =  [&,cir, align1](int left, int right){
+        Pin* p1 = &cir->pins[left];
+        Pin* p2 = &cir->pins[right];
+        return (align1 == VERTICAL) ? p1->lly < p2->lly : p1->llx < p2->llx;
+    };
+    
+    bool increaseOrder;
+
+    sort(pins.begin(), pins.end(), cmp);
+
+    if(align1 == align2 && l1 == l2)
+    {
+        int ll1[2], ur1[2], ll2[2], ur2[2];
+        ll1[0] = multipin2llx[m1];
+        ll1[1] = multipin2lly[m1];
+        ll2[0] = multipin2llx[m2];
+        ll2[1] = multipin2lly[m2];
+        ur1[0] = multipin2urx[m1];
+        ur1[1] = multipin2ury[m1];
+        ur2[0] = multipin2urx[m2];
+        ur2[1] = multipin2ury[m2];
+
+        int p1, p2, p3, p4;
+        p1 = (align1 == VERTICAL) ? ll1[1] : ll1[0];
+        p2 = (align1 == VERTICAL) ? ur1[1] : ur1[0];
+        p3 = (align2 == VERTICAL) ? ll2[1] : ll2[0];
+        p4 = (align2 == VERTICAL) ? ur2[1] : ur2[0];
+        bool areaOverlaps = bi::intersects(bi::interval<int>::closed(p1,p2), bi::interval<int>::closed(p3,p4));
+        bool below;
+
+        if(align1 == VERTICAL)
+        {
+            if(ll1[0] < ll2[0])
+            {
+                return true; 
+            }
+            else
+            {
+                return false;
+            }
+        }
+        else
+        {
+            if(ll1[1] < ll1[1])
+            {
+
+            }
+        }
+
+        bool areaOverlaps = bi::intersects(bi::interval<int>::closed(corner1[0], corner1[1]), bi::interval<int>::closed(corner2[0], corner2[1]));
+        
+        
+        bool leftSide = 
+        if(areaOverlaps)
+        {
+            
+        }
+
+        refbit = areaOverlaps ? pin2bit[sorted[sorted.size()-1]] : pin2bit[sorted[0]];
+    }
+
+}
+
+int OABusRouter::Router::get_refbit_index(int m1, int m2, vector<int> &sorted)
+{
+    namespace bi = boost:icl;
+    MultiPin* mp1 = &ckt->multipins[m1];
+    MultiPin* mp2 = &ckt->multipins[m2];
+    int align1, align2, l1, l2, refbit_index, refbit;
+    l1 = mp1->l;
+    l2 = mp2->l;
+    align1 = mp1->align;
+    align2 = mp2->align;
+
+    Circuit* cir = ckt;
+    sorted.clear();
+    vector<int> pins = mp1->pins;
+    auto cmp =  [&,cir, align1](int left, int right){
+        Pin* p1 = &cir->pins[left];
+        Pin* p2 = &cir->pins[right];
+        return (align1 == VERTICAL) ? p1->lly < p2->lly : p1->llx < p2->llx;
+    };
+    
+    bool increaseOrder;
+
+    sort(pins.begin(), pins.end(), cmp);
+
+    if(align1 == align2 && l1 == l2)
+    {
+        int corner1[2], corner2[2];
+        corner1[0] = (align1 == VERTICAL) ? multipin2lly[m1] : multipin2llx[m1];
+        corner1[1] = (align1 == VERTICAL) ? multipin2ury[m1] : multipin2urx[m1];
+        corner2[0] = (align2 == VERTICAL) ? multipin2lly[m2] : multipin2llx[m2];
+        corner2[1] = (align2 == VERTICAL) ? multipin2ury[m2] : multipin2urx[m2];
+
+        bool areaOverlaps = bi::intersects(bi::interval<int>::closed(corner1[0], corner1[1]), bi::interval<int>::closed(corner2[0], corner2[1]));
+        
+        refbit = areaOverlaps ? pin2bit[sorted[sorted.size()-1]] : pin2bit[sorted[0]];
+        increaseOrder = areaOverlaps ? false : true;
+
+        if(areaOverlaps)
+        {
+            for(int i=0; i < 
+        }
+
+    }
+    else
+    {
+        refbit = pin2bit[sorted[0]];
+    }
+
+    Bus* curBus = &ckt->buses[mp1->busid];
+    for(int i=0; i < curBus->numBits; i++)
+    {
+        if(curBus->bits[i] == refbit)
+        {
+            refbit_index = i;
+            break;
+        }
+    }
+
+    return refbit_index;
+}
+*/
+
+
+bool OABusRouter::Router::is_destination(int n, int m, int p)
 {
     Bus* curBus = &ckt->buses[pin2bus[p]];
     Pin* curPin = &ckt->pins[p];
+    MultiPin* curMP = &ckt->multipins[m];
     int xPin[2] = {curPin->llx, curPin->urx};
     int yPin[2] = {curPin->lly, curPin->ury};
     int lPin = curPin->l;
@@ -275,8 +445,22 @@ bool OABusRouter::Router::is_destination(int n, int p)
     int ySeg[2] = {curNode->y1, curNode->y2};
     int lSeg = curNode->l;
 
+
+
     if(abs(lPin-lSeg) > 1)
         return false;
+    
+    if(curMP->needVia)
+    {
+        if(lPin == lSeg)
+            return false;
+    }
+    else
+    {
+        if(lPin != lSeg)
+            return false;
+    }
+
 
     if(lPin == lSeg)
     {
@@ -486,6 +670,23 @@ bool OABusRouter::Router::get_drive_node(int mp, bool last, HeapNode& curr)
         }
     }
 
+#ifdef DEBUG_GET_DRIVE
+    if(findAll && last)
+    {
+        printf("\n- - - -   MultiPin/Node   - - - - \n");
+        for(int i=0; i < curMP->pins.size(); i++)
+        {
+            Pin* curPin = &ckt->pins[curMP->pins[i]];
+            RtreeNode* curNode = rtree_t.get_node(curr.nodes[i]);
+            printf("%s (%d %d) (%d %d) M%d -> (%d %d) (%d %d) M%d intersection (%d %d)\n", 
+                    ckt->bits[pin2bit[curPin->id]].name.c_str(), curPin->llx, curPin->lly, curPin->urx, curPin->ury, curPin->l,
+                    curNode->x1, curNode->y1, curNode->x2, curNode->y2, curNode->l, curr.xLast[i], curr.yLast[i]);
+
+        }
+    }
+#endif
+
+
     return findAll;
 }
 
@@ -517,11 +718,11 @@ int OABusRouter::Router::get_routing_direction(int x1, int y1, int x2, int y2)
 }
 
 
-bool OABusRouter::Router::get_next_node(int busid, bool fixed, HeapNode& prev, HeapNode& next)
+bool OABusRouter::Router::get_next_node(int busid, bool fixed, double hpwl, HeapNode& prev, HeapNode& next)
 {
     Bus* curBus = &ckt->buses[busid];
     int x1, y1, x2, y2, x3, y3, l1, l2, l3, rouDir, numBits;
-    double PS, CR, CC, bitid;
+    double WL, CS, CC, PS, CR,  bitid;
     bool valid = true;
     vector<int> nodes(numBits);
     RtreeNode *n1, *n2, *n_iter;
@@ -529,7 +730,6 @@ bool OABusRouter::Router::get_next_node(int busid, bool fixed, HeapNode& prev, H
      
     PS = 0; // prev.PS;
     CR = 0; //prev.WL;
-
 
     for(int i=0; i < numBits; i++)
     {
@@ -546,10 +746,10 @@ bool OABusRouter::Router::get_next_node(int busid, bool fixed, HeapNode& prev, H
         rouDir = get_routing_direction(x1, y1, x2, y2);
 
 #ifdef DEBUG_NEXT_NODE
-        if(i==0)
-        {
-            printf("routing direction : %s\n", direction(rouDir).c_str());
-        }
+        //if(i==0)
+        //{
+        //    printf("routing direction : %s\n", direction(rouDir).c_str());
+        //}
 #endif
 
         next.xPrev[i] = x2;
@@ -627,31 +827,35 @@ bool OABusRouter::Router::get_next_node(int busid, bool fixed, HeapNode& prev, H
 
     
     // update variables
-    next.PS = prev.PS + DELTA * PS;
-    next.CR = prev.CR + ALPHA * CR;
+    next.PS = prev.PS + DELTA * PS;//DELTA * PS;
+    next.CR = prev.CR + ALPHA * (CR/hpwl) / numBits; 
     next.backtrace = prev.id;
     next.depth = prev.depth + 1;
 
 
 #ifdef DEBUG_NEXT_NODE
-    printf("- - - - Current Node - - - -\n");
-    for(int i=0; i < numBits; i++)
+    if(valid)
     {
-        RtreeNode* n = rtree_t.get_node(prev.nodes[i]);
-        printf("%5s -> n%4d (%d %d) (%d %d) M%d iter (%d %d)\n", 
-                ckt->bits[curBus->bits[i]].name.c_str(), prev.nodes[i], n->x1, n->y1, n->x2, n->y2, n->l, prev.xPrev[i], prev.yPrev[i]);
-    }
+        printf("- - - - Current Node - - - -\n");
+        for(int i=0; i < numBits; i++)
+        {
+            RtreeNode* n = rtree_t.get_node(prev.nodes[i]);
+            printf("%5s -> n%4d (%d %d) (%d %d) M%d iter (%d %d) cost %f\n", 
+                    ckt->bits[curBus->bits[i]].name.c_str(), prev.nodes[i], n->x1, n->y1, n->x2, n->y2, n->l, prev.xPrev[i], prev.yPrev[i], prev.cost());
+        }
 
-    printf("\n");
-    printf("- - - -  Next Node   - - - -\n");
-    for(int i=0; i < numBits; i++)
-    {
-        RtreeNode* n = rtree_t.get_node(next.nodes[i]);
-        printf("%5s -> n%4d (%d %d) (%d %d) M%d iter (%d %d)\n", 
-                ckt->bits[curBus->bits[i]].name.c_str(), next.nodes[i], n->x1, n->y1, n->x2, n->y2, n->l, next.xPrev[i], next.yPrev[i]);
+        printf("\n");
+        printf("- - - -  Next Node   - - - -\n");
+        for(int i=0; i < numBits; i++)
+        {
+            RtreeNode* n = rtree_t.get_node(next.nodes[i]);
+            printf("%5s -> n%4d (%d %d) (%d %d) M%d iter (%d %d) cost %f\n", 
+                    ckt->bits[curBus->bits[i]].name.c_str(), next.nodes[i], n->x1, n->y1, n->x2, n->y2, n->l, next.xPrev[i], next.yPrev[i], next.cost());
+        }
+        printf("\n\n");
+
     }
-    printf("\n\n");
-    if(!valid)
+    else
     {
         printf("[INFO] invalid iterating...\n");
         //exit(0);
@@ -662,7 +866,15 @@ bool OABusRouter::Router::get_next_node(int busid, bool fixed, HeapNode& prev, H
     return valid;
 }
 
+double OABusRouter::Router::HPWL(int p1, int p2)
+{
+    Pin* pin1 = &ckt->pins[p1];
+    Pin* pin2 = &ckt->pins[p2];
 
+    double w = min( abs(pin1->llx - pin2->urx), abs(pin1->urx - pin2->llx) );
+    double h = min( abs(pin1->lly - pin2->ury), abs(pin1->ury - pin2->lly) );
+    return w + h;
+}
 
 
 

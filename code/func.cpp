@@ -53,6 +53,49 @@ bool OABusRouter::should_stop()
 }
 
 
+
+void OABusRouter::design_ruled_area(int x[], int y[], int width, int spac, bool vertical)
+{
+    if(vertical)
+    {
+        x[0] -= ((int)(1.0*width / 2) + spac);
+        x[1] += ((int)(1.0*width / 2) + spac);
+        y[0] -= spac;
+        y[1] += spac;
+    }
+    else
+    {
+        y[0] -= ((int)(1.0*width / 2) + spac);
+        y[1] += ((int)(1.0*width / 2) + spac);
+        x[0] -= spac;
+        x[1] += spac;
+    }
+}
+
+
+void OABusRouter::into_array(int x1, int x2, int y1, int y2, int x[], int y[])
+{
+    x[0] = x1;
+    x[1] = x2;
+    y[0] = y1;
+    y[1] = y2;
+}
+
+void OABusRouter::expand_width(int x[], int y[], int width, bool vertical)
+{
+    if(vertical)
+    {
+        x[0] -= width/2;
+        x[1] += width/2;
+    }
+    else
+    {
+        y[0] -= width/2;
+        y[1] += width/2;
+    }
+}
+
+
 bool OABusRouter::is_vertical(int l)
 {
     return (ckt->layers[l].direction == VERTICAL) ? true : false; 
@@ -219,17 +262,3 @@ int OABusRouter::manhatan_distance(int x1, int y1, int x2, int y2)
     return abs(x1-x2) + abs(y1-y2);
 }
 
-double OABusRouter::routing_cost()
-{
-    return 0;
-}
-
-double OABusRouter::compactness_cost()
-{
-    return 0;
-}
-
-double OABusRouter::segment_cost()
-{
-    return 0;
-}

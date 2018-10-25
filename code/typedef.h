@@ -12,7 +12,7 @@
 #define PINTYPE -1212
 #define OBSTACLE -1232
 #define WIRETYPE -3319
-#define NUM_THREADS 1 
+#define NUM_THREADS 16 
 
 
 

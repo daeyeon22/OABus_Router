@@ -72,7 +72,8 @@ def ExecuteBinary( benchName ):
 def ExecuteBinarySingle( benchName ):
     runCommand = "%s %s/%s.input %s/%s.out | tee %s/%s.log" % (binaryName, dirpos, benchName, outDir, benchName, logDir, benchName)
     ExecuteCommand(runCommand)
-
+    evalCommand = "%s/%s %s/%s.input %s/%s.out > %s/%s.eval" % (evalpos, evaluator, dirpos, benchName, outDir, benchName, logDir, benchName)
+    ExecuteCommand(evalCommand)
 
 def ExecuteCommand( curCmd ):
     print( curCmd )
@@ -85,13 +86,6 @@ if __name__ == '__main__':
         print("         ./multi_run.py 4 ")
         print("         ./multi_run.py example_2 ")
         sys.exit(1)
-
-    if len(sys.argv) > 3:
-        if sys.argv[3] == "big":
-            dirpos = benchDirList[1]
-        elif sys.argv[3] == "new":
-            dirpos = benchDirList[2]
-            evalpos = "../eval/eval_1.0-a4"
 
 
     benchNum = -1
@@ -118,22 +112,12 @@ if __name__ == '__main__':
     os.makedirs(logDir)
     os.makedirs(outDir)
     
-    if len(sys.argv) > 2:
-        exeEval = (sys.argv[2] == "eval")
-    else:
-        exeEval = False
-
-    if len(sys.argv) > 3:
-        multi = (sys.argv[3] == "m")
-    else:
-        multi = False
-
     # read benchmark list
     if runAll == False: 
         benchList = []
         benchList.append(benchName)
 
-    if multi == True:
+    if len(benchList) != 1:
         # multiprocess start
         pool = Pool(processes=len(benchList))
         dics = pool.map(ExecuteBinary, [bn for bn in benchList])

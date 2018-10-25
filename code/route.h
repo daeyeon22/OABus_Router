@@ -32,6 +32,8 @@ namespace OABusRouter
         vector<int> yPrev;
         vector<int> xLast;
         vector<int> yLast;
+        dense_hash_map<int,int> seq;
+
 
         HeapNode()
         {}
@@ -45,6 +47,7 @@ namespace OABusRouter
             nodes = vector<int>(numBits, -1);
             xPrev = vector<int>(numBits, -1);
             yPrev = vector<int>(numBits, -1);
+            seq.set_empty_key(INT_MAX);
         }
 
         HeapNode(const HeapNode& node):
@@ -58,7 +61,8 @@ namespace OABusRouter
             xPrev(node.xPrev),
             yPrev(node.yPrev),
             xLast(node.xLast),
-            yLast(node.yLast)
+            yLast(node.yLast),
+            seq(node.seq)
         {}
 
         double cost();
@@ -292,10 +296,11 @@ namespace OABusRouter
 
 
         // find heap node
-        bool get_next_node(int busid, bool fixed, HeapNode& curr, HeapNode& next);
+        bool get_next_node(int busid, bool fixed, double hpwl, HeapNode& curr, HeapNode& next);
         bool get_drive_node(int mp, bool last, HeapNode& curr);
-        bool is_destination(int n, int p);
-
+        bool is_destination(int n, int m, int p);
+        bool leftside(int m1, int m2);
+        bool downside(int m1, int m2);
 
         //
         // for maze routing
@@ -304,6 +309,7 @@ namespace OABusRouter
         void pin_access_point(int xPin[], int yPin[], int lPin, int xSeg[], int ySeg[], int lSeg, int &x, int &y);
 
         //
+        int get_refbit_index(int m1, int m2);
         int get_routing_direction(int x1, int y1, int x2, int y2);
         int create_wire(int b, int t, int x1, int y1, int x2, int y2, int l, int seq, int width);
 
@@ -311,8 +317,17 @@ namespace OABusRouter
         void create_plots(const char* benchName);
         void create_bus_plot(bool all, int busid, const char* fileName);
 
+        // ripup and reroute 
+        void remove_all(int busid);
+        void remove_wire(int wireid);
+        void reconstruction(int busid, vector<int> &ws);
 
+        int get_panelty_cost(int busid);
+        void get_panelty_cost(vector<int> &ps);
 
+        void update_net_tp(int busid, vector<Segment> &tp);
+
+        double HPWL(int p1, int p2);
     };
 
 };

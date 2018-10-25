@@ -14,11 +14,10 @@ namespace OABusRouter
     void lpt(seg s, int &x, int &y);
     void upt(seg s, int &x, int &y);
     void pts(seg s, int &x1, int &y1, int &x2, int &y2);
+    void expand_width(int x[], int y[], int width, bool vertical);
+    void into_array(int x1, int x2, int y1, int y2, int x[], int y[]);
+    void design_ruled_area(int x[], int y[], int width, int spacing, bool vertical);
     int manhatan_distance(int x1, int y1, int x2, int y2);
-    double routing_cost();
-    double compactness_cost();
-    double segment_cost();
-
     //
 
 };

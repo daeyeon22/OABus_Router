@@ -92,6 +92,8 @@ namespace OABusRouter
 
         bool insert(int type, int bitid, int x1, int y1, int x2, int y2, int l);
         bool remove(int type, int bitid, int x1, int y1, int x2, int y2, int l);
+        bool insert(int type, int bitid, int x1, int y1, int x2, int y2, int l, int width);
+        bool remove(int type, int bitid, int x1, int y1, int x2, int y2, int l, int width);
         bool insert(int type, int bitid, int x[], int y[], int l);
         bool remove(int type, int bitid, int x[], int y[], int l);
         bool spacing_violation_clean(int bitid, int x1, int y1, int x2, int y2, int l, int width, int spacing, bool vertical);
