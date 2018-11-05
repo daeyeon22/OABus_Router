@@ -106,6 +106,15 @@ bool OABusRouter::intersection(seg s1, seg s2, int &x, int &y)
 {
     using OABusRouter::pts;
 
+
+    if(!bg::intersects(s1, s2))
+    {
+        cout << "not intersects 1" << endl;
+        cout << bg::dsv(s1) << endl;
+        cout << bg::dsv(s2) << endl;
+        exit(0);
+    }
+
     int llx1, lly1, urx1, ury1;
     int llx2, lly2, urx2, ury2;
     bool vertical1, vertical2;
@@ -117,15 +126,21 @@ bool OABusRouter::intersection(seg s1, seg s2, int &x, int &y)
     bool valid = false;
     if(vertical1 && !vertical2)
     {
-        x = llx1;
-        y = lly2;
-        valid = true;
+        if((lly1 <= lly2 && lly2 <= ury1) && (llx2 <= llx1 && llx1 <= urx2))
+        {
+            x = llx1;
+            y = lly2;
+            valid = true;
+        }
     }
     else if(!vertical1 && vertical2)
     {
-        x = llx2;
-        y = lly1;
-        valid = true;
+        if((lly2 <= lly1 && lly1 <= ury2) && (llx1 <= llx2 && llx2 <= urx1))
+        {
+            x = llx2;
+            y = lly1;
+            valid = true;
+        }
     }
     else
     {
@@ -141,6 +156,8 @@ bool OABusRouter::intersection(seg s1, seg s2, int &x, int &y)
             y = ury1;
             valid = true;
         }
+
+
     }
 
     return valid;
@@ -261,4 +278,5 @@ int OABusRouter::manhatan_distance(int x1, int y1, int x2, int y2)
 {
     return abs(x1-x2) + abs(y1-y2);
 }
+
 

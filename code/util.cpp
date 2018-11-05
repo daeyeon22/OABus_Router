@@ -11,13 +11,8 @@ static double scale = 1.0;
 
 void OABusRouter::Router::create_plots(const char* benchName)
 {
-    
-
-    int i, numBuses;
-    numBuses = ckt->buses.size();
-
-
-    for(i=0; i < numBuses; i++)
+    #pragma omp parallel for num_threads(NUM_THREADS)
+    for(int i=0; i < ckt->buses.size();  i++)
     {
         Bus* curB = &ckt->buses[i];
         string filename;

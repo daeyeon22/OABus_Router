@@ -15,9 +15,10 @@ using OABusRouter::design_ruled_area;
 void OABusRouter::Router::route_all()
 {
 
+    Circuit* cir = ckt;
     int numBuses = ckt->buses.size();
     int numSuccess = 0;
-    
+
     vector<int> busSorted(numBuses);
     #pragma omp parallel for num_threads(NUM_THREADS)
     for(int i=0; i < numBuses; i++)
@@ -25,21 +26,44 @@ void OABusRouter::Router::route_all()
         busSorted[i] = i;
     }
 
-    Circuit* cir = ckt;
-    sort(busSorted.begin(), busSorted.end(), [&,cir](int left, int right){
-            int y1 = cir->buses[left].lly; 
-            int y2 = cir->buses[right].lly; 
-            return (y1 > y2);
-            });
 
-#ifdef REPORT
-    for(int i=0; i < numBuses; i++)
+    // BUS ORDERING ///
+    int verAlignCount = 0;
+    int horAlignCount = 0;
+    int startLoc;
+
+    for(int i=0; i < ckt->multipins.size(); i++)
     {
-                
-    }    
-#endif
+        MultiPin* mp = &ckt->multipins[i];
+        if(mp->align == VERTICAL)
+            verAlignCount++;
+        else
+            horAlignCount++;
+    }
 
-    
+#ifdef REPOT
+    printf("[INFO] Vertical Align Count %d\n", verAlignCount++);
+    printf("[INFO] Horizon  Align Count %d\n", horAlignCount++);
+#endif
+    if(verAlignCount > horAlignCount)
+    {
+        startLoc = Bottom;
+        sort(busSorted.begin(), busSorted.end(), [&,cir](int left, int right){
+                int y1 = cir->buses[left].lly; 
+                int y2 = cir->buses[right].lly; 
+                return (y1 > y2);
+                });
+    }
+    else
+    {
+        startLoc = Left;
+        sort(busSorted.begin(), busSorted.end(), [&,cir](int left, int right){
+                int x1 = cir->buses[left].llx; 
+                int x2 = cir->buses[right].llx; 
+                return (x1 > x2);
+                });
+    }
+
     for(int i=0; i < numBuses; i++)
     {
         // runtime check
@@ -50,10 +74,13 @@ void OABusRouter::Router::route_all()
 
         Bus* curBus = &ckt->buses[busSorted[i]];
 
-        if(route_bus(curBus->id))
+        if(route_bus(curBus->id, startLoc))
         {
             curBus->assign = true;
             numSuccess++;
+#ifdef REPORT
+            printf("[INFO] %s routing success\n", curBus->name.c_str());
+#endif
         }
         else
         {
@@ -75,7 +102,7 @@ void OABusRouter::Router::route_all()
 
 #endif
     //
-    //return;
+    return;
 
 #ifdef REPORT
     printf("\n< Start reroute >\n");
@@ -94,9 +121,7 @@ void OABusRouter::Router::route_all()
             if(should_stop())
                 break;
 
-
             cout << ckt->buses[busid].name << " panelty cost : " << get_panelty_cost(busid) << endl;
-
 
             int previous_Ps, current_Ps;
             //previous_Ps = panelty[busid];
@@ -119,7 +144,7 @@ void OABusRouter::Router::route_all()
                 }
 
                 remove_all(busid);
-                routing_success = route_bus(busid);
+                routing_success = route_bus(busid, startLoc);
 
                 // if routing failed, recreate previous wires
                 if(!routing_success)
@@ -180,7 +205,7 @@ void OABusRouter::Router::route_all()
 
 }
 
-bool OABusRouter::Router::route_bus(int busid)
+bool OABusRouter::Router::route_bus(int busid, int startLoc)
 {
 
     bool routingSuccess = false;
@@ -235,9 +260,26 @@ bool OABusRouter::Router::route_bus(int busid)
         m2 = mpCombs.begin()->second;
         mpCombs.erase(mpCombs.begin());
 
-        if(!downside(m1, m2))
+        // Routing start point 
+        if(startLoc == Bottom)
         {
-            swap(m1,m2);
+            if(!downside(m1, m2))
+                swap(m1,m2);
+        }
+        else if(startLoc == Top)
+        {
+            if(!downside(m1, m2))
+                swap(m1,m2);
+        }
+        else if(startLoc == Left)
+        {
+            if(!leftside(m1,m2))
+                swap(m1,m2);
+        }
+        else if(startLoc == Right)
+        {
+            if(leftside(m1,m2))
+                swap(m1,m2);
         }
 
         
@@ -246,6 +288,13 @@ bool OABusRouter::Router::route_bus(int busid)
             routingSuccess = true;
             break;
         }
+        
+        if(route_twopin_net(busid, m2, m1, tp))
+        {
+            routingSuccess = true;
+            break;
+        }
+        
     }
 
     if(routingSuccess)

@@ -72,14 +72,10 @@ int main(int argc, char** argv){
 #endif
 
     if(!ckt->read_iccad2018(inputFileName)){
-#ifdef REPORT
         cout << "Fail to read " << inputFileName << endl;
-#endif
     }
 
-#ifdef REPORT
     cout << "[INFO] start Initialize" << endl;
-#endif
     ckt->initialize();
 
     cout << "[INFO] construct rtree" << endl;
@@ -92,8 +88,8 @@ int main(int argc, char** argv){
     cout << "[INFO] start Create Path" << endl;
     ckt->create_path();
     
-    cout << "[INFO] start Create Plot" << endl;
-    rou->create_plots(benchName.c_str());
+    //cout << "[INFO] start Create Plot" << endl;
+    //rou->create_plots(benchName.c_str());
 
 
     cout << "[INFO] start Write out file" << endl;
@@ -105,35 +101,7 @@ int main(int argc, char** argv){
     ckt->lef_write(lefName);
     ckt->def_write(defName);   
 
-    /*
-#ifdef REPORT
-    cout << "[INFO] start route all" << endl;
-#endif
-    rou->route_all();
-    
-#ifdef REPORT
-    cout << "[INFO] start Create Path" << endl;
-#endif
-    ckt->create_path();
 
-#ifdef REPORT
-    cout << "[INFO] start Create Plot" << endl;
-    rou->create_plot(benchName.c_str());
-#endif
-
-#ifdef REPORT
-    cout << "[INFO] start Write out file" << endl;
-#endif
-    ckt->out_write(outputFileName);
-
-#ifdef REPORT
-    cout << "[INFO] start Write def & lef file" << endl;
-    lefName = logDirName + "/" + benchName + ".lef";
-    defName = logDirName + "/" + benchName + ".def";
-    ckt->lef_write(lefName);
-    ckt->def_write(defName);
-#endif
-    */
     cout << "[INFO] End program" << endl;
 
     measure.stop_clock("All");

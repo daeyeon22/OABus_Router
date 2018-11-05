@@ -21,18 +21,18 @@ namespace OABusRouter
         int id;
         int depth;
         int backtrace;
-        int ref;
         
-        bool isDest;
-
         double CR;
         double PS;
+        double CC;
+        double CW;
+        double CS;
+        double EC;          // estimated cost
         vector<int> nodes;
         vector<int> xPrev;
         vector<int> yPrev;
         vector<int> xLast;
         vector<int> yLast;
-        dense_hash_map<int,int> seq;
 
 
         HeapNode()
@@ -42,30 +42,37 @@ namespace OABusRouter
             depth(0),
             backtrace(-1),
             CR(DBL_MAX),
-            PS(DBL_MAX)
+            PS(DBL_MAX),
+            CC(DBL_MAX),
+            CW(DBL_MAX),
+            CS(DBL_MAX),
+            EC(DBL_MAX)
         {
             nodes = vector<int>(numBits, -1);
             xPrev = vector<int>(numBits, -1);
             yPrev = vector<int>(numBits, -1);
-            seq.set_empty_key(INT_MAX);
         }
 
         HeapNode(const HeapNode& node):
             id(node.id),
             depth(node.depth),
             backtrace(node.backtrace),
-            isDest(node.isDest),
             CR(node.CR),
             PS(node.PS),
-            nodes(node.nodes),
+            CC(node.CC),
+            CW(node.CW),
+            CS(node.CS),
+            EC(node.EC),
             xPrev(node.xPrev),
             yPrev(node.yPrev),
             xLast(node.xLast),
-            yLast(node.yLast),
-            seq(node.seq)
-        {}
+            yLast(node.yLast)
+        {
+            nodes.insert(nodes.end(), node.nodes.begin(), node.nodes.end());
+        }
 
         double cost();
+        
     };
 
 
@@ -75,10 +82,13 @@ namespace OABusRouter
         {
             bool operator() (HeapNode& n1, HeapNode& n2)
             {
-                return n1.cost() > n2.cost();
+                return n1.EC + 2*n1.cost() > n2.EC + 2*n2.cost();
+                //return n1.cost() > n2.cost();
             }
+
         };
 
+        
         priority_queue<HeapNode, vector<HeapNode>, Comparison> PQ;
 
         // member functions
@@ -229,14 +239,6 @@ namespace OABusRouter
       public:
         static Router* shared();
 
-        //RSMT        rsmt;
-        //Grid3D      grid;
-        //Rtree       rtree;
-        int SPACING_VIOLATION;
-        int VIA_COST;
-        int DEPTH_COST;
-        int NOTCOMPACT;
-        
         Rtree_t rtree_t;
         Rtree_o rtree_o;
         
@@ -246,6 +248,7 @@ namespace OABusRouter
         vector<Via>             vias;
         vector<Topology>        topologies;
 
+        
 
         // Hash map
         dense_hash_map<int,int> seg2top;
@@ -290,13 +293,14 @@ namespace OABusRouter
         void route_all();
 
         // routing
-        bool route_bus(int busid);
+        bool route_bus(int busid, int startLoc);
         bool route_twopin_net(int busid, int m1, int m2, vector<Segment> &tp);
         bool route_multipin_to_tp(int busid, int m, vector<Segment> &tp);
 
 
         // find heap node
-        bool get_next_node(int busid, bool fixed, double hpwl, HeapNode& curr, HeapNode& next);
+        bool get_next_node(int busid, bool fixed, double hpwl, int lbs, HeapNode& curr, HeapNode& next);
+        bool get_next_node_debug(int busid, bool fixed, double hpwl, int lbs, HeapNode& curr, HeapNode& next);
         bool get_drive_node(int mp, bool last, HeapNode& curr);
         bool is_destination(int n, int m, int p);
         bool leftside(int m1, int m2);
@@ -309,6 +313,7 @@ namespace OABusRouter
         void pin_access_point(int xPin[], int yPin[], int lPin, int xSeg[], int ySeg[], int lSeg, int &x, int &y);
 
         //
+        int lower_bound_num_segments(int m1, int m2);
         int get_refbit_index(int m1, int m2);
         int get_routing_direction(int x1, int y1, int x2, int y2);
         int create_wire(int b, int t, int x1, int y1, int x2, int y2, int l, int seq, int width);
@@ -328,6 +333,10 @@ namespace OABusRouter
         void update_net_tp(int busid, vector<Segment> &tp);
 
         double HPWL(int p1, int p2);
+        double HPWL(int x, int y, int p);
+
+        void debug_rtree();
+    
     };
 
 };

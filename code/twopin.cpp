@@ -3,13 +3,15 @@
 #include "func.h"
 
 #define REPORT
+//#define DEBUG_TWOPIN_NET
 //#define DEBUG_NEXT_NODE
 //#define DEBUG_GET_DRIVE
 
-#define DELTA ckt->delta
 #define ALPHA ckt->alpha
-#define EPSILON ckt->epsilon
 #define BETA ckt->beta
+#define GAMMA ckt->gamma
+#define DELTA ckt->delta
+#define EPSILON ckt->epsilon
 
 using OABusRouter::should_stop;
 using OABusRouter::is_vertical;
@@ -24,6 +26,7 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
     MultiPin* mp2 = &ckt->multipins[m2];
     dense_hash_map<int,int> &width = curBus->width;
     int numBits = curBus->numBits;
+    int iterCount = 0;
 
 
     // initialize heap nodes
@@ -38,20 +41,45 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
     // Queue, vector
     Heap PQ;
     //
+   
     vector<int> bitSorted;
     int refbit_index = 0;//get_refbit_index(m1, m2, bitSorted);
     int refbit = curBus->bits[refbit_index];
-    Pin* refPin1 = &ckt->pins[mp1->pins[refbit_index]];
-    Pin* refPin2 = &ckt->pins[mp2->pins[refbit_index]];
+
+    dense_hash_map<int,int> bit2pin_1;
+    dense_hash_map<int,int> bit2pin_2;
+    bit2pin_1.set_empty_key(INT_MAX);
+    bit2pin_2.set_empty_key(INT_MAX);
+
+    for(int i=0; i < numBits; i++)
+    {
+        bit2pin_1[pin2bit[mp1->pins[i]]] = mp1->pins[i];
+        bit2pin_2[pin2bit[mp2->pins[i]]] = mp2->pins[i];
+    }
+    
+    Pin* refPin1 = &ckt->pins[bit2pin_1[refbit]]; //mp1->pins[refbit_index]];
+    Pin* refPin2 = &ckt->pins[bit2pin_2[refbit]]; //mp2->pins[refbit_index]];
     int minElem = INT_MAX;
     bool hasMinElem = false;
     double minCost = DBL_MAX;
     double hpwl = HPWL(refPin1->id, refPin2->id);
+    double optimalCost = ALPHA + BETA;
+    int lbs = lower_bound_num_segments(m1, m2);
+   
+    printf("\n");
+    printf("[INFO] route twopin net : %s\n", curBus->name.c_str());
+    printf("(OptCost) %f\n(hpwl) %f\n(lbs) %d\n", optimalCost, hpwl, lbs);
+    printf("(1) %s (%d %d) (%d %d) M%d\n", refPin1->bitName.c_str(), refPin1->llx, refPin1->lly, refPin1->urx, refPin1->ury, refPin1->l);
+    printf("(2) %s (%d %d) (%d %d) M%d\n", refPin2->bitName.c_str(), refPin2->llx, refPin2->lly, refPin2->urx, refPin2->ury, refPin2->l);
+ 
+    //////////////////////////////////////////////////////////
+    bool printLog = (curBus->name == "bus") ? true : false;
+    //////////////////////////////////////////////////////////
+    
 
     // Get initial heap nodes
     vector<int> initHeapNodes;
     get_access_rtree_nodes(m1, refPin1->id, initHeapNodes);
-
     
     for(int i=0; i < initHeapNodes.size(); i++)
     {
@@ -61,151 +89,286 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
         nodes[n].depth = 0;
         nodes[n].CR = 0;
         nodes[n].PS = 0;
+        nodes[n].CW = 0;
+        nodes[n].CC = 0;
+        nodes[n].CS = 0;
+        nodes[n].EC = hpwl;
         nodes[n].backtrace = n;
+        
+        printf("\n");
+        printf("- - - - Get drive node - - - -\n");
+        for(int j=0; j < nodes[n].nodes.size(); j++)
+        {
+            Pin* curPin = &ckt->pins[bit2pin_1[curBus->bits[j]]];
+            RtreeNode* curNode = rtree_t.get_node(nodes[n].nodes[j]);
+            printf("%s <p%d> (%d %d) (%d %d) M%d --> <n%d> (%d %d) (%d %d) M%d\n", 
+                    ckt->bits[curBus->bits[j]].name.c_str(),
+                    curPin->id, curPin->llx, curPin->lly, curPin->urx, curPin->ury, curPin->l,
+                    curNode->id, curNode->x1, curNode->y1, curNode->x2, curNode->y2, curNode->l);
+                    
+        }
+        printf("\n");
 
         PQ.push(nodes[n]);
     }
-    
-    printf("[INFO] route twopin net : %s\n", curBus->name.c_str());
-    //printf("p1 (%d %d) (%d %d) M%d\n", refPin1->llx, refPin1->lly, refPin1->urx, refPin1->ury, refPin1->l);
-    //printf("p2 (%d %d) (%d %d) M%d\n", refPin2->llx, refPin2->lly, refPin2->urx, refPin2->ury, refPin2->l);
-    
+
+
+   
     // Iterating Priority Queue
     while(!PQ.empty())
     {
+        //
+        iterCount++;
+
         HeapNode currNode = PQ.top();
         PQ.pop();
 
-        
-        int n1 = currNode.id;
-        //printf("current node cost %f\n", currNode.cost());
-        //printf("current (%d %d) (%d %d) M%d\n", 
-        //        rtree_t.get_node(n1)->x1, rtree_t.get_node(n1)->y1, rtree_t.get_node(n1)->x2, rtree_t.get_node(n1)->y2, rtree_t.get_node(n1)->l);
-
-        // if current node is minimum element, break the loop
         if(currNode.id == minElem)
             break;
 
-        if(currNode.depth > 10)
+        int n1 = currNode.id;
+        RtreeNode* rn1 = rtree_t.get_node(n1);
+//#ifdef DEBUG_TWOPIN_NET
+        if(printLog)
+            printf("current (%d %d) (%d %d) M%d cost %f depth %d queue size %d\n", 
+                    rtree_t.get_node(n1)->x1, rtree_t.get_node(n1)->y1, rtree_t.get_node(n1)->x2, rtree_t.get_node(n1)->y2, rtree_t.get_node(n1)->l,
+                    currNode.cost(), currNode.depth, PQ.size());
+//#endif
+
+        // if current node is minimum element, break the loop
+        if(currNode.cost() != nodes[n1].cost())
+            continue;
+        
+        //cout << "current (" << currNode.id << ") -> " << currNode.cost() <<  " [" << PQ.size() << "]" << endl;
+        //if(1.3*currNode.cost() <= optimalCost *(-1 + (1.0*iterCount/1000)))
+        //    continue;
+
+        if(iterCount > 30000 && hasMinElem)
+            break;
+
+        // search depth condition
+        if(currNode.depth > lbs * 2)
             continue;
 
         if(currNode.cost() > minCost)
             continue;
 
-        //
+
+        int x_iter_bnd1[2] = { min(currNode.xPrev[0], currNode.xPrev[numBits-1]), max(currNode.xPrev[0], currNode.xPrev[numBits-1]) };
+        int y_iter_bnd1[2] = { min(currNode.yPrev[0], currNode.yPrev[numBits-1]), max(currNode.yPrev[0], currNode.yPrev[numBits-1]) };
+        box bending_area(pt(x_iter_bnd1[0], y_iter_bnd1[0]), pt(x_iter_bnd1[1], y_iter_bnd1[1]));
+
+        //filtering
+        vector<int> filtered;
         #pragma omp parallel for num_threads(NUM_THREADS)
-        for(int i=0; i < rtree_t.get_node(n1)->neighbor.size(); i++)
+        for(int i=0; i < rn1->neighbor.size(); i++)
         {
-            int n2 = rtree_t.get_node(n1)->neighbor[i];
+           
 
-            //printf("next (%d %d) (%d %d) M%d\n", 
-            //        rtree_t.get_node(n2)->x1, rtree_t.get_node(n2)->y1, rtree_t.get_node(n2)->x2, rtree_t.get_node(n2)->y2, rtree_t.get_node(n2)->l);
-
+            int n2 = rn1->neighbor[i]; //rtree_t.get_node(n1)->neighbor[i];
+            RtreeNode* rn2 = rtree_t.get_node(n2);
+            
 
             if(currNode.cost() >= nodes[n2].cost())
-            {
-                //printf("%f %f\n", currNode.cost(), nodes[n2].cost());
-                continue;
-            }
-            
-            bool valid = true;
-            bool isDestination = is_destination(n2, m2, refPin2->id);
-
-            HeapNode nextNode(nodes[n2]);
-            
-            // update node infomation
-            if(isDestination)
-            {
-                //////////////////////////////////////////
-                //cout << "destination" << endl;
-                //printf("n2 (%d %d) (%d %d) M%d\n", 
-                //    rtree_t.get_node(n2)->x1, rtree_t.get_node(n2)->y1, rtree_t.get_node(n2)->x2, rtree_t.get_node(n2)->y2, rtree_t.get_node(n2)->l);
-                //printf("p2 (%d %d) (%d %d) M%d\n", refPin2->llx, refPin2->lly, refPin2->urx, refPin2->ury, refPin2->l);
-                //////////////////////////////////////////
-                valid = get_drive_node(m2, true, nextNode);
-            
-                //////////////////////////////////////////
-                if(!valid)
-                {
-                    cout << "invalid ??" << endl;
-                    exit(0);
-                }
-                //////////////////////////////////////////
-
-            
-            }
-
-            if(valid)
-            {
-                //cout << "get next node" << endl;
-                valid = get_next_node(busid, isDestination, hpwl, currNode, nextNode); 
-
-            }
-
-
-            if(!valid)
+                // if iterating node's cost is smaller,
+                // it doesn't need to push into the queue
                 continue;
 
-            // compare previous and current cost
-            if(nextNode.cost() >= nodes[n2].cost())
+
+            int x = rn1->intersection[n2].first;
+            int y = rn1->intersection[n2].second;
+            
+            // check iterating point valid
+            if(bg::intersects(pt(x,y), bending_area))
+                continue;
+
+            double hpwl1 = HPWL(x, y, refPin1->id);
+            double hpwl2 = HPWL(x, y, refPin2->id);
+
+            // local search area
+            if(hpwl1 + hpwl2 >= 2*hpwl)
                 continue;
 
             #pragma omp critical(GLOBAL)
             {
-                if(isDestination && minCost > nextNode.cost())
-                {
-#ifdef DEBUG_TWOPIN_NET
-                    if(hasMinElem)
-                    {
-                        printf("Minimum Element Changed node(%d) cost(%f) dep(%d) -> node(%d) cost(%f) dep(%d)\n",
-                                minElem, minCost, nodes[minElem].depth, n2, nextNode.cost(), nextNode.depth);
-                    }
-#endif
-                    hasMinElem = true;
-                    minElem = n2;
-                    minCost = nextNode.cost();
-                }
-
-                nodes[n2] = nextNode;
-                PQ.push(nextNode);
+                filtered.push_back(n2);
             }
         }
+
+
+        if(printLog)
+            cout << "#neighbor reduced from " << rtree_t.get_node(n1)->neighbor.size() << " to " << filtered.size() << endl;
+
+        
+        int NUMTHREAD = printLog ? 1 : NUM_THREADS;
+
+        //
+        #pragma omp parallel for num_threads(NUMTHREAD)//num_threads(NUM_THREADS)
+        for(int i=0; i < filtered.size(); i++)
+        {
+            int n2 = filtered[i]; //rtree_t.get_node(n1)->neighbor[i];
+
+            if(printLog)
+            {
+                cout << "n2 : " << n2 << endl;
+                RtreeNode* rn = rtree_t.get_node(n2);
+                printf("n%d (%d %d) (%d %d) M%d\n", rn->id, rn->x1, rn->y1, rn->x2, rn->y2, rn->l);
+            }
+
+            bool valid = true;
+            bool isDestination = is_destination(n2, m2, refPin2->id);
+
+            if(!rtree_t.is_valid({n1, n2}))
+            {
+                cout << "??????????????" << endl;
+                exit(0);
+            }
+
+
+            HeapNode nextNode = nodes[n2];
+
+
+            // update node infomation
+            if(isDestination)
+            {   
+
+                // check whether this is destination or not.
+                //cout << "get drive node" << endl;
+                valid = get_drive_node(m2, true, nextNode);
+            }
+
+            if(printLog)
+                cout << "1" << endl;
+
+
+            // if valid, get next node's infomation
+            if(valid)
+            {
+                //////////////////////////////////////////////////////////
+                if(printLog)
+                {                
+                    #pragma omp critical(GLOBAL)
+                    {
+                        valid = get_next_node_debug(busid, isDestination, hpwl, lbs, currNode, nextNode);
+                    }
+                }
+                else
+                    valid = get_next_node(busid, isDestination, hpwl, lbs, currNode, nextNode); 
+
+            }
+            // if invalid, skip.
+            if(!valid)
+                continue;
+
+
+            // compare previous and current cost
+            //if(nextNode.cost() >= nodes[n2].cost())
+            //    continue;
+            
+
+            /*
+            if(!isDestination)
+            {
+                double hpwlEst = 0;//BETA * 1.0 * abs(rtree_t.get_node(n2)->l - refPin2->l) / lbs;
+                for(int j=0; j < numBits; j++)
+                {
+                    hpwlEst += ALPHA * HPWL(nextNode.xPrev[j], nextNode.yPrev[j], mp2->pins[j]) / hpwl / numBits;
+                }
+                nextNode.EC = hpwlEst;
+            }
+            else
+            {
+                nextNode.EC = 0;
+            }
+            */
+
+            
+
+            // parallel critical 
+            #pragma omp critical(GLOBAL)
+            {
+                // compare previous and current cost
+                if(nextNode.cost() < nodes[n2].cost())
+                {
+
+                    if(isDestination && minCost > nextNode.cost())
+                    {
+
+#ifdef DEBUG_TWOPIN_NET
+                        if(hasMinElem)
+                        {
+                            printf("Minimum Element Changed node(%d) cost(%f) dep(%d) -> node(%d) cost(%f) dep(%d)\n",
+                                    minElem, minCost, nodes[minElem].depth, n2, nextNode.cost(), nextNode.depth);
+                        }
+#endif
+                        hasMinElem = true;
+                        minElem = n2;
+                        minCost = nextNode.cost();
+
+                    }
+
+                    nodes[n2] = nextNode;
+                    PQ.push(nextNode);
+                }
+            }
+        }
+
+
+        // If the solution is near optimal,
+        // then break the loop.
+        if(hasMinElem)
+        {
+            // Panelty of spacing violation is clean,
+            // break the loop
+            double optRatio = nodes[minElem].cost() / optimalCost;
+
+            if(optRatio < 1.5)
+            {
+                printf("[INFO] Escape the loop { Opt ratio %2.2f%  / Opt %2.2f / Min %2.2f }\n", optRatio*100, optimalCost, nodes[minElem].cost());
+                break;
+            }
+            
+            /*
+            if(nodes[minElem].PS == 0)
+            {
+                break;
+            }
+            */
+        }
     }
+
 
     // if solution exists, update
     if(hasMinElem)
     {
         //cout << "Has Min Elem!" << endl;
-
         vector<Segment> tpCreated(nodes[minElem].depth + 1);
         // 
         int maxDepth = nodes[minElem].depth+1;
-        
-
-
-
         int dep1, dep2, w1, w2, w3; 
         int n1, n2, x1, x2, y1, y2, x3, y3,  l1, l2;
         n2 = minElem;
         dep2 = nodes[n2].depth;
 
         //printf("#SPV %d\n", (int)(nodes[n2].PS/DELTA));
-
-
         for(int i=0; i < dep2+1; i++)
         {
             tpCreated[i].wires = vector<int>(numBits);
         }
 
-        //cout << "Start backtrace" << endl;
-        
+
+#ifdef REPORT
+        printf("[INFO] #iterating %d\n", iterCount);
+        printf("[INFO] Start backtrace search\n");
+        printf("[INFO} CW %3.2f CS %3.2f CC %3.2f PS %.1f EST %.1f\n\n", nodes[n2].CW, nodes[n2].CS, nodes[n2].CC, nodes[n2].PS, nodes[n2].EC);
+#endif
+
         while(n2 != nodes[n2].backtrace)
         {
             n1 = nodes[n2].backtrace;
             dep1 = nodes[n1].depth;
             dep2 = nodes[n2].depth;
 
-            
             for(int i=0; i < numBits; i++)
             {
 
@@ -238,7 +401,7 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
 
                 if(dep1 == 0)
                 {
-                    int p1 = mp1->pins[i];
+                    int p1 = bit2pin_1[curBus->bits[i]]; //refbit]; //mp1->pins[bit2pini];
                     pin2wire[p1] = w1;
                     wire2pin[w1] = p1;
                     wires[w1].intersection[PINTYPE] = { nodes[n1].xPrev[i], nodes[n1].yPrev[i] };
@@ -246,7 +409,7 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
 
                 if(dep2 == maxDepth-1)
                 {
-                    int p2 = mp2->pins[i];
+                    int p2 = bit2pin_2[curBus->bits[i]]; //mp2->pins[i];
                     pin2wire[p2] = w2;
                     wire2pin[w2] = p2;
                     wires[w2].intersection[PINTYPE] = { nodes[n2].xLast[i], nodes[n2].yLast[i] };
@@ -282,13 +445,908 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, vector<Seg
 
         tp = tpCreated;
 
+    }
+    else
+    {
+        cout << "Failed" << endl;
+    }
 
-        //cout << "End backtrace" << endl;
+    //////////////////////
+    if(printLog)
+        exit(0);
+    
+    return hasMinElem;
+}
+
+
+
+
+int OABusRouter::Router::lower_bound_num_segments(int m1, int m2)
+{
+    MultiPin* mp1 = &ckt->multipins[m1];
+    MultiPin* mp2 = &ckt->multipins[m2];
+    int lDiff = abs(mp1->l - mp2->l);
+    int lReq = (mp1->align == mp2->align) ? 3 : 2;
+
+    if(lDiff > lReq)
+        return abs(lDiff - lReq) + lReq;
+    else
+        return lReq;
+}
+
+bool OABusRouter::Router::is_destination(int n, int m, int p)
+{
+    Bus* curBus = &ckt->buses[pin2bus[p]];
+    Pin* curPin = &ckt->pins[p];
+    MultiPin* curMP = &ckt->multipins[m];
+    int xPin[2] = {curPin->llx, curPin->urx};
+    int yPin[2] = {curPin->lly, curPin->ury};
+    int lPin = curPin->l;
+
+    RtreeNode* curNode = rtree_t.get_node(n);
+    int xSeg[2] = {curNode->x1, curNode->x2};
+    int ySeg[2] = {curNode->y1, curNode->y2};
+    int lSeg = curNode->l;
+
+
+
+    if(abs(lPin-lSeg) > 1)
+        return false;
+    
+    if(curMP->needVia)
+    {
+        if(lPin == lSeg)
+            return false;
+    }
+    else
+    {
+        if(lPin != lSeg)
+            return false;
     }
 
 
-    return hasMinElem;
+    if(lPin == lSeg)
+    {
+        xSeg[0] -= is_vertical(lSeg) ? curBus->width[lSeg]/2 : 0;
+        xSeg[1] += is_vertical(lSeg) ? curBus->width[lSeg]/2 : 0;
+        ySeg[0] -= is_vertical(lSeg) ? 0 : curBus->width[lSeg]/2;
+        ySeg[1] += is_vertical(lSeg) ? 0 : curBus->width[lSeg]/2;
+        box g1(pt(xPin[0], yPin[0]), pt(xPin[1], yPin[1]));
+        box g2(pt(xSeg[0], ySeg[0]), pt(xSeg[1], ySeg[1]));
+        return bg::intersects(g1, g2);
+    }
+    else
+    {
+        box g1(pt(xPin[0], yPin[0]), pt(xPin[1], yPin[1]));
+        seg g2(pt(xSeg[0], ySeg[0]), pt(xSeg[1], ySeg[1]));
+        return bg::intersects(g1, g2);
+    }
+    ////
 }
+
+
+void OABusRouter::Router::get_access_point(int mp, bool last, HeapNode& curr)
+{
+    int x, y, numBits;
+    MultiPin* curMP = &ckt->multipins[mp];
+    numBits = curMP->pins.size();
+    
+
+    if(last)
+    {
+        curr.xLast = vector<int>(numBits);
+        curr.yLast = vector<int>(numBits);
+    }
+
+    for(int i=0; i < numBits; i++)
+    {
+        Pin* curPin = &ckt->pins[curMP->pins[i]];
+        RtreeNode* curRN = rtree_t.get_node(curr.nodes[i]);
+        int xPin[] = {curPin->llx, curPin->urx};
+        int yPin[] = {curPin->lly, curPin->ury};
+        int lPin = curPin->l;
+        int xSeg[] = {curRN->x1, curRN->x2};
+        int ySeg[] = {curRN->y1, curRN->y2};
+        int lSeg = curRN->l;
+
+        pin_access_point(xPin, yPin, lPin, xSeg, ySeg, lSeg, x, y);
+        if(last)
+        {
+            curr.xLast[i] = x;
+            curr.yLast[i] = y;
+        }
+        else
+        {
+            curr.xPrev[i] = x;
+            curr.yPrev[i] = y;
+        }
+
+    }
+}
+
+
+void OABusRouter::Router::get_access_rtree_nodes(int mp, int p, vector<int> &nodes)
+{
+    MultiPin* curMP = &ckt->multipins[mp];
+    Pin* curPin = &ckt->pins[p];
+    Bus* curBus = &ckt->buses[pin2bus[p]];
+    int xPin[2] = {curPin->llx, curPin->urx};
+    int yPin[2] = {curPin->lly, curPin->ury};
+    int lPin = curPin->l;
+
+    vector<int> tarLayers;
+    if(curMP->needVia)
+    {
+        if(lPin-1 >= 0)
+        {
+            tarLayers.push_back(lPin-1);
+        }
+
+        if(lPin+1 < ckt->layers.size())
+        {
+            tarLayers.push_back(lPin+1);
+        }
+    }
+    else
+    {
+        xPin[0] -= (curMP->align == VERTICAL) ? 0 : curBus->width[lPin]/2;
+        xPin[1] += (curMP->align == VERTICAL) ? 0 : curBus->width[lPin]/2;
+        yPin[0] -= (curMP->align == VERTICAL) ? curBus->width[lPin]/2 : 0;
+        yPin[1] += (curMP->align == VERTICAL) ? curBus->width[lPin]/2 : 0;
+        tarLayers.push_back(lPin);
+    }
+
+    box pinArea(pt(xPin[0], yPin[0]), pt(xPin[1], yPin[1]));
+
+    for(auto l : tarLayers)
+    {
+        vector<pair<seg, int>> queries;
+        vector<pair<seg, int>> tmp;
+        rtree_t[l]->query(bgi::intersects(pinArea), back_inserter(queries));
+        
+        for(int j=0; j < queries.size(); j++)
+        {
+            RtreeNode* n = rtree_t.get_node(queries[j].second);
+            if(n->width >= curBus->width[n->l])
+            {
+                tmp.push_back(queries[j]);
+            }
+        }
+
+        queries = tmp;
+        
+        if(queries.size() > 1)
+        {
+            sort(queries.begin(), queries.end(), [&, xPin, yPin](const pair<seg,int> &left, const pair<seg,int> &right){
+                    int xCenter = (xPin[0] + xPin[1])/2;
+                    int yCenter = (yPin[0] + yPin[1])/2;
+                    return bg::distance(left.first, pt(xCenter, yCenter)) < bg::distance(right.first, pt(xCenter, yCenter));
+                    });
+        }
+
+        nodes.push_back(queries[0].second);
+    }
+
+
+}
+
+
+bool OABusRouter::Router::get_drive_node(int mp, bool last, HeapNode& curr)
+{
+    RtreeNode* curRN = rtree_t.get_node(curr.id);
+    MultiPin* curMP = &ckt->multipins[mp];
+    int numBits = curMP->pins.size();
+    int align = curMP->align;
+    bool findAll = true;
+    vector<int> nodes(numBits);
+    vector<int> xPt(numBits);
+    vector<int> yPt(numBits);
+
+    dense_hash_map<int,int> bit2pin;
+    bit2pin.set_empty_key(INT_MAX);
+    for(int i=0; i < numBits; i++)
+    {
+        bit2pin[pin2bit[curMP->pins[i]]] = curMP->pins[i];
+    }
+
+
+    for(int i=0; i < numBits; i++)
+    {
+        Bus* curBus = &ckt->buses[curMP->busid];
+        Pin* curPin = &ckt->pins[bit2pin[curBus->bits[i]]];
+        
+        int xPin[2] = {curPin->llx, curPin->urx};
+        int yPin[2] = {curPin->lly, curPin->ury};
+        int lPin = curPin->l;
+        int lSeg = curRN->l;
+        vector<pair<seg,int>> queries;
+
+        if(lPin == lSeg)
+        {
+            xPin[0] -= (align == VERTICAL) ? 0 : curBus->width[lSeg]/2;
+            xPin[1] += (align == VERTICAL) ? 0 : curBus->width[lSeg]/2;
+            yPin[0] -= (align == VERTICAL) ? curBus->width[lSeg]/2 : 0;
+            yPin[1] += (align == VERTICAL) ? curBus->width[lSeg]/2 : 0;
+        }
+
+        int x, y;
+        int xSeg[2], ySeg[2];
+        if(i != 0)
+        {
+            int reflength = manhatan_distance(curRN->x1, curRN->y1, curRN->x2, curRN->y2);
+
+            box pinArea(pt(xPin[0], yPin[0]), pt(xPin[1], yPin[1]));
+
+            rtree_t[lSeg]->query(bgi::intersects(pinArea), back_inserter(queries));
+            vector<pair<seg,int>> tmp;
+            for(int j=0; j < queries.size(); j++)
+            {
+                RtreeNode* n = rtree_t.get_node(queries[j].second);
+                int length = manhatan_distance(n->x1, n->y1, n->x2, n->y2);
+                if(1.0* abs(reflength-length) / length > 0.1)
+                {
+                    continue;
+                }
+
+                if(n->width >= curBus->width[lSeg])
+                {
+                    tmp.push_back(queries[j]);
+                }
+            }
+
+            queries = tmp;
+
+            if(queries.size() == 0)
+            {
+                findAll = false;
+                break;
+            }
+
+
+            if(queries.size() > 1)
+            {
+                sort(queries.begin(), queries.end(), [&, xPin, yPin](const pair<seg,int> &left, const pair<seg,int> &right){
+                        int xCenter = (xPin[0] + xPin[1])/2;
+                        int yCenter = (yPin[0] + yPin[1])/2;
+                        return bg::distance(left.first, pt(xCenter, yCenter)) < bg::distance(right.first, pt(xCenter, yCenter));
+                        });
+            }
+            pts(queries[0].first, xSeg[0], ySeg[0], xSeg[1], ySeg[1]);
+            nodes[i] = queries[0].second;
+        }       
+        else
+        {
+            nodes[i] = curr.id;
+            xSeg[0] = rtree_t.get_node(curr.id)->x1;
+            xSeg[1] = rtree_t.get_node(curr.id)->x2;
+            ySeg[0] = rtree_t.get_node(curr.id)->y1;
+            ySeg[1] = rtree_t.get_node(curr.id)->y2;
+        }
+            
+        pin_access_point(xPin, yPin, lPin, xSeg, ySeg, lSeg, x, y);
+
+        xPt[i] = x;
+        yPt[i] = y;
+
+    }
+
+    if(curr.id != nodes[0])
+    {
+        cout << "curid : " << curr.id << " " << nodes[0] << endl;
+        cout << "- - - - - - - - -" << endl;
+        for(int j=0; j < numBits; j++)
+        {
+            cout << nodes[j] << endl;
+        }
+        cout << "- - - - - - - - -" << endl;
+        
+        cout << "12121" << endl;
+
+
+        exit(0);
+    }
+
+    
+
+    if(findAll)
+    {
+        curr.nodes = nodes;
+
+        if(last)
+        {
+            curr.xLast = xPt;
+            curr.yLast = yPt;
+        }
+        else
+        {
+            curr.xPrev = xPt;
+            curr.yPrev = yPt;
+        }
+    }
+
+    if(curr.id != nodes[0])
+    {
+        cout << "3232323" << endl;
+        exit(0);
+    }
+
+
+
+
+#ifdef DEBUG_GET_DRIVE
+    if(findAll)
+    {
+        printf("\n- - - -   MultiPin/Node   - - - - \n");
+
+        for(int i=0; i < curMP->pins.size(); i++)
+        {
+            Pin* curPin = &ckt->pins[curMP->pins[i]];
+            RtreeNode* curNode = rtree_t.get_node(curr.nodes[i]);
+            if(last)
+            {
+                printf("(2) %s (%d %d) (%d %d) M%d -> (%d %d) (%d %d) M%d intersection (%d %d)\n", 
+                        ckt->bits[pin2bit[curPin->id]].name.c_str(), curPin->llx, curPin->lly, curPin->urx, curPin->ury, curPin->l,
+                        curNode->x1, curNode->y1, curNode->x2, curNode->y2, curNode->l, curr.xLast[i], curr.yLast[i]);
+            }
+            else
+            {
+
+                printf("(1) %s (%d %d) (%d %d) M%d -> (%d %d) (%d %d) M%d intersection (%d %d)\n", 
+                        ckt->bits[pin2bit[curPin->id]].name.c_str(), curPin->llx, curPin->lly, curPin->urx, curPin->ury, curPin->l,
+                        curNode->x1, curNode->y1, curNode->x2, curNode->y2, curNode->l, curr.xPrev[i], curr.yPrev[i]);
+            }
+        }
+    }
+    else
+    {
+        cout << "Invalid get drive node" << endl;
+
+        printf("\n- - - -   MultiPin/Node   - - - - \n");
+        for(int i=0; i < curMP->pins.size(); i++)
+        {
+            Pin* curPin = &ckt->pins[curMP->pins[i]];
+            printf("%s (%d %d) (%d %d) M%d\n", 
+                    ckt->bits[pin2bit[curPin->id]].name.c_str(), curPin->llx, curPin->lly, curPin->urx, curPin->ury, curPin->l);
+        }
+
+        for(int i=0; i < curMP->pins.size(); i++)
+        {
+            Pin* curPin = &ckt->pins[curMP->pins[i]];
+            RtreeNode* curNode = rtree_t.get_node(curr.nodes[i]);
+            printf("%s (%d %d) (%d %d) M%d\n", 
+                    ckt->bits[pin2bit[curPin->id]].name.c_str(), curNode->x1, curNode->y1, curNode->x2, curNode->y2, curNode->l);
+        }
+        exit(0);
+    }
+#endif
+
+    return findAll;
+}
+
+int OABusRouter::Router::get_routing_direction(int x1, int y1, int x2, int y2)
+{
+    if(x1 == x2 && y1 == y2)
+        return Direction::Stack;    
+    
+    if(x1 == x2)
+    {
+        if(y1 < y2)
+            return Direction::Up;
+        else
+            return Direction::Down;
+    }
+    else if(y1 == y2)
+    {
+        if(x1 < x2)
+            return Direction::Right;
+        else
+            return Direction::Left;
+    }
+    else
+    {
+        cout << "Invalid points ..." << endl;
+        cout << x1 << " " << y1 << " " << x2 << " " << y2 << endl;
+        //exit(0);
+        return -1;
+    }
+
+}
+
+bool OABusRouter::Router::get_next_node_debug(int busid, bool fixed, double hpwl, int lbs, HeapNode& prev, HeapNode& next)
+{
+    Bus* curBus = &ckt->buses[busid];
+    int x1, y1, x2, y2, x3, y3, l1, l2, l3;
+    int bitid, rouDir, numBits, iter;
+    double WL, CW, CS, CC, PS, CR, EC;
+    bool valid = true;
+    bool vertical1 = is_vertical(rtree_t.get_node(prev.id)->l);
+    bool vertical2 = is_vertical(rtree_t.get_node(next.id)->l);
+
+    int nPrev;
+
+    vector<int> nodes(numBits);
+    RtreeNode *n1, *n2;
+    numBits = curBus->numBits;
+     
+    PS = 0; // prev.PS;
+    CW = 0;
+    CC = 0;
+    CS = 0;
+    EC = 0; 
+
+  
+
+    for(int i=0; i < numBits; i++)
+    {
+        bitid = curBus->bits[i];
+        n1 = rtree_t.get_node(prev.nodes[i]);
+        n2 = rtree_t.get_node(next.nodes[i]);
+        
+
+        if(!rtree_t.is_valid({n1->id, n2->id}))
+            return false;
+        
+        x1 = prev.xPrev[i];
+        y1 = prev.yPrev[i];
+        l1 = n1->l;
+        x2 = n2->intersection[n1->id].first;
+        y2 = n2->intersection[n1->id].second;
+        l2 = n2->l;
+
+        rouDir = get_routing_direction(x1, y1, x2, y2);
+        
+        if(rouDir == -1)
+        {
+            #pragma omp critical(GLOBAL)
+            {
+                get_next_node_debug(busid, fixed, hpwl, lbs, prev, next);
+                //exit(0);
+            }
+            return false;
+        }
+        
+        next.xPrev[i] = x2;
+        next.yPrev[i] = y2;
+
+        // calculate PS and WL
+        PS += rtree_o.num_spacing_violation(bitid, x1, y1, x2, y2, l1, curBus->width[l1], spacing[l1], is_vertical(l1));
+        CW += manhatan_distance(x1, y1, x2, y2);
+        
+        if(fixed)
+        {
+            // rtree nodes fixed (drive node)
+            x3 = next.xLast[i];
+            y3 = next.yLast[i];
+            PS += rtree_o.num_spacing_violation(bitid, x2, y2, x3, y3, l2, curBus->width[l2], spacing[l2], is_vertical(l2));
+            CW += manhatan_distance(x2, y2, x3, y3);
+        }
+        else
+        {
+            // rtree nodes not fixed (non-drive node)
+            if(i != numBits-1)
+            {
+                if(l1 == l2)
+                {
+                    int iter;
+                    bool lCorner = (x2 == n1->x1 && y2 == n1->y1) ? true : false;
+
+                    if(!rtree_t.get_extension(prev.nodes[i+1], iter, lCorner))
+                    {
+                        valid = false;
+                        break;
+                    }
+
+                    next.nodes[i+1] = iter;
+                    nPrev = iter;
+                }
+                else
+                {
+                    bool upperNode;
+                    // get next node
+                    if(rouDir == Direction::Left || rouDir == Direction::Down)
+                    {
+                        upperNode = false;
+                    }
+                    else if(rouDir == Direction::Right || rouDir == Direction::Up)
+                    {
+                        upperNode = true;
+                    }
+                    else
+                    {
+                        upperNode = 
+                            (vertical1 && (prev.xPrev[i] < prev.xPrev[i+1])) || 
+                            (!vertical1 && (prev.yPrev[i] < prev.yPrev[i+1])) ? true : false;
+                    }
+
+                    int n_iter, n_prev, n_next;
+                    n_prev = prev.nodes[i+1];
+                    n_iter = next.nodes[i];
+
+                    
+                    //RtreeNode* n_iter = rtree_t.get_node(next.nodes[i]);
+                    //RtreeNode* n_prev = rtree_t.get_node(prev.nodes[i+1]);
+                    //RtreeNode* n_next;
+                    
+
+                    int count=0;
+                    while(true)
+                    {
+                    
+                        if(count++ > 5)
+                        {
+                            valid = false;
+                            break;
+                        }
+
+                        // get next
+                        //if(!rtree_t.search_node(n_prev, n_next, n_iter, curBus->width[l2], spacing[l2], upperNode))
+                        if(!rtree_t.search_node2(n_iter, n_next, n_prev, curBus->width[l2], spacing[l2], upperNode))
+                        {
+                            valid = false;
+                            break;
+                        }
+
+                        x3 = rtree_t.get_node(n_prev)->intersection[n_next].first;
+                        y3 = rtree_t.get_node(n_prev)->intersection[n_next].second;
+                        l3 = rtree_t.get_node(n_prev)->l;
+                        //x3 = n_prev->intersection[n_next->id].first;
+                        //y3 = n_prev->intersection[n_next->id].second;
+                        //l3 = n_prev->l;
+                        break;
+
+                        /*
+                        if(rtree_o.spacing_violation_clean(bitid, x3, y3, x3, y3, l3, curBus->width[l3], spacing[l3], is_vertical(l3)))
+                        {
+                            // if current point is clean, break the loop
+                            break;
+                        }
+                        */
+                        n_iter = n_next;
+                    }
+
+                    //
+                    if(!valid)
+                    {
+                        break;
+                    }
+
+                    //next.nodes[i+1] = n_next->id; //iter;
+                    next.nodes[i+1] = n_next; //iter;
+                }
+            }
+        }
+    }
+    
+    
+    next.backtrace = prev.id;
+    next.depth = prev.depth + 1;
+    // update variables
+    next.PS = prev.PS + DELTA * PS; //DELTA * PS;
+    next.CW = prev.CW + ALPHA * (CW/hpwl) / numBits; //ALPHA * (CW/hpwl) / numBits; 
+    next.CC = 0;
+    next.CS = 1.0 * BETA * (next.depth + 1) / lbs;
+    next.EC = 0;
+
+    if(valid)
+    {
+        printf("- - - - Current Node - - - -\n");
+        for(int i=0; i < numBits; i++)
+        {
+            RtreeNode* n = rtree_t.get_node(prev.nodes[i]);
+            printf("%5s -> n%4d (%d %d) (%d %d) M%d iter (%d %d) cost %f\n", 
+                    ckt->bits[curBus->bits[i]].name.c_str(), prev.nodes[i], n->x1, n->y1, n->x2, n->y2, n->l, prev.xPrev[i], prev.yPrev[i], prev.cost());
+        }
+
+        printf("\n");
+        printf("- - - -  Next Node   - - - -\n");
+        for(int i=0; i < numBits; i++)
+        {
+            RtreeNode* n = rtree_t.get_node(next.nodes[i]);
+            printf("%5s -> n%4d (%d %d) (%d %d) M%d iter (%d %d) cost %f\n", 
+                    ckt->bits[curBus->bits[i]].name.c_str(), next.nodes[i], n->x1, n->y1, n->x2, n->y2, n->l, next.xPrev[i], next.yPrev[i], next.cost());
+        }
+        printf("\n\n");
+
+    }
+    else
+    {
+        printf("[INFO] invalid iterating...\n");
+        //exit(0);
+    }
+
+
+    return valid;
+
+}
+
+bool OABusRouter::Router::get_next_node(int busid, bool fixed, double hpwl, int lbs, HeapNode& prev, HeapNode& next)
+{
+    Bus* curBus = &ckt->buses[busid];
+    int x1, y1, x2, y2, x3, y3, l1, l2, l3;
+    int bitid, rouDir, numBits, iter;
+    double WL, CW, CS, CC, PS, CR, EC;
+    bool valid = true;
+    bool vertical1 = is_vertical(rtree_t.get_node(prev.id)->l);
+    bool vertical2 = is_vertical(rtree_t.get_node(next.id)->l);
+
+    int nPrev;
+
+    vector<int> nodes(numBits);
+    RtreeNode *n1, *n2;
+    numBits = curBus->numBits;
+     
+    PS = 0; // prev.PS;
+    CW = 0;
+    CC = 0;
+    CS = 0;
+    EC = 0; 
+
+   
+    for(int i=0; i < numBits; i++)
+    {
+        bitid = curBus->bits[i];
+        n1 = rtree_t.get_node(prev.nodes[i]);
+        n2 = rtree_t.get_node(next.nodes[i]);
+        
+        if(!rtree_t.is_valid({n1->id, n2->id}))
+            return false;
+        
+        x1 = prev.xPrev[i];
+        y1 = prev.yPrev[i];
+        l1 = n1->l;
+        x2 = n2->intersection[n1->id].first;
+        y2 = n2->intersection[n1->id].second;
+        l2 = n2->l;
+
+        
+        rouDir = get_routing_direction(x1, y1, x2, y2);
+        
+        if(rouDir == -1)
+        {
+            #pragma omp critical(GLOBAL)
+            {
+                get_next_node_debug(busid, fixed, hpwl, lbs, prev, next);
+                //exit(0);
+            }
+            return false;
+        }
+        
+        next.xPrev[i] = x2;
+        next.yPrev[i] = y2;
+
+        // calculate PS and WL
+        PS += rtree_o.num_spacing_violation(bitid, x1, y1, x2, y2, l1, curBus->width[l1], spacing[l1], is_vertical(l1));
+        CW += manhatan_distance(x1, y1, x2, y2);
+        
+        if(fixed)
+        {
+            // rtree nodes fixed (drive node)
+            x3 = next.xLast[i];
+            y3 = next.yLast[i];
+            PS += rtree_o.num_spacing_violation(bitid, x2, y2, x3, y3, l2, curBus->width[l2], spacing[l2], is_vertical(l2));
+            CW += manhatan_distance(x2, y2, x3, y3);
+        }
+        else
+        {
+            // rtree nodes not fixed (non-drive node)
+            if(i != numBits-1)
+            {
+                if(l1 == l2)
+                {
+                    int iter;
+                    bool lCorner = (x2 == n1->x1 && y2 == n1->y1) ? true : false;
+
+                    if(!rtree_t.get_extension(prev.nodes[i+1], iter, lCorner))
+                    {
+                        valid = false;
+                        break;
+                    }
+
+                    next.nodes[i+1] = iter;
+                    nPrev = iter;
+                }
+                else
+                {
+                    bool upperNode;
+                    // get next node
+                    if(rouDir == Direction::Left || rouDir == Direction::Down)
+                    {
+                        upperNode = false;
+                    }
+                    else if(rouDir == Direction::Right || rouDir == Direction::Up)
+                    {
+                        upperNode = true;
+                    }
+                    else
+                    {
+                        upperNode = 
+                            (vertical1 && (prev.xPrev[i] < prev.xPrev[i+1])) || 
+                            (!vertical1 && (prev.yPrev[i] < prev.yPrev[i+1])) ? true : false;
+                    }
+
+                    int n_iter, n_prev, n_next;
+                    n_prev = prev.nodes[i+1];
+                    n_iter = next.nodes[i];
+
+                    
+                    //RtreeNode* n_iter = rtree_t.get_node(next.nodes[i]);
+                    //RtreeNode* n_prev = rtree_t.get_node(prev.nodes[i+1]);
+                    //RtreeNode* n_next;
+                    
+
+                    int count=0;
+                    while(true)
+                    {
+                    
+                        if(count++ > 5)
+                        {
+                            valid = false;
+                            break;
+                        }
+
+                        // get next
+                        //if(!rtree_t.search_node(n_prev, n_next, n_iter, curBus->width[l2], spacing[l2], upperNode))
+                        if(!rtree_t.search_node(n_iter, n_next, n_prev, curBus->width[l2], spacing[l2], upperNode))
+                        {
+                            valid = false;
+                            break;
+                        }
+
+                        x3 = rtree_t.get_node(n_prev)->intersection[n_next].first;
+                        y3 = rtree_t.get_node(n_prev)->intersection[n_next].second;
+                        l3 = rtree_t.get_node(n_prev)->l;
+                        //x3 = n_prev->intersection[n_next->id].first;
+                        //y3 = n_prev->intersection[n_next->id].second;
+                        //l3 = n_prev->l;
+                        break;
+
+
+                        if(rtree_o.spacing_violation_clean(bitid, x3, y3, x3, y3, l3, curBus->width[l3], spacing[l3], is_vertical(l3)))
+                        {
+                            // if current point is clean, break the loop
+                            break;
+                        }
+
+                        n_iter = n_next;
+                    }
+
+                    //
+                    if(!valid)
+                    {
+                        break;
+                    }
+
+                    //next.nodes[i+1] = n_next->id; //iter;
+                    next.nodes[i+1] = n_next; //iter;
+                }
+            }
+        }
+    }
+    
+    
+    next.backtrace = prev.id;
+    next.depth = prev.depth + 1;
+    // update variables
+    next.PS = prev.PS + DELTA * PS; //DELTA * PS;
+    next.CW = prev.CW + ALPHA * (CW/hpwl) / numBits; //ALPHA * (CW/hpwl) / numBits; 
+    next.CC = 0;
+    next.CS = 1.0 * BETA * (next.depth + 1) / lbs;
+    next.EC = 0;
+
+#ifdef DEBUG_NEXT_NODE
+    if(valid)
+    {
+        printf("- - - - Current Node - - - -\n");
+        for(int i=0; i < numBits; i++)
+        {
+            RtreeNode* n = rtree_t.get_node(prev.nodes[i]);
+            printf("%5s -> n%4d (%d %d) (%d %d) M%d iter (%d %d) cost %f\n", 
+                    ckt->bits[curBus->bits[i]].name.c_str(), prev.nodes[i], n->x1, n->y1, n->x2, n->y2, n->l, prev.xPrev[i], prev.yPrev[i], prev.cost());
+        }
+
+        printf("\n");
+        printf("- - - -  Next Node   - - - -\n");
+        for(int i=0; i < numBits; i++)
+        {
+            RtreeNode* n = rtree_t.get_node(next.nodes[i]);
+            printf("%5s -> n%4d (%d %d) (%d %d) M%d iter (%d %d) cost %f\n", 
+                    ckt->bits[curBus->bits[i]].name.c_str(), next.nodes[i], n->x1, n->y1, n->x2, n->y2, n->l, next.xPrev[i], next.yPrev[i], next.cost());
+        }
+        printf("\n\n");
+
+    }
+    else
+    {
+        printf("[INFO] invalid iterating...\n");
+        //exit(0);
+    }
+#endif
+
+
+    return valid;
+}
+
+double OABusRouter::Router::HPWL(int x, int y, int p)
+{
+    Pin* curPin = &ckt->pins[p];
+    double w = min( abs(curPin->llx - x), abs(curPin->urx - x));
+    double h = min( abs(curPin->lly - y), abs(curPin->ury - y));
+    return w + h;
+}
+
+double OABusRouter::Router::HPWL(int p1, int p2)
+{
+    Pin* pin1 = &ckt->pins[p1];
+    Pin* pin2 = &ckt->pins[p2];
+
+    double w = min( abs(pin1->llx - pin2->urx), abs(pin1->urx - pin2->llx) );
+    double h = min( abs(pin1->lly - pin2->ury), abs(pin1->ury - pin2->lly) );
+    return w + h;
+}
+
+
+
+void OABusRouter::Router::pin_access_point(int xPin[], int yPin[], int lPin, int xSeg[], int ySeg[], int lSeg, int &x, int &y)
+{
+    bool vertical = (xSeg[0] == xSeg[1]) ? true : false;
+    if(vertical)
+    {
+        x = xSeg[0];
+        y = (yPin[0] + yPin[1])/2;
+    }
+    else
+    {
+        x = (xPin[0] + xPin[1])/2;
+        y = ySeg[0];
+    }
+}
+
+void OABusRouter::Heap::push(vector<HeapNode>& next)
+{
+    for(int i=0; i < next.size(); i++)
+    {
+        PQ.push(next[i]);
+    }
+}
+
+void OABusRouter::Heap::push(HeapNode& next)
+{
+    PQ.push(next);
+}
+
+void OABusRouter::Heap::pop()
+{
+    PQ.pop();
+}
+
+OABusRouter::HeapNode OABusRouter::Heap::top()
+{
+    return PQ.top();
+}
+
+bool OABusRouter::Heap::empty()
+{
+    return PQ.size() == 0 ? true : false;
+}
+
+int OABusRouter::Heap::size()
+{
+    return PQ.size();
+}
+
+double OABusRouter::HeapNode::cost()
+{
+    if(backtrace == -1)
+        return DBL_MAX;
+    else
+        return PS + CW + CS;
+}
+    /*
+    if(CR == DBL_MAX && PS == DBL_MAX)
+        return DBL_MAX;
+    else
+        return CR + PS;
+    */
 
 /*
 bool OABusRouter::Router::flip(int m1, int m2)
@@ -429,510 +1487,6 @@ int OABusRouter::Router::get_refbit_index(int m1, int m2, vector<int> &sorted)
     return refbit_index;
 }
 */
-
-
-bool OABusRouter::Router::is_destination(int n, int m, int p)
-{
-    Bus* curBus = &ckt->buses[pin2bus[p]];
-    Pin* curPin = &ckt->pins[p];
-    MultiPin* curMP = &ckt->multipins[m];
-    int xPin[2] = {curPin->llx, curPin->urx};
-    int yPin[2] = {curPin->lly, curPin->ury};
-    int lPin = curPin->l;
-
-    RtreeNode* curNode = rtree_t.get_node(n);
-    int xSeg[2] = {curNode->x1, curNode->x2};
-    int ySeg[2] = {curNode->y1, curNode->y2};
-    int lSeg = curNode->l;
-
-
-
-    if(abs(lPin-lSeg) > 1)
-        return false;
-    
-    if(curMP->needVia)
-    {
-        if(lPin == lSeg)
-            return false;
-    }
-    else
-    {
-        if(lPin != lSeg)
-            return false;
-    }
-
-
-    if(lPin == lSeg)
-    {
-        xSeg[0] -= is_vertical(lSeg) ? curBus->width[lSeg]/2 : 0;
-        xSeg[1] += is_vertical(lSeg) ? curBus->width[lSeg]/2 : 0;
-        ySeg[0] -= is_vertical(lSeg) ? 0 : curBus->width[lSeg]/2;
-        ySeg[1] += is_vertical(lSeg) ? 0 : curBus->width[lSeg]/2;
-    }
-
-    return bg::intersects(
-                box(pt(xSeg[0], ySeg[0]), pt(xSeg[1], ySeg[1])), 
-                box(pt(xPin[0], yPin[0]), pt(xPin[1], yPin[1]))
-                );
-}
-
-void OABusRouter::Router::get_access_point(int mp, bool last, HeapNode& curr)
-{
-    int x, y, numBits;
-    MultiPin* curMP = &ckt->multipins[mp];
-    numBits = curMP->pins.size();
-    
-
-    if(last)
-    {
-        curr.isDest = true;
-        curr.xLast = vector<int>(numBits);
-        curr.yLast = vector<int>(numBits);
-    }
-
-    for(int i=0; i < numBits; i++)
-    {
-        Pin* curPin = &ckt->pins[curMP->pins[i]];
-        RtreeNode* curRN = rtree_t.get_node(curr.nodes[i]);
-        int xPin[] = {curPin->llx, curPin->urx};
-        int yPin[] = {curPin->lly, curPin->ury};
-        int lPin = curPin->l;
-        int xSeg[] = {curRN->x1, curRN->x2};
-        int ySeg[] = {curRN->y1, curRN->y2};
-        int lSeg = curRN->l;
-
-        pin_access_point(xPin, yPin, lPin, xSeg, ySeg, lSeg, x, y);
-        if(last)
-        {
-            curr.xLast[i] = x;
-            curr.yLast[i] = y;
-        }
-        else
-        {
-            curr.xPrev[i] = x;
-            curr.yPrev[i] = y;
-        }
-
-    }
-}
-
-
-void OABusRouter::Router::get_access_rtree_nodes(int mp, int p, vector<int> &nodes)
-{
-    MultiPin* curMP = &ckt->multipins[mp];
-    Pin* curPin = &ckt->pins[p];
-    Bus* curBus = &ckt->buses[pin2bus[p]];
-    int xPin[2] = {curPin->llx, curPin->urx};
-    int yPin[2] = {curPin->lly, curPin->ury};
-    int lPin = curPin->l;
-
-    vector<int> tarLayers;
-    if(curMP->needVia)
-    {
-        if(lPin-1 >= 0)
-        {
-            tarLayers.push_back(lPin-1);
-        }
-
-        if(lPin+1 < ckt->layers.size())
-        {
-            tarLayers.push_back(lPin+1);
-        }
-    }
-    else
-    {
-        xPin[0] -= (curMP->align == VERTICAL) ? 0 : curBus->width[lPin]/2;
-        xPin[1] += (curMP->align == VERTICAL) ? 0 : curBus->width[lPin]/2;
-        yPin[0] -= (curMP->align == VERTICAL) ? curBus->width[lPin]/2 : 0;
-        yPin[1] += (curMP->align == VERTICAL) ? curBus->width[lPin]/2 : 0;
-        tarLayers.push_back(lPin);
-    }
-
-    box pinArea(pt(xPin[0], yPin[0]), pt(xPin[1], yPin[1]));
-
-    for(auto l : tarLayers)
-    {
-        vector<pair<seg, int>> queries;
-        vector<pair<seg, int>> tmp;
-        rtree_t[l]->query(bgi::intersects(pinArea), back_inserter(queries));
-        
-        for(int j=0; j < queries.size(); j++)
-        {
-            RtreeNode* n = rtree_t.get_node(queries[j].second);
-            if(n->width >= curBus->width[n->l])
-            {
-                tmp.push_back(queries[j]);
-            }
-        }
-
-        queries = tmp;
-        
-        if(queries.size() > 1)
-        {
-            sort(queries.begin(), queries.end(), [&, xPin, yPin](const pair<seg,int> &left, const pair<seg,int> &right){
-                    int xCenter = (xPin[0] + xPin[1])/2;
-                    int yCenter = (yPin[0] + yPin[1])/2;
-                    return bg::distance(left.first, pt(xCenter, yCenter)) < bg::distance(right.first, pt(xCenter, yCenter));
-                    });
-        }
-
-        nodes.push_back(queries[0].second);
-    }
-}
-
-
-bool OABusRouter::Router::get_drive_node(int mp, bool last, HeapNode& curr)
-{
-    RtreeNode* curRN = rtree_t.get_node(curr.id);
-    MultiPin* curMP = &ckt->multipins[mp];
-    int numBits = curMP->pins.size();
-    int align = curMP->align;
-    bool findAll = true;
-    vector<int> nodes(numBits);
-    vector<int> xPt(numBits);
-    vector<int> yPt(numBits);
-
-    for(int i=0; i < curMP->pins.size(); i++)
-    {
-        Pin* curPin = &ckt->pins[curMP->pins[i]];
-        Bus* curBus = &ckt->buses[pin2bus[curPin->id]];
-        
-        int xPin[2] = {curPin->llx, curPin->urx};
-        int yPin[2] = {curPin->lly, curPin->ury};
-        int lPin = curPin->l;
-        int lSeg = curRN->l;
-        vector<pair<seg,int>> queries;
-
-        if(lPin == lSeg)
-        {
-            xPin[0] -= (align == VERTICAL) ? 0 : curBus->width[lSeg]/2;
-            xPin[1] += (align == VERTICAL) ? 0 : curBus->width[lSeg]/2;
-            yPin[0] -= (align == VERTICAL) ? curBus->width[lSeg]/2 : 0;
-            yPin[1] += (align == VERTICAL) ? curBus->width[lSeg]/2 : 0;
-        }
-
-
-        box pinArea(pt(xPin[0], yPin[0]), pt(xPin[1], yPin[1]));
-        
-        rtree_t[lSeg]->query(bgi::intersects(pinArea), back_inserter(queries));
-        vector<pair<seg,int>> tmp;
-        for(int j=0; j < queries.size(); j++)
-        {
-            RtreeNode* n = rtree_t.get_node(queries[j].second);
-            if(n->width >= curBus->width[lSeg])
-            {
-                tmp.push_back(queries[j]);
-            }
-        }
-
-        queries = tmp;
-
-        if(queries.size() == 0)
-        {
-            findAll = false;
-            break;
-        }
-
-        
-        if(queries.size() > 1)
-        {
-            sort(queries.begin(), queries.end(), [&, xPin, yPin](const pair<seg,int> &left, const pair<seg,int> &right){
-                    int xCenter = (xPin[0] + xPin[1])/2;
-                    int yCenter = (yPin[0] + yPin[1])/2;
-                    return bg::distance(left.first, pt(xCenter, yCenter)) < bg::distance(right.first, pt(xCenter, yCenter));
-                    });
-        }
-
-        int x, y;
-        int xSeg[2], ySeg[2];
-        pts(queries[0].first, xSeg[0], ySeg[0], xSeg[1], ySeg[1]);
-        pin_access_point(xPin, yPin, lPin, xSeg, ySeg, lSeg, x, y);
-
-        nodes[i] = queries[0].second;
-        xPt[i] = x;
-        yPt[i] = y;
-
-    }
-
-    if(findAll)
-    {
-        curr.nodes = nodes;
-
-        if(last)
-        {
-            curr.xLast = xPt;
-            curr.yLast = yPt;
-        }
-        else
-        {
-            curr.xPrev = xPt;
-            curr.yPrev = yPt;
-        }
-    }
-
-#ifdef DEBUG_GET_DRIVE
-    if(findAll && last)
-    {
-        printf("\n- - - -   MultiPin/Node   - - - - \n");
-        for(int i=0; i < curMP->pins.size(); i++)
-        {
-            Pin* curPin = &ckt->pins[curMP->pins[i]];
-            RtreeNode* curNode = rtree_t.get_node(curr.nodes[i]);
-            printf("%s (%d %d) (%d %d) M%d -> (%d %d) (%d %d) M%d intersection (%d %d)\n", 
-                    ckt->bits[pin2bit[curPin->id]].name.c_str(), curPin->llx, curPin->lly, curPin->urx, curPin->ury, curPin->l,
-                    curNode->x1, curNode->y1, curNode->x2, curNode->y2, curNode->l, curr.xLast[i], curr.yLast[i]);
-
-        }
-    }
-#endif
-
-
-    return findAll;
-}
-
-int OABusRouter::Router::get_routing_direction(int x1, int y1, int x2, int y2)
-{
-    if(x1 == x2 && y1 == y2)
-        return Direction::Stack;    
-    
-    if(x1 == x2)
-    {
-        if(y1 < y2)
-            return Direction::Up;
-        else
-            return Direction::Down;
-    }
-    else if(y1 == y2)
-    {
-        if(x1 < x2)
-            return Direction::Right;
-        else
-            return Direction::Left;
-    }
-    else
-    {
-        cout << "Invalid points ..." << endl;
-        return -1;
-    }
-
-}
-
-
-bool OABusRouter::Router::get_next_node(int busid, bool fixed, double hpwl, HeapNode& prev, HeapNode& next)
-{
-    Bus* curBus = &ckt->buses[busid];
-    int x1, y1, x2, y2, x3, y3, l1, l2, l3, rouDir, numBits;
-    double WL, CS, CC, PS, CR,  bitid;
-    bool valid = true;
-    vector<int> nodes(numBits);
-    RtreeNode *n1, *n2, *n_iter;
-    numBits = curBus->numBits;
-     
-    PS = 0; // prev.PS;
-    CR = 0; //prev.WL;
-
-    for(int i=0; i < numBits; i++)
-    {
-        bitid = curBus->bits[i];
-
-        n1 = rtree_t.get_node(prev.nodes[i]);
-        n2 = rtree_t.get_node(next.nodes[i]);
-        x1 = prev.xPrev[i];
-        y1 = prev.yPrev[i];
-        l1 = n1->l;
-        x2 = n2->intersection[n1->id].first;
-        y2 = n2->intersection[n1->id].second;
-        l2 = n2->l;
-        rouDir = get_routing_direction(x1, y1, x2, y2);
-
-#ifdef DEBUG_NEXT_NODE
-        //if(i==0)
-        //{
-        //    printf("routing direction : %s\n", direction(rouDir).c_str());
-        //}
-#endif
-
-        next.xPrev[i] = x2;
-        next.yPrev[i] = y2;
-
-        // calculate PS and WL
-        PS += rtree_o.num_spacing_violation(bitid, x1, y1, x2, y2, l1, curBus->width[l1], spacing[l1], is_vertical(l1));
-        CR += manhatan_distance(x1, y1, x2, y2);
-
-        if(fixed)
-        {
-            // rtree nodes fixed (drive node)
-            x3 = next.xLast[i];
-            y3 = next.yLast[i];
-
-            PS += rtree_o.num_spacing_violation(bitid, x2, y2, x3, y3, l2, curBus->width[l2], spacing[l2], is_vertical(l2));
-            CR += manhatan_distance(x2, y2, x3, y3);
-        }
-        else
-        {
-            // rtree nodes not fixed (non-drive node)
-            if(i != numBits-1)
-            {
-                bool upperNode;
-                // get next node
-                if(rouDir == Direction::Left || rouDir == Direction::Down)
-                {
-                    upperNode = false;
-                }
-                else if(rouDir == Direction::Right || rouDir == Direction::Up)
-                {
-                    upperNode = true;
-                }
-                else
-                {
-                    upperNode = 
-                        (is_vertical(l1) && (prev.xPrev[i] < prev.xPrev[i+1])) || 
-                        (!is_vertical(l1) && (prev.yPrev[i] < prev.yPrev[i+1])) ? true : false;
-                }
-               
-                int current, iter, neighbor;
-                current = n2->id;
-                neighbor = prev.nodes[i+1];
-
-                while(true)
-                {
-                    // get next
-                    if(!rtree_t.next(current, iter, neighbor, curBus->width[l2], spacing[l2], upperNode))
-                    {
-                        valid = false;
-                        break;
-                    }
-
-                    x3 = rtree_t.get_node(iter)->intersection[neighbor].first;
-                    y3 = rtree_t.get_node(iter)->intersection[neighbor].second;
-                    l3 = rtree_t.get_node(iter)->l;
-
-                    if(rtree_o.spacing_violation_clean(bitid, x3, y3, x3, y3, l3, curBus->width[l3], spacing[l3], is_vertical(l3)))
-                    {
-                        // if current point is clean, break the loop
-                        break;
-                    }
-
-                    current = iter;
-                }
-                
-                //
-                if(!valid)
-                    break;
-
-                next.nodes[i+1] = iter;
-            }
-        }
-    }
-
-    
-    // update variables
-    next.PS = prev.PS + DELTA * PS;//DELTA * PS;
-    next.CR = prev.CR + ALPHA * (CR/hpwl) / numBits; 
-    next.backtrace = prev.id;
-    next.depth = prev.depth + 1;
-
-
-#ifdef DEBUG_NEXT_NODE
-    if(valid)
-    {
-        printf("- - - - Current Node - - - -\n");
-        for(int i=0; i < numBits; i++)
-        {
-            RtreeNode* n = rtree_t.get_node(prev.nodes[i]);
-            printf("%5s -> n%4d (%d %d) (%d %d) M%d iter (%d %d) cost %f\n", 
-                    ckt->bits[curBus->bits[i]].name.c_str(), prev.nodes[i], n->x1, n->y1, n->x2, n->y2, n->l, prev.xPrev[i], prev.yPrev[i], prev.cost());
-        }
-
-        printf("\n");
-        printf("- - - -  Next Node   - - - -\n");
-        for(int i=0; i < numBits; i++)
-        {
-            RtreeNode* n = rtree_t.get_node(next.nodes[i]);
-            printf("%5s -> n%4d (%d %d) (%d %d) M%d iter (%d %d) cost %f\n", 
-                    ckt->bits[curBus->bits[i]].name.c_str(), next.nodes[i], n->x1, n->y1, n->x2, n->y2, n->l, next.xPrev[i], next.yPrev[i], next.cost());
-        }
-        printf("\n\n");
-
-    }
-    else
-    {
-        printf("[INFO] invalid iterating...\n");
-        //exit(0);
-    }
-#endif
-
-
-    return valid;
-}
-
-double OABusRouter::Router::HPWL(int p1, int p2)
-{
-    Pin* pin1 = &ckt->pins[p1];
-    Pin* pin2 = &ckt->pins[p2];
-
-    double w = min( abs(pin1->llx - pin2->urx), abs(pin1->urx - pin2->llx) );
-    double h = min( abs(pin1->lly - pin2->ury), abs(pin1->ury - pin2->lly) );
-    return w + h;
-}
-
-
-
-void OABusRouter::Router::pin_access_point(int xPin[], int yPin[], int lPin, int xSeg[], int ySeg[], int lSeg, int &x, int &y)
-{
-    bool vertical = (xSeg[0] == xSeg[1]) ? true : false;
-    if(vertical)
-    {
-        x = xSeg[0];
-        y = (yPin[0] + yPin[1])/2;
-    }
-    else
-    {
-        x = (xPin[0] + xPin[1])/2;
-        y = ySeg[0];
-    }
-}
-
-void OABusRouter::Heap::push(vector<HeapNode>& next)
-{
-    for(int i=0; i < next.size(); i++)
-    {
-        PQ.push(next[i]);
-    }
-}
-
-void OABusRouter::Heap::push(HeapNode& next)
-{
-    PQ.push(next);
-}
-
-void OABusRouter::Heap::pop()
-{
-    PQ.pop();
-}
-
-OABusRouter::HeapNode OABusRouter::Heap::top()
-{
-    return PQ.top();
-}
-
-bool OABusRouter::Heap::empty()
-{
-    return PQ.size() == 0 ? true : false;
-}
-
-int OABusRouter::Heap::size()
-{
-    return PQ.size();
-}
-
-double OABusRouter::HeapNode::cost()
-{
-    if(CR == DBL_MAX && PS == DBL_MAX)
-        return DBL_MAX;
-    else
-        return CR + PS;
-}
 
 /*
 void OABusRouter::Router::get_iterating_segment(int busid, HeapNode* current, vector<HeapNode> &nodes, vector<HeapNode> &next)

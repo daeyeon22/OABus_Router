@@ -167,7 +167,6 @@ namespace OABusRouter
             min_width(INT_MAX),
             name(INIT_STR) 
         {
-            tracks.reserve(1028);
         }
 
         Layer(const Layer& lr) :
@@ -229,14 +228,6 @@ namespace OABusRouter
         int llx, lly;
         int urx, ury;
         int l; // layer id
-
-        vector<int> wires;  // rou->wires index 
-        vector<int> contacts; // ckt->contacts index
-        
-        // Segment tree
-        //IntervalMapT assignedIntervals;
-        //IntervalSetT emptyIntervals;
-
 
         Track() : 
             id(INT_MAX), 
@@ -560,6 +551,7 @@ namespace OABusRouter
 
         // init.cpp 
         void initialize();
+        void remove_redundant_tracks();
         void create_path();
         void print_all();
 

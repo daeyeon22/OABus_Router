@@ -12,7 +12,7 @@
 #define PINTYPE -1212
 #define OBSTACLE -1232
 #define WIRETYPE -3319
-#define NUM_THREADS 16 
+#define NUM_THREADS 4 
 
 
 
@@ -43,7 +43,9 @@ enum Direction
     Right,
     Down,
     Up,
-    Stack
+    Stack,
+    Top,
+    Bottom
 };
 
 #endif

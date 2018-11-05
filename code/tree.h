@@ -17,6 +17,7 @@ namespace OABusRouter
         bool vertical;
         
         RtreeNode *upper, *lower;
+        RtreeNode *prev, *next;
 
         vector<int> neighbor;
         dense_hash_map<int,pair<int,int>> intersection;
@@ -35,8 +36,9 @@ namespace OABusRouter
             intersection.set_empty_key(INT_MAX);
             upper = nullptr;
             lower = nullptr;
+            prev = nullptr;
+            next = nullptr;
         }
-
 
         RtreeNode(const RtreeNode& i) :
             id(i.id),
@@ -50,6 +52,8 @@ namespace OABusRouter
             vertical(i.vertical),
             upper(i.upper),
             lower(i.lower),
+            prev(i.prev),
+            next(i.next),
             neighbor(i.neighbor),
             intersection(i.intersection)
         {}
@@ -64,7 +68,16 @@ namespace OABusRouter
 
         bool is_valid(int n1, int n2);
         bool is_valid(pair<int,int> e);
-        bool next(int current, int &next, int neighbor, int width, int spacing, bool upper);
+        bool corner(int current, int &target, int l, bool lCorner);
+        //bool next(int current, int &next, int neighbor, int width, int spacing, bool upper);
+        bool search_node_debug(int current, int &next, int neighbor, int width, int spacing, bool upper);
+        bool search_node(int current, int &next, int neighbor, int width, int spacing, bool upper);
+        bool search_node2(int current, int &next, int neighbor, int width, int spacing, bool upper);
+        bool search_node(RtreeNode* n1, RtreeNode* n2, RtreeNode* n_iter, int width, int spacing, bool upper);
+        bool search_node2(RtreeNode* n1, RtreeNode* n2, RtreeNode* n_iter, int width, int spacing, bool upper);
+        bool get_extension(int n1, int& n2, bool lCorner);
+        bool prev(int current, int &previous);
+        bool next(int current, int &next);
         bool lower(RtreeNode* n1, RtreeNode* n2, int prev, int width, int spacing);
         bool upper(RtreeNode* n1, RtreeNode* n2, int prev, int width, int spacing);
 
