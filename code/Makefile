@@ -13,7 +13,7 @@ LINKCFLAGS = $(CFLAGS) #-static-libstdc++
 SRCHASH 	= /home/tool/cpplib/sparsehash/install/2.0.3/include
 BOOST 		= /home/tool/cpplib/boost/install/1.67.0/include
 
-SRC			= parser.o tree.o func.o twopin.o util.o\
+SRC			= parser.o tree.o func.o twopin.o local_area.o util.o\
 			  init.o mymeasure.o main.o route.o writer.o 
 
 DEBUG = -g -gstrict-dwarf -gdwarf-2 -pg
@@ -33,6 +33,9 @@ mymeasure.o: mymeasure.cpp mymeasure.h
 main.o: main.cpp circuit.h
 	$(CXX) $(CFLAGS) -c -o $@ $<
 
+#heap.o: heap.cpp heap.h
+#	$(CXX) $(CFLAGS) -c -o $@ $<
+
 tree.o: tree.cpp tree.h
 	$(CXX) $(CFLAGS) -c -o $@ $<
 
@@ -40,6 +43,9 @@ func.o: func.cpp func.h
 	$(CXX) $(CFLAGS) -c -o $@ $<
 
 twopin.o: twopin.cpp route.h
+	$(CXX) $(CFLAGS) -c -o $@ $<
+
+local_area.o: local_area.cpp route.h
 	$(CXX) $(CFLAGS) -c -o $@ $<
 
 route.o: route.cpp route.h

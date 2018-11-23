@@ -78,18 +78,31 @@ int main(int argc, char** argv){
     cout << "[INFO] start Initialize" << endl;
     ckt->initialize();
 
+    measure.stop_clock("Start initialize");
+    
     cout << "[INFO] construct rtree" << endl;
     rou->construct_rtree(); 
 
+    measure.stop_clock("Construct Rtree");
+    
     cout << "[INFO] route all" << endl;
     rou->route_all();
+    measure.stop_clock("Route All");
 
+    cout << "[INFO] ripup and reroute" << endl;
+    rou->ripup_reroute();
+
+    measure.stop_clock("Ripup And Reroute");
 
     cout << "[INFO] start Create Path" << endl;
     ckt->create_path();
     
-    //cout << "[INFO] start Create Plot" << endl;
+    measure.stop_clock("Create Path");
+    
+    cout << "[INFO] start Create Plot" << endl;
     //rou->create_plots(benchName.c_str());
+
+    measure.stop_clock("Plot Generation");
 
 
     cout << "[INFO] start Write out file" << endl;
@@ -98,11 +111,10 @@ int main(int argc, char** argv){
     cout << "[INFO] start Write def & lef file" << endl;
     lefName = logDirName + "/" + benchName + ".lef";
     defName = logDirName + "/" + benchName + ".def";
-    ckt->lef_write(lefName);
-    ckt->def_write(defName);   
+    ckt->lef_write(logDirName, benchName);
+    ckt->def_write(logDirName, benchName);   
 
-
-    cout << "[INFO] End program" << endl;
+    measure.stop_clock("Write Out/Lef/Def Files");
 
     measure.stop_clock("All");
     measure.print_clock();
@@ -111,6 +123,7 @@ int main(int argc, char** argv){
     print_welapse_time();
 #endif
 
+    cout << "[INFO] End program" << endl;
     return 0;
 }
 

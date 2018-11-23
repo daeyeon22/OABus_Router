@@ -10,99 +10,121 @@
 
 #include "typedef.h"
 #include "tree.h"
-
+#include "heap.h"
 #define rou OABusRouter::Router::shared()
+
 
 namespace OABusRouter
 {
-    
-    struct HeapNode
+
+    struct Tile
     {
         int id;
-        int depth;
-        int backtrace;
-        
-        double CR;
-        double PS;
-        double CC;
-        double CW;
-        double CS;
-        double EC;          // estimated cost
-        vector<int> nodes;
-        vector<int> xPrev;
-        vector<int> yPrev;
-        vector<int> xLast;
-        vector<int> yLast;
+        int row, col, l;
+        int x1, y1, x2, y2;
+        int edgeCap;
 
-
-        HeapNode()
-        {}
-
-        HeapNode(int numBits) :
-            depth(0),
-            backtrace(-1),
-            CR(DBL_MAX),
-            PS(DBL_MAX),
-            CC(DBL_MAX),
-            CW(DBL_MAX),
-            CS(DBL_MAX),
-            EC(DBL_MAX)
-        {
-            nodes = vector<int>(numBits, -1);
-            xPrev = vector<int>(numBits, -1);
-            yPrev = vector<int>(numBits, -1);
-        }
-
-        HeapNode(const HeapNode& node):
-            id(node.id),
-            depth(node.depth),
-            backtrace(node.backtrace),
-            CR(node.CR),
-            PS(node.PS),
-            CC(node.CC),
-            CW(node.CW),
-            CS(node.CS),
-            EC(node.EC),
-            xPrev(node.xPrev),
-            yPrev(node.yPrev),
-            xLast(node.xLast),
-            yLast(node.yLast)
-        {
-            nodes.insert(nodes.end(), node.nodes.begin(), node.nodes.end());
-        }
-
-        double cost();
-        
+        vector<int> neighbor;
     };
 
 
-    struct Heap
+    struct Grid3D
     {
-        struct Comparison
-        {
-            bool operator() (HeapNode& n1, HeapNode& n2)
-            {
-                return n1.EC + 2*n1.cost() > n2.EC + 2*n2.cost();
-                //return n1.cost() > n2.cost();
-            }
+        int originX, originY;
+        int width, height;
+        int tileWidth, tileHeight;
+        int numRows, numCols, numLayers;
+        vector<Tile> tiles;
 
-        };
 
         
-        priority_queue<HeapNode, vector<HeapNode>, Comparison> PQ;
-
-        // member functions
-        void push(vector<HeapNode> &next);
-        void push(HeapNode &next);
-        void pop();
-        bool empty();
-        int size();
-        HeapNode top();
+        Tile* get_tile(int col, int row, int l);
+        int get_index(int col, int row, int l);
+        int get_colum(int index);
+        int get_row(int index);
+        int get_layer(int index);
 
     };
 
+    struct SearchArea
+    {
+        bool defined; 
+        vector<int> lSeq;
+        vector<BoxRtree> trees;
+   
+        SearchArea()
+        {
+            defined = false;
+        }
 
-    
+        SearchArea(int numLayers) 
+        {
+            defined = false;
+            trees = vector<BoxRtree>(numLayers);
+        }
+
+        SearchArea(const SearchArea& SA) :
+            defined(SA.defined),
+            lSeq(SA.lSeq),
+            trees(SA.trees)
+        {}
+        bool check_lseq(int dep, int l);
+        bool inside(int x, int y, int l, bool lCheck);
+        bool inside(int x, int y);
+
+        /*
+        bool check_lseq(int dep, int l)
+        {
+            if(defined)
+            {
+                if(dep >= lSeq.size())
+                    return false;
+                else
+                {
+                    return lSeq[dep] == l ? true : false;
+                }
+            }
+            else
+            {
+                return true;
+            }
+        }
+
+        bool inside(int x, int y, int l)
+        {
+            if(defined)
+            {
+                vector<pair<box,int>> queries;
+                trees[l].query(bgi::intersects(pt(x,y)), back_inserter(queries));
+                return queries.size() > 0 ? true : false;
+            }
+            else
+            {
+                return true;
+            }
+        }
+
+        bool inside(int x, int y)
+        {
+            if(defined)
+            {
+                for(int l=0; l < trees.size(); l++)
+                {
+                    vector<pair<box,int>> queries;
+                    trees[l].query(bgi::intersects(pt(x,y)), back_inserter(queries));
+                    return queries.size() > 0 ? true : false;
+                }
+                return false;
+            }
+            else
+            {
+                return true;
+            }
+        }
+        */
+    };
+
+        
     struct Segment
     {
         int id;
@@ -239,15 +261,21 @@ namespace OABusRouter
       public:
         static Router* shared();
 
+        int totalSearchCount; 
+
+
+        //Grid3D global_grid;
         Rtree_t rtree_t;
         Rtree_o rtree_o;
         
         // Created Segments
+        vector<int>             trial;
+        vector<int>             minSPV;
         vector<Segment>         segs;
         vector<Wire>            wires;
         vector<Via>             vias;
         vector<Topology>        topologies;
-
+        vector<Grid3D>          tileGrids;
         
 
         // Hash map
@@ -266,11 +294,13 @@ namespace OABusRouter
         dense_hash_map<int,int> multipin2lly;
         dense_hash_map<int,int> multipin2urx;
         dense_hash_map<int,int> multipin2ury;
+
         //dense_hash_map<int,int> bitwidth;
         //dense_hash_map<int,bool> assign;
 
         Router()
         {
+            totalSearchCount = 0;
             spacing.set_empty_key(INT_MAX);
             pin2wire.set_empty_key(INT_MAX);
             pin2bit.set_empty_key(INT_MAX);
@@ -284,25 +314,39 @@ namespace OABusRouter
             multipin2ury.set_empty_key(INT_MAX);
         }
 
+        // Local Area
+        bool get_search_area(int busid, int m1, int m2, int margin, SearchArea& SA);
+        
         // Initialize Grid3D
         void construct_rtree();
-
+        void construct_3d_tile_grids();
 
         // ILP
         void create_clips();
         void route_all();
+        void ripup_reroute();
+        void bus_ordering(int& startLoc, vector<int> &busSorted);
 
         // routing
-        bool route_bus(int busid, int startLoc);
-        bool route_twopin_net(int busid, int m1, int m2, vector<Segment> &tp);
+        bool route_bus(int busid, int startLoc, int& numSPV);
+        bool reroute_bus(int busid, int startLoc, int thSPV, int& numSPV);
+        bool reroute_bus(int busid, int startLoc, int numTrial, int thSPV, int& numSPV);
+        
+        bool route_twopin_net(int busid, int m1, int m2, bool optimal, int& numSPV, vector<Segment> &tp);
+        bool route_twopin_net(int busid, int m1, int m2, int ll[], int ur[], bool optimal, int &numSPV, vector<Segment> &tp);
+        bool route_twopin_net_threshold_SPV(int busid, int m1, int m2, int ll[], int ur[], bool optimal, int thSPV, int &numSPV, vector<Segment> &tp);
+        bool route_twopin_net_threshold_SPV(int busid, int m1, int m2, int ll[], int ur[], bool optimal, int numTrial, int thSPV, int &numSPV, vector<Segment> &tp);
         bool route_multipin_to_tp(int busid, int m, vector<Segment> &tp);
 
 
         // find heap node
         bool get_next_node(int busid, bool fixed, double hpwl, int lbs, HeapNode& curr, HeapNode& next);
+        bool get_next_node_SPV_clean(int busid, bool fixed, double hpwl, int lbs, HeapNode& curr, HeapNode& next);
         bool get_next_node_debug(int busid, bool fixed, double hpwl, int lbs, HeapNode& curr, HeapNode& next);
         bool get_drive_node(int mp, bool last, HeapNode& curr);
+        void get_estimate_cost(int m, double hpwl, int lbs, dense_hash_map<int,int>& bit2pin, HeapNode& curNode);
         bool is_destination(int n, int m, int p);
+        bool is_optimal(int m, double hpwl, int lbs, dense_hash_map<int,int>& bit2pin, HeapNode& curNode);
         bool leftside(int m1, int m2);
         bool downside(int m1, int m2);
 
@@ -313,7 +357,7 @@ namespace OABusRouter
         void pin_access_point(int xPin[], int yPin[], int lPin, int xSeg[], int ySeg[], int lSeg, int &x, int &y);
 
         //
-        int lower_bound_num_segments(int m1, int m2);
+        int lower_bound_num_segments(int m1, int m2, vector<int> &lSeq);
         int get_refbit_index(int m1, int m2);
         int get_routing_direction(int x1, int y1, int x2, int y2);
         int create_wire(int b, int t, int x1, int y1, int x2, int y2, int l, int seq, int width);
@@ -328,7 +372,7 @@ namespace OABusRouter
         void reconstruction(int busid, vector<int> &ws);
 
         int get_panelty_cost(int busid);
-        void get_panelty_cost(vector<int> &ps);
+        int get_panelty_cost(vector<int> &ps);
 
         void update_net_tp(int busid, vector<Segment> &tp);
 

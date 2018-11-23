@@ -11,15 +11,15 @@ using OABusRouter::should_stop;
 using OABusRouter::expand_width;
 using OABusRouter::into_array;
 using OABusRouter::design_ruled_area;
+using OABusRouter::inverse_vector;
 
-void OABusRouter::Router::route_all()
+static int curProc;
+void OABusRouter::Router::bus_ordering(int &startLoc, vector<int> &busSorted)
 {
-
     Circuit* cir = ckt;
     int numBuses = ckt->buses.size();
-    int numSuccess = 0;
-
-    vector<int> busSorted(numBuses);
+    
+    busSorted = vector<int>(numBuses);
     #pragma omp parallel for num_threads(NUM_THREADS)
     for(int i=0; i < numBuses; i++)
     {
@@ -30,7 +30,6 @@ void OABusRouter::Router::route_all()
     // BUS ORDERING ///
     int verAlignCount = 0;
     int horAlignCount = 0;
-    int startLoc;
 
     for(int i=0; i < ckt->multipins.size(); i++)
     {
@@ -41,13 +40,10 @@ void OABusRouter::Router::route_all()
             horAlignCount++;
     }
 
-#ifdef REPOT
-    printf("[INFO] Vertical Align Count %d\n", verAlignCount++);
-    printf("[INFO] Horizon  Align Count %d\n", horAlignCount++);
-#endif
     if(verAlignCount > horAlignCount)
     {
         startLoc = Bottom;
+        //startLoc = Top;
         sort(busSorted.begin(), busSorted.end(), [&,cir](int left, int right){
                 int y1 = cir->buses[left].lly; 
                 int y2 = cir->buses[right].lly; 
@@ -57,6 +53,7 @@ void OABusRouter::Router::route_all()
     else
     {
         startLoc = Left;
+        //startLoc = Right;
         sort(busSorted.begin(), busSorted.end(), [&,cir](int left, int right){
                 int x1 = cir->buses[left].llx; 
                 int x2 = cir->buses[right].llx; 
@@ -64,56 +61,103 @@ void OABusRouter::Router::route_all()
                 });
     }
 
+#ifdef REPOT
+    printf("[INFO] Vertical Align Count %d\n", verAlignCount++);
+    printf("[INFO] Horizon  Align Count %d\n", horAlignCount++);
+#endif
+
+
+
+}
+
+
+void OABusRouter::Router::route_all()
+{
+    //
+    int numBuses = ckt->buses.size();
+    int numSuccess = 0;
+    int totalNumSPV = 0;
+    
+    int startLoc;
+    vector<int> busSorted;
+    bus_ordering(startLoc, busSorted);
+    
+    trial = vector<int>(numBuses, 0);
+    minSPV = vector<int>(numBuses, 0);
+
+    //
     for(int i=0; i < numBuses; i++)
     {
-        // runtime check
-        if(should_stop())
-        {
-            break;
-        }
-
         Bus* curBus = &ckt->buses[busSorted[i]];
-
-        if(route_bus(curBus->id, startLoc))
+        
+        int numSPV = 0;
+        if(route_bus(curBus->id, startLoc, numSPV))
         {
             curBus->assign = true;
             numSuccess++;
+            totalNumSPV += numSPV;
+
+
 #ifdef REPORT
             printf("[INFO] %s routing success\n", curBus->name.c_str());
+            printf("[INFO] #SPV %d occurs\n\n", numSPV);
 #endif
+            ////
+            minSPV[curBus->id] = numSPV;
+            //if(numSPV > 0)
+            //    break;
+
         }
         else
         {
 #ifdef REPORT
-            printf("[INFO] %s routing failed\n", curBus->name.c_str());
+            printf("[INFO] %s routing failed\n\n", curBus->name.c_str());
 #endif
         }
 
+        
+        measure.stop_clock(curBus->name);
     }
     
 #ifdef REPORT
     printf("- - - - ROUTE ALL REPORT - - - -\n");
-    
     printf("[INFO] # buses              : %d\n", numBuses);
     printf("[INFO] # routing success    : %d\n", numSuccess);
     printf("[INFO] # routing failed     : %d\n", numBuses - numSuccess);
-
+    printf("[INFO] # SPV                : %d\n", totalNumSPV);
+    printf("[INFO] # total iteration    : %d\n", totalSearchCount); //numBuses - numSuccess);
     printf("- - - - - - - - - - - - - - - -\n");
 
 #endif
     //
-    return;
+    //return;
+
+}
+
+void OABusRouter::Router::ripup_reroute()
+{
 
 #ifdef REPORT
     printf("\n< Start reroute >\n");
 #endif
 
+    vector<int> busSorted;
     vector<int> panelty;
-    get_panelty_cost(panelty);
+    
+    int startLoc;
+    int total;
     int iterCount = 0;
+    int numTrial = 1;
+    bus_ordering(startLoc, busSorted);
+    
     while(iterCount++ < 10)
     {
+        int total = get_panelty_cost(panelty);
         int deltaCost = 0;
+        trial = vector<int>(ckt->buses.size(), numTrial);
+
+        if(total == 0)
+            break;
 
         for(auto& busid : busSorted)
         {
@@ -121,12 +165,13 @@ void OABusRouter::Router::route_all()
             if(should_stop())
                 break;
 
-            cout << ckt->buses[busid].name << " panelty cost : " << get_panelty_cost(busid) << endl;
+
 
             int previous_Ps, current_Ps;
-            //previous_Ps = panelty[busid];
-            previous_Ps = get_panelty_cost(busid);
+            previous_Ps = panelty[busid];
             
+            cout << ckt->buses[busid].name << " panelty cost : " << previous_Ps << " " << get_panelty_cost(busid) * DELTA<< endl;
+             
             
             if(!ckt->buses[busid].assign)
                 continue;
@@ -144,8 +189,9 @@ void OABusRouter::Router::route_all()
                 }
 
                 remove_all(busid);
-                routing_success = route_bus(busid, startLoc);
-
+                int thSPV = previous_Ps / DELTA;
+                int numSPV = 0;
+                routing_success = reroute_bus(busid, startLoc, trial[busid], thSPV, numSPV);
                 // if routing failed, recreate previous wires
                 if(!routing_success)
                 {
@@ -160,16 +206,25 @@ void OABusRouter::Router::route_all()
                 else
                 {
                     // compare previous Ps and current Ps score
-                    //get_panelty_cost(panelty);
-                    //current_Ps = panelty[busid];
+                    get_panelty_cost(panelty);
+                    current_Ps = panelty[busid];
+                    //current_Ps = get_panelty_cost(busid);
+                    ///////////////////////////////////////
+                    cout << "Current_1 Ps : " << current_Ps << endl;
+                    cout << "Current_2 Ps : " << numSPV * DELTA << endl;
+                    cout << "Current_3 Ps : " << get_panelty_cost(busid) * DELTA << endl;
 
-                    current_Ps = get_panelty_cost(busid);
+
+                    //////////////////////////////////////
 
                     // if previous score is better, go back
-                    if(previous_Ps < current_Ps)
+                    if(previous_Ps <= current_Ps)
                     {
                         pin2wire = backup_pin2wire;
                         wire2pin = backup_wire2pin;
+                        remove_all(busid);
+                        
+                        
                         for(auto& bitid : ckt->buses[busid].bits)
                         {
                             ckt->bits[bitid].wires = backup_wires[bitid];
@@ -195,19 +250,130 @@ void OABusRouter::Router::route_all()
         printf("[INFO] %d iteration %d improvement\n", iterCount, deltaCost);
 
         if(deltaCost == 0)
-            break;
+        {
+            if(numTrial == 4)
+                break;
+            
+            numTrial++;
+            trial = vector<int>(ckt->buses.size(), numTrial);
+            //break;
+        }
     }
+
+
+
+
 #ifdef REPORT
     printf("[INFO] reroute finished\n");
     printf("[INFO] routing phase 2 finished\n\n");
 #endif
+}
+/*
+bool OABusRouter::Router::reroute_bus(int busid, int startLoc, int& numSPV)
+{
+    bool routingSuccess = false;
+    int m1, m2, numMPs;
+    vector<pair<int,int>> mpCombs;
+    Bus* curBus = &ckt->buses[busid];
 
+    numMPs = curBus->multipins.size();
+
+    //
+    for(int i=0; i < numMPs-1; i++)
+    {
+        for(int j=i+1; j < numMPs; j++)
+        {
+            mpCombs.push_back({curBus->multipins[i], curBus->multipins[j]});
+        }
+    }
+
+    if(mpCombs.size() > 1)
+    {
+        sort(mpCombs.begin(), mpCombs.end(), [&,this](const pair<int,int> &left, const pair<int,int> &right){
+                box b1, b2;
+                float dist1, dist2;
+                int l1, l2;
+                int dx, dy;
+                b1 = box(pt(this->multipin2llx[left.first], this->multipin2lly[left.first])
+                    ,pt(this->multipin2urx[left.first], this->multipin2ury[left.first]));
+                b2 = box(pt(this->multipin2llx[left.second], this->multipin2lly[left.second])
+                    ,pt(this->multipin2urx[left.second], this->multipin2ury[left.second]));
+                dist1 = bg::distance(b1,b2);
+
+                b1 = box(pt(this->multipin2llx[right.first], this->multipin2lly[right.first])
+                    ,pt(this->multipin2urx[right.first], this->multipin2ury[right.first]));
+                b2 = box(pt(this->multipin2llx[right.second], this->multipin2lly[right.second])
+                    ,pt(this->multipin2urx[right.second], this->multipin2ury[right.second]));
+                dist2 = bg::distance(b1,b2);
+                return dist1 > dist2;
+                });
+    }
+
+
+    vector<Segment> tp;
+    
+    while(mpCombs.size() > 0)
+    {
+        if(should_stop())
+        {
+            break;
+        }
+
+        m1 = mpCombs.begin()->first;
+        m2 = mpCombs.begin()->second;
+        mpCombs.erase(mpCombs.begin());
+
+
+        // Routing start point 
+        if(startLoc == Bottom)
+        {
+            if(!downside(m1, m2))
+                swap(m1,m2);
+        }
+        else if(startLoc == Top)
+        {
+            if(!downside(m1, m2))
+                swap(m1,m2);
+        }
+        else if(startLoc == Left)
+        {
+            if(!leftside(m1,m2))
+                swap(m1,m2);
+        }
+        else if(startLoc == Right)
+        {
+            if(leftside(m1,m2))
+                swap(m1,m2);
+        }
+
+        numSPV = 0;
+        if(route_twopin_met(busid, m1, m2, false, numSPV, tp))
+        {
+            routingSuccess = true;
+            break;
+        }
+
+        numSPV = 0;
+        if(route_twopin_met(busid, m2, m1, false, numSPV, tp))
+        {
+            routingSuccess = true;
+            break;
+        }
+
+    }
+
+    if(routingSuccess)
+    {
+        update_net_tp(busid, tp);
+    }
+
+    return routingSuccess;
 
 }
+*/
 
-bool OABusRouter::Router::route_bus(int busid, int startLoc)
+bool OABusRouter::Router::reroute_bus(int busid, int startLoc, int numTrial, int thSPV, int& numSPV)
 {
-
     bool routingSuccess = false;
     int m1, m2, numMPs;
     vector<pair<int,int>> mpCombs;
@@ -281,20 +447,450 @@ bool OABusRouter::Router::route_bus(int busid, int startLoc)
             if(leftside(m1,m2))
                 swap(m1,m2);
         }
-
+       
+        //--------------------------------------- Area ----------------------------------------//
+        bool optimal = (numTrial == 1) ? true : false; //(iterCount <= 3) ? true : false;
+        int ll[2] = { min(multipin2llx[m1], multipin2llx[m2]), min(multipin2lly[m1], multipin2lly[m2]) };
+        int ur[2] = { max(multipin2urx[m1], multipin2urx[m2]), max(multipin2ury[m1], multipin2ury[m2]) };
+        int xStep = (int)(1.0*ckt->width/10);
+        int yStep = (int)(1.0*ckt->height/10); 
+        int coeff = 2*numTrial; //trial[busid]; //numTrial; //trial[busid];
+        ll[0] -= coeff * xStep;
+        ll[1] -= coeff * yStep;
+        ur[0] += coeff * xStep;
+        ur[1] += coeff * yStep;
+        ll[0] = max(ll[0], ckt->originX);
+        ll[1] = max(ll[1], ckt->originY);
+        ur[0] = min(ur[0], ckt->originX + ckt->width);
+        ur[1] = min(ur[1], ckt->originY + ckt->height);
+        //-------------------------------------------------------------------------------------//
         
+        for(int i=0; (i < 4) && !routingSuccess; i++)
+        {
+            int source, target;
+            source = (i%2 == 0) ? m1 : m2;
+            target = (i%2 == 0) ? m2 : m1;
+            numSPV = 0;
+            
+            if(i == 2)
+            {
+                inverse_vector(curBus->bits);
+                curBus->flip = curBus->flip ? false : true;
+            }
+            
+            routingSuccess =
+                route_twopin_net_threshold_SPV(busid, source, target, ll, ur, optimal, numTrial, thSPV, numSPV, tp);
+        }
+        
+        if(routingSuccess)
+            break;
+    }
+
+
+    if(routingSuccess)
+    {
+        update_net_tp(busid, tp);
+    }
+
+    return routingSuccess;
+}
+
+
+
+        /*
+        numSPV = 0;        
+        if(route_twopin_net_threshold_SPV(busid, m1, m2, ll, ur, optimal, numTrial, thSPV, numSPV, tp))
+            //if(route_twopin_net(busid, m1, m2, optimal, numSPV, tp))
+        {
+
+            if(thSPV <= numSPV)
+            {
+                remove_all(busid);
+                continue; 
+            }
+            else
+            {
+                routingSuccess = true;
+                break;
+            }
+        }
+        inverse_vector(curBus->bits);
+        numSPV = 0;        
+        if(route_twopin_net_threshold_SPV(busid, m1, m2, ll, ur, optimal, numTrial, thSPV, numSPV, tp))
+            //if(route_twopin_net(busid, m1, m2, optimal, numSPV, tp))
+        {
+
+            if(thSPV <= numSPV)
+            {
+                remove_all(busid);
+                continue; 
+            }
+            else
+            {
+                routingSuccess = true;
+                break;
+            }
+        }
+
+
+        numSPV = 0;
+        if(route_twopin_net_threshold_SPV(busid, m2, m1, ll, ur, optimal, numTrial, thSPV, numSPV, tp))
+            //if(route_twopin_net(busid, m2, m1, optimal, numSPV, tp))
+        {
+            if(thSPV <= numSPV)
+            {
+                remove_all(busid);
+                continue; 
+            }               
+            else
+            {
+                routingSuccess = true;
+                break;
+            }
+        }
+        numSPV = 0;
+        if(route_twopin_net_threshold_SPV(busid, m2, m1, ll, ur, optimal, numTrial, thSPV, numSPV, tp))
+            //if(route_twopin_net(busid, m2, m1, optimal, numSPV, tp))
+        {
+            if(thSPV <= numSPV)
+            {
+                remove_all(busid);
+                continue; 
+            }               
+            else
+            {
+                routingSuccess = true;
+                break;
+            }
+        }
+        */
+
+
+bool OABusRouter::Router::reroute_bus(int busid, int startLoc, int thSPV, int& numSPV)
+{
+    bool routingSuccess = false;
+    int m1, m2, numMPs;
+    vector<pair<int,int>> mpCombs;
+    Bus* curBus = &ckt->buses[busid];
+
+    numMPs = curBus->multipins.size();
+
+    //
+    for(int i=0; i < numMPs-1; i++)
+    {
+        for(int j=i+1; j < numMPs; j++)
+        {
+            mpCombs.push_back({curBus->multipins[i], curBus->multipins[j]});
+        }
+    }
+
+    if(mpCombs.size() > 1)
+    {
+        sort(mpCombs.begin(), mpCombs.end(), [&,this](const pair<int,int> &left, const pair<int,int> &right){
+                box b1, b2;
+                float dist1, dist2;
+                int l1, l2;
+                int dx, dy;
+                b1 = box(pt(this->multipin2llx[left.first], this->multipin2lly[left.first])
+                    ,pt(this->multipin2urx[left.first], this->multipin2ury[left.first]));
+                b2 = box(pt(this->multipin2llx[left.second], this->multipin2lly[left.second])
+                    ,pt(this->multipin2urx[left.second], this->multipin2ury[left.second]));
+                dist1 = bg::distance(b1,b2);
+
+                b1 = box(pt(this->multipin2llx[right.first], this->multipin2lly[right.first])
+                    ,pt(this->multipin2urx[right.first], this->multipin2ury[right.first]));
+                b2 = box(pt(this->multipin2llx[right.second], this->multipin2lly[right.second])
+                    ,pt(this->multipin2urx[right.second], this->multipin2ury[right.second]));
+                dist2 = bg::distance(b1,b2);
+                return dist1 > dist2;
+                });
+    }
+
+
+    vector<Segment> tp;
+    
+    while(mpCombs.size() > 0)
+    {
+        if(should_stop())
+        {
+            break;
+        }
+
+        m1 = mpCombs.begin()->first;
+        m2 = mpCombs.begin()->second;
+        mpCombs.erase(mpCombs.begin());
+
+
+        // Routing start point 
+        if(startLoc == Bottom)
+        {
+            if(!downside(m1, m2))
+                swap(m1,m2);
+        }
+        else if(startLoc == Top)
+        {
+            if(!downside(m1, m2))
+                swap(m1,m2);
+        }
+        else if(startLoc == Left)
+        {
+            if(!leftside(m1,m2))
+                swap(m1,m2);
+        }
+        else if(startLoc == Right)
+        {
+            if(leftside(m1,m2))
+                swap(m1,m2);
+        }
+
+        while(trial[busid]++ < 4)
+        {
+            bool optimal = (trial[busid] == 1) ? true : false; //(iterCount <= 3) ? true : false;
+
+            int ll[2] = { min(multipin2llx[m1], multipin2llx[m2]), min(multipin2lly[m1], multipin2lly[m2]) };
+            int ur[2] = { max(multipin2urx[m1], multipin2urx[m2]), max(multipin2ury[m1], multipin2ury[m2]) };
+            int xStep = (int)(1.0*ckt->width/10);
+            int yStep = (int)(1.0*ckt->height/10); 
+            int coeff = 2*trial[busid]; //numTrial; //trial[busid];
+            ll[0] -= coeff * xStep;
+            ll[1] -= coeff * yStep;
+            ur[0] += coeff * xStep;
+            ur[1] += coeff * yStep;
+
+            ll[0] = max(ll[0], ckt->originX);
+            ll[1] = max(ll[1], ckt->originY);
+            ur[0] = min(ur[0], ckt->originX + ckt->width);
+            ur[1] = min(ur[1], ckt->originY + ckt->height);
+
+            numSPV = 0;        
+            if(route_twopin_net_threshold_SPV(busid, m1, m2, ll, ur, optimal, trial[busid], thSPV, numSPV, tp))
+            //if(route_twopin_net(busid, m1, m2, optimal, numSPV, tp))
+            {
+
+                if(thSPV <= numSPV)
+                {
+                    remove_all(busid);
+                    continue; 
+                }
+                else
+                {
+                    routingSuccess = true;
+                    break;
+                }
+            }
+
+            numSPV = 0;
+            if(route_twopin_net_threshold_SPV(busid, m2, m1, ll, ur, optimal, trial[busid], thSPV, numSPV, tp))
+            //if(route_twopin_net(busid, m2, m1, optimal, numSPV, tp))
+            {
+                if(thSPV <= numSPV)
+                {
+                    remove_all(busid);
+                    continue; 
+                }               
+                else
+                {
+                    routingSuccess = true;
+                    break;
+                }
+            }
+
+            inverse_vector(curBus->bits);
+
+            numSPV = 0;        
+            if(route_twopin_net_threshold_SPV(busid, m1, m2, ll, ur, optimal, trial[busid], thSPV, numSPV, tp))
+            //if(route_twopin_net(busid, m1, m2, optimal, numSPV, tp))
+            {
+
+                if(thSPV <= numSPV)
+                {
+                    remove_all(busid);
+                    continue; 
+                }
+                else
+                {
+                    routingSuccess = true;
+                    break;
+                }
+            }
+
+            numSPV = 0;
+            if(route_twopin_net_threshold_SPV(busid, m2, m1, ll, ur, optimal, trial[busid], thSPV, numSPV, tp))
+            //if(route_twopin_net(busid, m2, m1, optimal, numSPV, tp))
+            {
+                if(thSPV <= numSPV)
+                {
+                    remove_all(busid);
+                    continue; 
+                }               
+                else
+                {
+                    routingSuccess = true;
+                    break;
+                }
+            }
+
+        }
+
+        if(routingSuccess)
+            break;
+
+        //*/
+    }
+
+    if(routingSuccess)
+    {
+        update_net_tp(busid, tp);
+    }
+
+    return routingSuccess;
+}
+
+
+
+
+bool OABusRouter::Router::route_bus(int busid, int startLoc, int& numSPV)
+{
+    bool routingSuccess = false;
+    int m1, m2, numMPs;
+    vector<pair<int,int>> mpCombs;
+    Bus* curBus = &ckt->buses[busid];
+
+    numMPs = curBus->multipins.size();
+
+    //
+    for(int i=0; i < numMPs-1; i++)
+    {
+        for(int j=i+1; j < numMPs; j++)
+        {
+            mpCombs.push_back({curBus->multipins[i], curBus->multipins[j]});
+        }
+    }
+
+    if(mpCombs.size() > 1)
+    {
+        sort(mpCombs.begin(), mpCombs.end(), [&,this](const pair<int,int> &left, const pair<int,int> &right){
+                box b1, b2;
+                float dist1, dist2;
+                int l1, l2;
+                int dx, dy;
+                b1 = box(pt(this->multipin2llx[left.first], this->multipin2lly[left.first])
+                    ,pt(this->multipin2urx[left.first], this->multipin2ury[left.first]));
+                b2 = box(pt(this->multipin2llx[left.second], this->multipin2lly[left.second])
+                    ,pt(this->multipin2urx[left.second], this->multipin2ury[left.second]));
+                dist1 = bg::distance(b1,b2);
+
+                b1 = box(pt(this->multipin2llx[right.first], this->multipin2lly[right.first])
+                    ,pt(this->multipin2urx[right.first], this->multipin2ury[right.first]));
+                b2 = box(pt(this->multipin2llx[right.second], this->multipin2lly[right.second])
+                    ,pt(this->multipin2urx[right.second], this->multipin2ury[right.second]));
+                dist2 = bg::distance(b1,b2);
+                return dist1 > dist2;
+                });
+    }
+
+
+    vector<Segment> tp;
+    
+    while(mpCombs.size() > 0)
+    {
+        if(should_stop())
+        {
+            break;
+        }
+
+        m1 = mpCombs.begin()->first;
+        m2 = mpCombs.begin()->second;
+        mpCombs.erase(mpCombs.begin());
+
+
+        // Routing start point 
+        if(startLoc == Bottom)
+        {
+            if(!downside(m1, m2))
+                swap(m1,m2);
+        }
+        else if(startLoc == Top)
+        {
+            if(!downside(m1, m2))
+                swap(m1,m2);
+        }
+        else if(startLoc == Left)
+        {
+            if(!leftside(m1,m2))
+                swap(m1,m2);
+        }
+        else if(startLoc == Right)
+        {
+            if(leftside(m1,m2))
+                swap(m1,m2);
+        }
+
+        /*
         if(route_twopin_net(busid, m1, m2, tp))
         {
             routingSuccess = true;
             break;
         }
-        
+
         if(route_twopin_net(busid, m2, m1, tp))
         {
             routingSuccess = true;
             break;
+        }       
+        if(!leftside(m1,m2))
+            swap(m1,m2);
+        */
+
+
+
+        while(trial[busid]++ < 4)
+        //while(trial[busid]++ < 3)
+        {
+            //-------------------------------------------------------------------------------------//
+            bool optimal = (trial[busid] == 1) ? true : false; //(iterCount <= 3) ? true : false;
+            int ll[2] = { min(multipin2llx[m1], multipin2llx[m2]), min(multipin2lly[m1], multipin2lly[m2]) };
+            int ur[2] = { max(multipin2urx[m1], multipin2urx[m2]), max(multipin2ury[m1], multipin2ury[m2]) };
+            int xStep = (int)(1.0*ckt->width/10);
+            int yStep = (int)(1.0*ckt->height/10); 
+            int coeff = 2*trial[busid]; //numTrial; //trial[busid];
+            ll[0] -= coeff * xStep;
+            ll[1] -= coeff * yStep;
+            ur[0] += coeff * xStep;
+            ur[1] += coeff * yStep;
+            ll[0] = max(ll[0], ckt->originX);
+            ll[1] = max(ll[1], ckt->originY);
+            ur[0] = min(ur[0], ckt->originX + ckt->width);
+            ur[1] = min(ur[1], ckt->originY + ckt->height);
+            //-------------------------------------------------------------------------------------//
+            
+            
+            for(int i=0; (i < 4) && !routingSuccess; i++)
+            {
+                int source = (i%2 == 0) ? m1 : m2;
+                int target = (i%2 == 1) ? m1 : m2;
+                numSPV = 0;
+                
+                //if(i >= 2)
+                if(i == 2)
+                {
+                    inverse_vector(curBus->bits);
+                    curBus->flip = curBus->flip ? false : true;
+                }
+                
+                routingSuccess =
+                    //route_twopin_net_threshold_SPV(busid, source, target, ll, ur, optimal, numTrial, thSPV, numSPV, tp);
+                    route_twopin_net(busid, source, target, ll, ur, optimal, numSPV, tp);
+            }
+
+            if(routingSuccess)
+                break;
         }
-        
+
+        if(routingSuccess)
+            break;
+
+        //*/
     }
 
     if(routingSuccess)
@@ -306,6 +902,113 @@ bool OABusRouter::Router::route_bus(int busid, int startLoc)
 
 }
 
+            /*
+            numSPV = 0;        
+            if(route_twopin_net(busid, m1, m2, ll, ur, optimal, numSPV, tp))
+            //if(route_twopin_net(busid, m1, m2, optimal, numSPV, tp))
+            {
+                routingSuccess = true;
+                break;
+                
+                
+                if(optimal && numSPV > 0)
+                {
+                    remove_all(busid);
+                    continue; 
+                }
+                else
+                {
+                    routingSuccess = true;
+                    break;
+                }
+            }
+
+            inverse_vector(curBus->bits);
+            numSPV = 0;        
+            if(route_twopin_net(busid, m1, m2, ll, ur, optimal, numSPV, tp))
+            //if(route_twopin_net(busid, m1, m2, optimal, numSPV, tp))
+            {
+                routingSuccess = true;
+            inverse_vector(curBus->bits);
+                break;
+                
+                
+                if(optimal && numSPV > 0)
+                {
+                    remove_all(busid);
+                    continue; 
+                }
+                else
+                {
+                    routingSuccess = true;
+                    break;
+                }
+            }
+            inverse_vector(curBus->bits);
+
+            numSPV = 0;        
+            if(route_twopin_net(busid, m2, m1, ll, ur, optimal, numSPV, tp))
+            //if(route_twopin_net(busid, m1, m2, optimal, numSPV, tp))
+            {
+                routingSuccess = true;
+                break;
+                
+                
+                if(optimal && numSPV > 0)
+                {
+                    remove_all(busid);
+                    continue; 
+                }
+                else
+                {
+                    routingSuccess = true;
+                    break;
+                }
+            }
+
+            inverse_vector(curBus->bits);
+            numSPV = 0;        
+            if(route_twopin_net(busid, m1, m2, ll, ur, optimal, numSPV, tp))
+            //if(route_twopin_net(busid, m1, m2, optimal, numSPV, tp))
+            {
+                routingSuccess = true;
+                break;
+                
+                
+                if(optimal && numSPV > 0)
+                {
+                    remove_all(busid);
+                    continue; 
+                }
+                else
+                {
+                    routingSuccess = true;
+                    break;
+                }
+            }
+
+
+
+            numSPV = 0;
+            if(route_twopin_net(busid, m2, m1, ll, ur, optimal, numSPV, tp))
+            //if(route_twopin_net(busid, m2, m1, optimal, numSPV, tp))
+            {
+                routingSuccess = true;
+                break;
+                
+                if(optimal && numSPV > 0)
+                {
+                    remove_all(busid);
+                    continue; 
+                }
+                else
+                {
+                    routingSuccess = true;
+                    break;
+                }
+            }
+            */
+            
 void OABusRouter::Router::update_net_tp(int busid, vector<Segment> &tp)
 {
     Bus* curBus = &ckt->buses[busid];
@@ -367,7 +1070,7 @@ void OABusRouter::Router::remove_wire(int wireid)
     Wire* curwire = &wires[wireid];
     Bus* curbus = &ckt->buses[bit2bus[curwire->bitid]];
     // remove obstacle
-    rtree_o.insert(WIRETYPE, curwire->bitid, curwire->x1, curwire->y1, curwire->x2, curwire->y2, curwire->l, curbus->width[curwire->l]);
+    rtree_o.remove(WIRETYPE, curwire->bitid, curwire->x1, curwire->y1, curwire->x2, curwire->y2, curwire->l, curbus->width[curwire->l]);
 }
 
 void OABusRouter::Router::reconstruction(int busid, vector<int> &ws)
@@ -416,7 +1119,7 @@ int OABusRouter::Router::get_panelty_cost(int busid)
     return totalSPV;
 }
 
-void OABusRouter::Router::get_panelty_cost(vector<int> &panelty)
+int OABusRouter::Router::get_panelty_cost(vector<int> &panelty)
 {
    
     int numBuses, numLayers, numObs, numBits, numWires, numPins;
@@ -620,9 +1323,16 @@ void OABusRouter::Router::get_panelty_cost(vector<int> &panelty)
     // end bits
 
     for(i=0; i < numBuses; i++)
+    {
         panelty[i] = Ps[i];
+    }
+
+    printf("[INFO] Get penalty report : #SPV %d\n",SV.size());
+    
+    return DELTA * SV.size(); //total;
 
 #ifdef REPORT 
+    /*
     printf("\n------------------------------------\n");
     printf("Ps : #Spacing violations * %d\nPf : #routing failed * %d\n\n", delta, epsilon);
     for(i=0; i < numBuses; i++)
@@ -631,6 +1341,7 @@ void OABusRouter::Router::get_panelty_cost(vector<int> &panelty)
     }
     printf("total SV %d\n", SV.size());
     printf("\n------------------------------------\n");
+    */
 #endif
 }
 

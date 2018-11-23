@@ -17,6 +17,7 @@ namespace OABusRouter
     void expand_width(int x[], int y[], int width, bool vertical);
     void into_array(int x1, int x2, int y1, int y2, int x[], int y[]);
     void design_ruled_area(int x[], int y[], int width, int spacing, bool vertical);
+    void inverse_vector(vector<int>& target);
     int manhatan_distance(int x1, int y1, int x2, int y2);
     //
 

@@ -59,7 +59,6 @@ def ExecuteBinary( benchName ):
 
     evalCommand = "%s/%s %s/%s.input %s/%s.out > %s/%s.eval" % (evalpos, evaluator, dirpos, benchName, outDir, benchName, logDir, benchName)
     ExecuteCommand(evalCommand)
-    """ 
     evalFileName = "%s/%s.eval" % (logDir, benchName)
     score = ReadScore(evalFileName)
 
@@ -67,7 +66,6 @@ def ExecuteBinary( benchName ):
     for key, value in score.items():
         resultDic[key] = value
     resultDic['RT'] = runTime
-    """
     return resultDic
 
 def ExecuteBinarySingle( benchName ):
@@ -112,7 +110,12 @@ if __name__ == '__main__':
     outDir = "%s/%s" % (outpos, curTime)
     os.makedirs(logDir)
     os.makedirs(outDir)
-    
+
+    for benName in benchList:
+        dirName = benName.split(".")[0]
+        newDir = "%s/%s" % (logDir, dirName)
+        os.makedirs(newDir)
+
     # read benchmark list
     if runAll == False: 
         benchList = []
@@ -123,7 +126,6 @@ if __name__ == '__main__':
         pool = Pool(processes=len(benchList))
         dics = pool.map(ExecuteBinary, [bn for bn in benchList])
         pool.close()
-        """
         keys = ['Bench', 'CR', 'Ps', 'Pf', 'cost', 'RT']
         summary = open("%s/summary.txt" % (logDir), "w")
 
@@ -136,7 +138,6 @@ if __name__ == '__main__':
                 else:
                     summary.write("%4s :    %7s\n" % (key, dic[key]))
             summary.write("\n\n")
-        """
     else:
         # run single
         ExecuteBinarySingle( benchList[0] )

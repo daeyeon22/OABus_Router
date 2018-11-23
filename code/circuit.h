@@ -27,99 +27,17 @@
 #include <boost/icl/interval_base_map.hpp>
 
 #include "mymeasure.h"
-//#include "flute.h"
+#include "typedef.h"
 
 // Dense hash map
 #include <sparsehash/dense_hash_map>
 
-#define INIT_STR "INITSTR"
-// Pre-define
-#ifndef PREDEF
-#define PREDEF 
-#define VERTICAL 111
-#define HORIZONTAL 222
-#endif
-
 #define ckt OABusRouter::Circuit::shared()
-
-
-// Namespace
-using namespace std;
-using google::dense_hash_map;
-namespace bg = boost::geometry;
-namespace bgi = boost::geometry::index;
-namespace bi = boost::icl;
-
-// Boost Intervals
-typedef set<int> IntSetT;
-typedef bi::interval<int> IntervalT;
-typedef bi::interval_set<int> IntervalSetT;
-typedef bi::interval_map<int, IntSetT> IntervalMapT;
-typedef bi::discrete_interval<int> DiscreteIntervalT;
-
-// Boost Geometries
-
-typedef pair<int,int> PairT;
-typedef bg::model::point<float,2,bg::cs::cartesian> bgPointT;
-typedef bg::model::box<bgPointT> bgBoxT;
-typedef bg::model::segment<bgPointT> bgSegmentT;
-typedef bg::model::polygon<bgPointT> bgPolygonT;
-typedef bgi::rtree<pair<bgSegmentT, int>, bgi::rstar<16>> SegRtreeT;
-typedef bgi::rtree<pair<bgBoxT, int>, bgi::rstar<16>> BoxRtreeT;
-typedef bgi::rtree<pair<bgPointT, int>, bgi::rstar<16>> PointRtreeT;
-
-typedef bg::model::linestring<bgPointT> linestring;
-typedef bg::model::multi_linestring<linestring> mlinestring;
-typedef bg::model::polygon<bgPointT> poly;
-typedef bg::model::multi_polygon<poly> mpoly;
 static CMeasure measure;
 
 // Obstacle-Aware On-Track Bus Router
 namespace OABusRouter
 {
-    /*
-    struct Point
-    {
-        int x;
-        int y;
-
-        // Constructor
-        Point() : x(INT_MAX), y(INT_MAX) {}
-        Point(int ix, int iy) : x(ix), y(iy) {}
-        Point(const Point& pt) : x(pt.x), y(pt.y) {}
-        bool operator==(Point &b) {
-            return x == b.x && y == b.y;
-        }
-        bool operator!=(Point &b) {
-            return x != b.x || y != b.x;
-        }
-        void print();
-    };
-    
-    struct Rect
-    {
-        Point ll;
-        Point ur;
-
-        // Constructor
-        Rect()
-        {
-            ll = Point();
-            ur = Point();
-        }
-
-        Rect(Point ill, Point iur) : 
-            ll(ill), 
-            ur(iur) {}
-
-        Rect(const Rect& rt) : 
-            ll(rt.ll), 
-            ur(rt.ur) {}
-
-        void print();
-        Point center();
-    };
-    */
     
     struct Layer
     {
@@ -186,40 +104,6 @@ namespace OABusRouter
         void print(bool all);
     };
 
-    /*
-    struct Contact
-    {
-        Point p;
-        int id;
-        int trackid;
-        int l;
-        int connected_con; // connected contact on other layer;
-        bool wire_use;
-        vector<int> tracks;
-        Contact() :
-            id(INT_MAX),
-            trackid(INT_MAX),
-            l(INT_MAX),
-            connected_con(INT_MAX),
-            wire_use(false)
-            {
-                tracks.reserve(2);
-            }
-
-        Contact(const Contact &con) :
-            id(con.id),
-            trackid(con.trackid),
-            l(con.l),
-            p(con.p),
-            connected_con(con.connected_con),
-            wire_use(con.wire_use)
-            {
-                tracks.insert(tracks.end(),con.tracks.begin(),con.tracks.end());
-            }
-        void print();
-    };
-    */
-
     struct Track
     {
         int id;
@@ -228,6 +112,7 @@ namespace OABusRouter
         int llx, lly;
         int urx, ury;
         int l; // layer id
+        //bi::interval_map<int,int> constraint; 
 
         Track() : 
             id(INT_MAX), 
@@ -251,6 +136,34 @@ namespace OABusRouter
             {}
 
         void print();
+    };
+
+    struct Empty
+    {
+        int id;
+        int offset;
+        int llx, lly;
+        int urx, ury;
+        int l; // layer id
+
+        Empty() : 
+            id(INT_MAX), 
+            offset(INT_MAX),
+            llx(INT_MAX),
+            lly(INT_MAX),
+            urx(INT_MIN),
+            ury(INT_MIN),
+            l(INT_MAX) {}
+
+        Empty(const Empty& tr) :
+            id(tr.id),
+            offset(tr.offset),
+            llx(tr.llx),
+            lly(tr.lly),
+            urx(tr.urx),
+            ury(tr.ury),
+            l(tr.l)
+            {}
     };
 
 
@@ -399,6 +312,7 @@ namespace OABusRouter
         dense_hash_map<int,int> width;
 
         bool assign;
+        bool flip;
         //HashMap;
 
         Bus() : 
@@ -410,7 +324,8 @@ namespace OABusRouter
             urx(INT_MIN),
             ury(INT_MIN),
             name(INIT_STR),
-            assign(false)
+            assign(false),
+            flip(false)
         {
             width.set_empty_key(INT_MAX); // INIT_STR);
         }
@@ -427,7 +342,8 @@ namespace OABusRouter
             bits(b.bits),
             multipins(b.multipins),
             width(b.width),
-            assign(b.assign)
+            assign(b.assign),
+            flip(b.flip)
         {} 
 
         void print();
@@ -489,6 +405,7 @@ namespace OABusRouter
         // Objects
         vector<Layer> layers;
         vector<Track> tracks;
+        vector<Empty> empties;
         vector<Bus> buses;
         vector<Obstacle> obstacles;
         vector<Bit> bits;
@@ -520,11 +437,6 @@ namespace OABusRouter
             busHashMap.set_empty_key(INIT_STR);
             layerHashMap.set_empty_key(INIT_STR);
             trackHashMap.set_empty_key(INT_MAX);
-            
-            // should remove // 
-            //stTreeHashMap.set_empty_key(0);
-            //gCellHashMap.set_empty_key(0);
-            ///////////////////
         }
 
 
@@ -544,9 +456,11 @@ namespace OABusRouter
 
         // writer.cpp
         void def_write();
-        void def_write(string filename);
+        void def_write(string dirPos, string benchName);
+        void def_write(int busid, string dirPos, string benchName);
         void lef_write();
-        void lef_write(string filename);
+        void lef_write(string dirPos, string benchName);
+        void lef_write(int busid, string dirPos, string benchName);
         void out_write(string filename);
 
         // init.cpp 
@@ -567,3 +481,83 @@ namespace OABusRouter
 
 
 #endif
+
+
+
+    /*
+    struct Contact
+    {
+        Point p;
+        int id;
+        int trackid;
+        int l;
+        int connected_con; // connected contact on other layer;
+        bool wire_use;
+        vector<int> tracks;
+        Contact() :
+            id(INT_MAX),
+            trackid(INT_MAX),
+            l(INT_MAX),
+            connected_con(INT_MAX),
+            wire_use(false)
+            {
+                tracks.reserve(2);
+            }
+
+        Contact(const Contact &con) :
+            id(con.id),
+            trackid(con.trackid),
+            l(con.l),
+            p(con.p),
+            connected_con(con.connected_con),
+            wire_use(con.wire_use)
+            {
+                tracks.insert(tracks.end(),con.tracks.begin(),con.tracks.end());
+            }
+        void print();
+    };
+    */
+    /*
+    struct Point
+    {
+        int x;
+        int y;
+
+        // Constructor
+        Point() : x(INT_MAX), y(INT_MAX) {}
+        Point(int ix, int iy) : x(ix), y(iy) {}
+        Point(const Point& pt) : x(pt.x), y(pt.y) {}
+        bool operator==(Point &b) {
+            return x == b.x && y == b.y;
+        }
+        bool operator!=(Point &b) {
+            return x != b.x || y != b.x;
+        }
+        void print();
+    };
+    
+    struct Rect
+    {
+        Point ll;
+        Point ur;
+
+        // Constructor
+        Rect()
+        {
+            ll = Point();
+            ur = Point();
+        }
+
+        Rect(Point ill, Point iur) : 
+            ll(ill), 
+            ur(iur) {}
+
+        Rect(const Rect& rt) : 
+            ll(rt.ll), 
+            ur(rt.ur) {}
+
+        void print();
+        Point center();
+    };
+    */
+
