@@ -4,8 +4,6 @@
 #include "func.h"
 #include <tuple>
 
-#define DEBUG_INIT
-
 using namespace OABusRouter;
 using OABusRouter::intersection;
 using OABusRouter::is_vertical;
@@ -612,7 +610,6 @@ void OABusRouter::Router::construct_rtree()
     ckt->tracks = newTracks; //.insert(tracks.end(), newTracks.begin(), newTracks.end());
 
     cout << "[INFO] After #Tracks " << ckt->tracks.size() << endl;
-
 /*
 #ifdef DEBUG_INIT
     printf("\n- - - - <Track Info> - - - -\n");
@@ -634,9 +631,58 @@ void OABusRouter::Router::construct_rtree()
     newTracks.clear();
     newConsts.clear();
 
+    set<pair<int,int>> edges;
+    vector<SegRtree> rtreeTemp = rtree_t.trees;
+    /*
+    #pragma omp parallel for num_threads(NUM_THREADS)
+    for(int i=0; i < numTracks; i++)
+    {
+        RtreeNode* n1 = rtree_t.get_node(i);
+        seg s1(pt(n1->x1, n1->y1), pt(n1->x2, n1->y2));
+        
+        #pragma omp critical(TREE)
+        {
+            rtreeTemp[n1->l].remove({s1, n1->id});
+        }
+
+        vector<pair<seg,int>> queries;
+        for(int j=n1->l; j <= min(numLayers-1, n1->l+1); j++)
+        {
+            #pragma omp critical(TREE)
+            {
+                rtreeTemp[j].query(bgi::intersects(s1), back_inserter(queries));
+            }
+        }
+
+        for(int j=0; j < queries.size(); j++)
+        {
+            int x, y;
+            RtreeNode* n2 = rtree_t.get_node(queries[j].second);
+            seg s2 = queries[j].first;
+            
+            if(n1->id == n2->id)
+                continue;
+        
+            if(!rtree_t.intersection(n1->id, n2->id, x, y))
+                continue;
+
+
+            #pragma omp critical(EDGE)
+            {
+                pair<int,int> e(min(n1->id, n2->id), max(n1->id, n2->id));
+                if(edges.find(e) == edges.end())
+                {
+                    n1->intersection[n2->id] = {x, y};
+                    n2->intersection[n1->id] = {x, y};
+                    edges.insert(e);
+                }
+            }
+        }
+    }
+    */
 
     cout << "[INFO] Create nodes " << rtree_t.nodes.size() << endl;
-
+    /*
     #pragma omp parallel for num_threads(NUM_THREADS)
     for(int i=0; i < numTracks; i++)
     {
@@ -709,7 +755,7 @@ void OABusRouter::Router::construct_rtree()
             }
         }
     }
-
+    */
 
     #pragma omp parallel for num_threads(NUM_THREADS) 
     for(int i=0; i < numTracks; i++)

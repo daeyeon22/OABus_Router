@@ -316,7 +316,8 @@ namespace OABusRouter
 
         // Local Area
         bool get_search_area(int busid, int m1, int m2, int margin, SearchArea& SA);
-        
+        void get_local_tree(bool merge, SearchArea& SA, vector<SegRtree>& localTree);
+
         // Initialize Grid3D
         void construct_rtree();
         void construct_3d_tile_grids();

@@ -479,7 +479,7 @@ bool OABusRouter::Router::reroute_bus(int busid, int startLoc, int numTrial, int
         ur[1] = min(ur[1], ckt->originY + ckt->height);
         //-------------------------------------------------------------------------------------//
         
-        for(int i=0; (i < 4) && !routingSuccess; i++)
+        for(int i=0; (i < 2) && !routingSuccess; i++)
         {
             int source, target;
             source = (i%2 == 0) ? m1 : m2;

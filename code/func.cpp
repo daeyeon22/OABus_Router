@@ -120,10 +120,7 @@ bool OABusRouter::intersection(seg s1, seg s2, int &x, int &y)
 
     if(!bg::intersects(s1, s2))
     {
-        cout << "not intersects 1" << endl;
-        cout << bg::dsv(s1) << endl;
-        cout << bg::dsv(s2) << endl;
-        exit(0);
+        return false;
     }
 
     int llx1, lly1, urx1, ury1;

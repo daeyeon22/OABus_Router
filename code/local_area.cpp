@@ -34,6 +34,72 @@ int OABusRouter::Grid3D::get_layer(int index)
 }
 
 
+void OABusRouter::Router::get_local_tree(bool merge, SearchArea& SA, vector<SegRtree>& localTrees)
+{
+    int numLayers = ckt->layers.size();
+    localTrees = vector<SegRtree>(numLayers);
+
+    #pragma omp parallel for num_threads(NUM_THREADS)
+    for(int l1=0; l1 < numLayers; l1++)
+    {
+        set<int> inserted;
+
+        for(int l2=0; l2 < numLayers; l2++)
+        {
+            if(merge)
+                if(is_vertical(l1) != is_vertical(l2))  
+                    continue;
+            else
+                if(l1 != l2)
+                    continue;
+
+            for(auto& it : SA.trees[l2])
+            {
+                vector<pair<seg,int>> queries;
+                rtree_t[l1]->query(bgi::intersects(it.first), back_inserter(queries));
+                for(int i=0; i < queries.size(); i++)
+                {
+                    if(inserted.find(queries[i].second) == inserted.end())
+                    {
+                        localTrees[l1].insert(queries[i]);
+                        inserted.insert(queries[i].second);
+                    }
+                }
+            }
+        }
+    }
+
+        
+
+/*
+        for(auto& it : SA.trees[l])
+        {
+            vector<pair<seg,int>> queries;
+            for(int l2=0; l2 < numLayers; l2++)
+            {
+                if(is_vertical(l1) == is_vertical(l2))
+                {
+                    rtree_t[l2]->query(bgi::intersects(it.first)
+                }
+
+            }
+
+            rtree_t[l]->query(bgi::intersects(it.first), back_inserter(queries));
+            
+            for(int i=0; i < queries.size(); i++)
+            {
+                if(nodes.find(queries[i].second) == nodes.end())
+                {
+                    localTrees[l].insert(queries[i]);
+                    nodes.insert(queries[i].second);
+                }
+            }
+        }
+        //cout << "M" << l << " -> " << localTrees[l].size() << endl; 
+    }
+*/
+}
+        
 bool OABusRouter::Router::get_search_area(int busid, int m1, int m2, int margin,  SearchArea& SA)
 {
 
@@ -155,8 +221,6 @@ bool OABusRouter::Router::get_search_area(int busid, int m1, int m2, int margin,
         curTile->edgeCap = tileSize / (curBus->width[l] + spacing[l]) - q2.size() - q3.size();
         //curTile->edgeCap = tarWidth / (curBus->width[l] + spacing[l]) -q2.size() - q3.size();
         //curTile->edgeCap = min((int)q1.size(),  numBits) - q2.size() - q3.size();
-
-        
         //for(int j=0; j < q3.size(); j++)
         //{
         //    int bitid = q3[j].second;
@@ -337,9 +401,20 @@ bool OABusRouter::Router::get_search_area(int busid, int m1, int m2, int margin,
             ////////
             int tileSize = (is_vertical(l2)) ? tarWidth : tarHeight;
             int refCap = tileSize / (curBus->width[l2] + spacing[l2]);
+            int numWires = refCap - tile2->edgeCap;
             double capRatio = 1.0 * refCap / tile2->edgeCap; 
             double tileWeight = pow(capRatio, 5);
-
+            double congestion = 1.0 * (numWires) / refCap; //pow(capRatio, 5);
+            double compactness = 1.0 * numBits * (curBus->width[l2] + spacing[l2]) / tileSize;
+            double segment = abs(l1 - l2); 
+            
+            if(tile2->edgeCap < numBits)
+                tileWeight *= 3;
+            //tileWeight = 1.0* numWires / refCap + compactness; // * tileWeight;
+            
+            //double tileWeight = DELTA * congestion + ALPHA * 1 + BETA * segment + GAMMA * compactness;
+            //double tileWeight = compactness + DELTA * congestion + segment; //floor(congestion);
+            
             ////////////////////////////////////////////
             /*
             double tileWeight = 1;
@@ -362,7 +437,7 @@ bool OABusRouter::Router::get_search_area(int busid, int m1, int m2, int margin,
             nextNode.backtrace = n1;
             nextNode.depth = dep2;
             nextNode.numSegs = (l1 != l2) ? curNode.numSegs + 1 : curNode.numSegs;
-            nextNode.PS = tileWeight + curNode.PS;
+            nextNode.PS = tileWeight + curNode.PS; // + compactness + curNode.PS;//compactness + tileWeight + segment +  curNode.PS;//compactness + tileWeight + curNode.PS;
             
             
             ///////////////////////////////////////////////////////////////////////////////
@@ -494,9 +569,9 @@ bool OABusRouter::Router::get_search_area(int busid, int m1, int m2, int margin,
             int refCap = tarWidth / (curBus->width[tile2->l] + spacing[tile2->l]);
             //double tileWeight = 1.0 * refCap / tile2->edgeCap; //(tile2->edgeCap < numBits) ? 1.0 * numBits / tile2->edgeCap : 1.0; //(1.0* tile2->edgeCap / max(1, 
             //double tileWeight = pow(10, 1.0 * refCap / tile2->edgeCap); //(tile2->edgeCap < numBits) ? 1.0 * numBits / tile2->edgeCap : 1.0; //(1.0* tile2->edgeCap / max(1, 
-            double tileWeight = pow(1.0 * refCap / tile2->edgeCap, 5); //(tile2->edgeCap < numBits) ? 1.0 * numBits / tile2->edgeCap : 1.0; //(1.0* tile2->edgeCap / max(1, 
+            //double tileWeight = pow(1.0 * refCap / tile2->edgeCap, 5); //(tile2->edgeCap < numBits) ? 1.0 * numBits / tile2->edgeCap : 1.0; //(1.0* tile2->edgeCap / max(1, 
             //double tileWeight = 1.0 * numBits / tile2->edgeCap; //(tile2->edgeCap < numBits) ? 1.0 * numBits / tile2->edgeCap : 1.0; //(1.0* tile2->edgeCap / max(1, 
-            printf("Tile (col : %d  row : %d  layer : %d) Cap %d Weight %2.2f\n", tile2->col, tile2->row, tile2->l, tile2->edgeCap, tileWeight); 
+            //printf("Tile (col : %d  row : %d  layer : %d) Cap %d Weight %2.2f\n", tile2->col, tile2->row, tile2->l, tile2->edgeCap, tileWeight); 
             //min(1.0, 1.0* numBits /tile2->edgeCap));
             if(tile3->l != tile1->l)
             {

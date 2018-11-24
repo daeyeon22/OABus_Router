@@ -11,6 +11,10 @@ using OABusRouter::design_ruled_area;
 using OABusRouter::is_vertical;
 using OABusRouter::into_array;
 
+seg OABusRouter::RtreeNode::segment()
+{
+    return seg(pt(x1, y1), pt(x2, y2));
+}
 
 bool OABusRouter::Rtree_o::insert(int type, int bitid, int x1, int y1, int x2, int y2, int l)
 {
@@ -434,8 +438,11 @@ bool OABusRouter::Rtree_t::search_node_SPV_clean(int bitid, int current, int &ne
         if(search_node(current, next, neighbor, width, spacing, upper))
         {
             RtreeNode* n_next = get_node(next);
-            int x = n_next->intersection[neighbor].first;
-            int y = n_next->intersection[neighbor].second;
+            int x, y;
+            intersection(next, neighbor, x, y);        
+            
+            //int x = n_next->intersection[neighbor].first;
+            //int y = n_next->intersection[neighbor].second;
             int l = n_next->l;
            
             if(rtree_o.spacing_violation_clean(bitid, x, y, x, y, l, width, spacing, is_vertical(l)))
@@ -594,9 +601,11 @@ bool OABusRouter::Rtree_t::next_node(int bitid, int n_iter, int n1, int &n2, int
         {
             bool SPV1, SPV2;
             bool WCV1, WCV2;
-            
-            int x2 = node_iter->intersection[n1].first;
-            int y2 = node_iter->intersection[n1].second;
+           
+            int x2, y2;
+            intersection(node_iter->id, n1, x2, y2);
+            //int x2 = node_iter->intersection[n1].first;
+            //int y2 = node_iter->intersection[n1].second;
             int l2 = node_iter->l;
             int l1 = node_prev->l;
 
@@ -666,6 +675,17 @@ bool OABusRouter::Rtree_t::maximum_width_constraint(int n, int p1, int p2, int w
 
 }  
 
+
+bool OABusRouter::Rtree_t::intersection(int i, int j, int &x, int &y)
+{
+    RtreeNode* n1 = get_node(i);
+    RtreeNode* n2 = get_node(j);
+    seg s1(pt(n1->x1, n1->y1), pt(n1->x2, n1->y2));
+    seg s2(pt(n2->x1, n2->y1), pt(n2->x2, n2->y2));
+
+    return OABusRouter::intersection(s1, s2, x, y);
+}
+
 /*
 bool OABusRouter::Rtree_t::get_segments(int numBits, int current, vector<int> &xs, vector<int> &ys, vector<int> &ns)
 {
@@ -727,6 +747,9 @@ bool OABusRouter::Rtree_t::upper(RtreeNode* n1, RtreeNode* n2, int prev, int wid
 
 bool OABusRouter::Rtree_t::is_valid(pair<int,int> e)
 {
-    pair<int,int> _e = { min(e.first, e.second), max(e.first, e.second) };
-    return (edges.find(_e) == edges.end()) ? false : true;
+    RtreeNode* n1 = get_node(e.first);
+    RtreeNode* n2 = get_node(e.second);
+    return (abs(n1->l - n2->l) < 2) && bg::intersects(n1->segment(), n2->segment());
 }
+
+

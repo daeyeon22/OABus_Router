@@ -112,7 +112,7 @@ namespace OABusRouter
             EC = 0; //numSegs;
             //double total = 10*numSegs + PS;
             //double total = PS;
-            double total = PS; // + 5*numSegs; // + PS;
+            double total = PS; //  + numSegs; // + PS;
             return (backtrace == -1) ? DBL_MAX : total; //depth + PS;
         };  
     };

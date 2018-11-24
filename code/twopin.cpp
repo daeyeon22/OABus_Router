@@ -68,7 +68,7 @@ bool OABusRouter::Router::route_twopin_net_threshold_SPV(int busid, int m1, int 
     if(numTrial < 5)
     {
         //int margin = trial[busid] * trial[busid] * 10;
-        int margin = numTrial * 3 ; //trial[busid] * trial[busid] * 2; // trial[busid] * 10;
+        int margin = numTrial * 4 ; //trial[busid] * trial[busid] * 2; // trial[busid] * 10;
         if(!get_search_area(busid, m2, m1, margin, SA))
         {
             SA.defined = true;
@@ -90,6 +90,11 @@ bool OABusRouter::Router::route_twopin_net_threshold_SPV(int busid, int m1, int 
         }
     }
 
+    ///////////////////////////////
+    bool merge = optimal ? false : true;
+    vector<SegRtree> localRtree;
+    get_local_tree(merge, SA, localRtree);
+    ///////////////////////////////
 
     // Initialize heap nodes
     vector<HeapNode> nodes(rtree_t.nodes.size(), HeapNode(numBits));
@@ -198,6 +203,77 @@ bool OABusRouter::Router::route_twopin_net_threshold_SPV(int busid, int m1, int 
         y_iter_bnd1[1] = min(ckt->originY + ckt->height, y_iter_bnd1[1] + (width[l1] + spacing[l1]));
         box bending_area(pt(x_iter_bnd1[0], y_iter_bnd1[0]), pt(x_iter_bnd1[1], y_iter_bnd1[1]));
 
+
+        vector<int> filtered;
+        vector<pair<seg,int>> neighbor;
+
+        
+        if(optimal)
+        {
+            if(SA.lSeq.size() <= dep1+1)
+                continue;
+ 
+            localRtree[SA.lSeq[dep1+1]].query(bgi::intersects(rn1->segment()), back_inserter(neighbor));
+        }
+        else
+        {
+            if(rn1->l-1 >= 0)
+                localRtree[rn1->l-1].query(bgi::intersects(rn1->segment()), back_inserter(neighbor));
+            if(rn1->l+1 < ckt->layers.size())
+                localRtree[rn1->l+1].query(bgi::intersects(rn1->segment()), back_inserter(neighbor));
+        }
+
+        #pragma omp parallel for num_threads(NUM_THREADS)
+        for(int i=0; i < neighbor.size(); i++)
+        {
+            int n2 = neighbor[i].second;
+            RtreeNode* rn2 = rtree_t.get_node(n2);
+            int dep2 = dep1 + 1;
+            int l2 = rn2->l;
+            
+            // if already optimal nodes, pass!
+            if(optNodes.find(n2) != optNodes.end())
+                continue;
+
+            if(currNode.cost() >= nodes[n2].cost())
+                // if iterating node's cost is smaller,
+                // it doesn't need to push into the queue
+                continue;
+
+            if(optimal)
+            {
+                if(!SA.check_lseq(dep2, l2))
+                    continue;
+            }
+          
+            int x, y;
+            rtree_t.intersection(n1, n2, x, y);
+          
+            if(!SA.inside(x, y, l2, optimal))
+                continue;
+            // check iterating point valid
+            if(bg::intersects(pt(x,y), bending_area))
+                continue;
+
+            box pinShape(pt(refPin1->llx, refPin1->lly), pt(refPin1->urx, refPin1->ury));
+            if(bg::intersects(pt(x,y), pinShape))
+                continue;
+
+            double hpwl1 = HPWL(x, y, refPin1->id);
+            double hpwl2 = HPWL(x, y, refPin2->id);
+
+            // local search area
+            if(hpwl1 + hpwl2 >= 2*hpwl)
+                continue;
+
+            #pragma omp critical(GLOBAL)
+            {
+                filtered.push_back(n2);
+            }
+
+        }
+
+        /*
         //filtering
         vector<int> filtered;
         #pragma omp parallel for num_threads(NUM_THREADS)
@@ -230,9 +306,12 @@ bool OABusRouter::Router::route_twopin_net_threshold_SPV(int busid, int m1, int 
                 //    continue;
             //}
             
-            
-            int x = rn1->intersection[n2].first;
-            int y = rn1->intersection[n2].second;
+           
+            int x, y;
+            rtree_t.intersection(n1, n2, x, y);
+
+            //int x = rn1->intersection[n2].first;
+            //int y = rn1->intersection[n2].second;
 
             //box localArea(pt(ll[0], ll[1]), pt(ur[0], ur[1]));
             //if(!bg::intersects(pt(x,y), localArea))
@@ -240,7 +319,6 @@ bool OABusRouter::Router::route_twopin_net_threshold_SPV(int busid, int m1, int 
            
             if(!SA.inside(x, y, l2, optimal))
                 continue;
-            /*
             if(optimal)
             {
                 if(!SA.inside(x, y, l2))
@@ -251,7 +329,6 @@ bool OABusRouter::Router::route_twopin_net_threshold_SPV(int busid, int m1, int 
                 if(!SA.inside(x, y))
                     continue;
             }
-            */
 
             // check iterating point valid
             if(bg::intersects(pt(x,y), bending_area))
@@ -273,6 +350,8 @@ bool OABusRouter::Router::route_twopin_net_threshold_SPV(int busid, int m1, int 
                 filtered.push_back(n2);
             }
         }
+        */
+
 
         #pragma omp parallel for num_threads(NUM_THREADS)
         for(int i=0; i < filtered.size(); i++)
@@ -559,7 +638,7 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, int ll[], 
     SearchArea SA(ckt->layers.size());
     if(trial[busid] < 4)
     {
-        int margin = 2 * trial[busid] ; // trial[busid] * 10;
+        int margin = 2*trial[busid] ; // trial[busid] * 10;
         if(!get_search_area(busid, m2, m1, margin, SA))
         {
             SA.defined = true;
@@ -581,6 +660,13 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, int ll[], 
     }
 
 
+    ///////////////////////////////
+    bool merge = optimal ? false : true;
+    vector<SegRtree> localRtree;
+    get_local_tree(merge, SA, localRtree);
+    ///////////////////////////////
+    
+    
     // Initialize heap nodes
     vector<HeapNode> nodes(rtree_t.nodes.size(), HeapNode(numBits));
     #pragma omp parallel for num_threads(NUM_THREADS)
@@ -689,6 +775,75 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, int ll[], 
         y_iter_bnd1[1] = min(ckt->originY + ckt->height, y_iter_bnd1[1] + (width[l1] + spacing[l1]));
         box bending_area(pt(x_iter_bnd1[0], y_iter_bnd1[0]), pt(x_iter_bnd1[1], y_iter_bnd1[1]));
 
+        vector<int> filtered;
+        vector<pair<seg,int>> neighbor;
+      
+        if(optimal)
+        {
+            if(SA.lSeq.size() <= dep1+1)
+                continue;
+            
+            localRtree[SA.lSeq[dep1+1]].query(bgi::intersects(rn1->segment()), back_inserter(neighbor));
+        }
+        else
+        {
+            if(rn1->l-1 >= 0)
+                localRtree[rn1->l-1].query(bgi::intersects(rn1->segment()), back_inserter(neighbor));
+            if(rn1->l+1 < ckt->layers.size())
+                localRtree[rn1->l+1].query(bgi::intersects(rn1->segment()), back_inserter(neighbor));
+        }
+
+        #pragma omp parallel for num_threads(NUM_THREADS)
+        for(int i=0; i < neighbor.size(); i++)
+        {
+            int n2 = neighbor[i].second;
+            RtreeNode* rn2 = rtree_t.get_node(n2);
+            int dep2 = dep1 + 1;
+            int l2 = rn2->l;
+            
+            // if already optimal nodes, pass!
+            if(optNodes.find(n2) != optNodes.end())
+                continue;
+
+            if(currNode.cost() >= nodes[n2].cost())
+                // if iterating node's cost is smaller,
+                // it doesn't need to push into the queue
+                continue;
+
+            if(optimal)
+            {
+                if(!SA.check_lseq(dep2, l2))
+                    continue;
+            }
+          
+            int x, y;
+            rtree_t.intersection(n1, n2, x, y);
+          
+            if(!SA.inside(x, y, l2, optimal))
+                continue;
+            // check iterating point valid
+            if(bg::intersects(pt(x,y), bending_area))
+                continue;
+
+            box pinShape(pt(refPin1->llx, refPin1->lly), pt(refPin1->urx, refPin1->ury));
+            if(bg::intersects(pt(x,y), pinShape))
+                continue;
+
+            double hpwl1 = HPWL(x, y, refPin1->id);
+            double hpwl2 = HPWL(x, y, refPin2->id);
+
+            // local search area
+            if(hpwl1 + hpwl2 >= 2*hpwl)
+                continue;
+
+            #pragma omp critical(GLOBAL)
+            {
+                filtered.push_back(n2);
+            }
+
+        }
+
+        /*
         //filtering
         vector<int> filtered;
         #pragma omp parallel for num_threads(NUM_THREADS)
@@ -721,9 +876,13 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, int ll[], 
                 //    continue;
             //}
             
+            int x, y;
             
-            int x = rn1->intersection[n2].first;
-            int y = rn1->intersection[n2].second;
+            rtree_t.intersection(n1, n2, x, y);
+
+
+            //int x = rn1->intersection[n2].first;
+            //int y = rn1->intersection[n2].second;
 
             //box localArea(pt(ll[0], ll[1]), pt(ur[0], ur[1]));
             //if(!bg::intersects(pt(x,y), localArea))
@@ -731,7 +890,6 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, int ll[], 
             
             if(!SA.inside(x, y, l2, optimal))
                 continue;
-            /*
             if(optimal)
             {
                 if(!SA.inside(x, y, l2))
@@ -742,7 +900,6 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, int ll[], 
                 if(!SA.inside(x, y))
                     continue;
             }
-            */
 
             // check iterating point valid
             if(bg::intersects(pt(x,y), bending_area))
@@ -764,7 +921,8 @@ bool OABusRouter::Router::route_twopin_net(int busid, int m1, int m2, int ll[], 
                 filtered.push_back(n2);
             }
         }
-
+        */
+        
         #pragma omp parallel for num_threads(NUM_THREADS)
         for(int i=0; i < filtered.size(); i++)
         {
@@ -1587,8 +1745,9 @@ bool OABusRouter::Router::get_next_node(int busid, bool fixed, double hpwl, int 
         x1 = prev.xPrev[i];
         y1 = prev.yPrev[i];
         l1 = n1->l;
-        x2 = n2->intersection[n1->id].first;
-        y2 = n2->intersection[n1->id].second;
+        rtree_t.intersection(n1->id, n2->id, x2, y2);
+        //x2 = n2->intersection[n1->id].first;
+        //y2 = n2->intersection[n1->id].second;
         l2 = n2->l;
 
         if(bg::intersects(bendingArea, pt(x2,y2)))
@@ -1797,8 +1956,10 @@ bool OABusRouter::Router::get_next_node_SPV_clean(int busid, bool fixed, double 
         x1 = prev.xPrev[i];
         y1 = prev.yPrev[i];
         l1 = n1->l;
-        x2 = n2->intersection[n1->id].first;
-        y2 = n2->intersection[n1->id].second;
+        rtree_t.intersection(n1->id, n2->id, x2, y2);
+
+        //x2 = n2->intersection[n1->id].first;
+        //y2 = n2->intersection[n1->id].second;
         l2 = n2->l;
 
         //////////////////////////////////////////
@@ -2071,8 +2232,9 @@ bool OABusRouter::Router::get_next_node_debug(int busid, bool fixed, double hpwl
         x1 = prev.xPrev[i];
         y1 = prev.yPrev[i];
         l1 = n1->l;
-        x2 = n2->intersection[n1->id].first;
-        y2 = n2->intersection[n1->id].second;
+        rtree_t.intersection(n1->id, n2->id, x2, y2);
+        //x2 = n2->intersection[n1->id].first;
+        //y2 = n2->intersection[n1->id].second;
         l2 = n2->l;
 
         rouDir = get_routing_direction(x1, y1, x2, y2);

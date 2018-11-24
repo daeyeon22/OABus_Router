@@ -108,6 +108,7 @@ namespace OABusRouter
             intersection(i.intersection)
         {}
 
+        seg segment();
     };
 
 
@@ -118,6 +119,8 @@ namespace OABusRouter
         vector<RtreeNode> nodes;
         vector<Constraint> constraints;
 
+
+        bool intersection(int i, int j, int &x, int &y);
 
         bool is_valid(int n1, int n2);
         bool is_valid(pair<int,int> e);
@@ -136,8 +139,6 @@ namespace OABusRouter
     
 
         bool get_segments(int current, int width, int spacing, bool upper, vector<int> &ns);
-
-
         bool get_extension(int n1, int& n2, bool lCorner);
         bool prev(int current, int &previous);
         bool next(int current, int &next);
