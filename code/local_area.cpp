@@ -102,6 +102,10 @@ bool OABusRouter::Router::get_search_area(int busid, int m1, int m2, int margin,
         bit2pin_2[pin2bit[mp2->pins[i]]] = mp2->pins[i];
     }
     
+    // - - editted 11/24 16:10 - - //
+   
+    // - - - - - - - - - - - - - - //
+    
     Pin* tarPin1 = &ckt->pins[bit2pin_1[curBus->bits[0]]];
     Pin* tarPin2 = &ckt->pins[bit2pin_2[curBus->bits[0]]];
     box pinShape1(pt(tarPin1->llx, tarPin1->lly), pt(tarPin1->urx, tarPin1->ury));
@@ -149,7 +153,7 @@ bool OABusRouter::Router::get_search_area(int busid, int m1, int m2, int margin,
        
         int tileSize = (is_vertical(l)) ? tarWidth : tarHeight;
         curTile->edgeCap = tileSize / (curBus->width[l] + spacing[l]) - q2.size() - q3.size();
-       // curTile->edgeCap = tarWidth / (curBus->width[l] + spacing[l]) -q2.size() - q3.size();
+        //curTile->edgeCap = tarWidth / (curBus->width[l] + spacing[l]) -q2.size() - q3.size();
         //curTile->edgeCap = min((int)q1.size(),  numBits) - q2.size() - q3.size();
 
         

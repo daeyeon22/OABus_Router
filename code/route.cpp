@@ -14,6 +14,11 @@ using OABusRouter::design_ruled_area;
 using OABusRouter::inverse_vector;
 
 static int curProc;
+static int failCnt1;
+static int failCnt2;
+static int successCnt1;
+static int successCnt2;
+
 void OABusRouter::Router::bus_ordering(int &startLoc, vector<int> &busSorted)
 {
     Circuit* cir = ckt;
@@ -74,6 +79,11 @@ void OABusRouter::Router::bus_ordering(int &startLoc, vector<int> &busSorted)
 void OABusRouter::Router::route_all()
 {
     //
+    failCnt1 = 0;
+    failCnt2 = 0;
+    successCnt1 = 0;
+    successCnt2 = 0;
+
     int numBuses = ckt->buses.size();
     int numSuccess = 0;
     int totalNumSPV = 0;
@@ -126,6 +136,10 @@ void OABusRouter::Router::route_all()
     printf("[INFO] # routing failed     : %d\n", numBuses - numSuccess);
     printf("[INFO] # SPV                : %d\n", totalNumSPV);
     printf("[INFO] # total iteration    : %d\n", totalSearchCount); //numBuses - numSuccess);
+    printf("[INFO] # success normal     : %d\n", successCnt1);
+    printf("[INFO] # success fliped     : %d\n", successCnt2);
+    printf("[INFO] # fail normal        : %d\n", failCnt1);
+    printf("[INFO] # fail fliped        : %d\n", failCnt2);
     printf("- - - - - - - - - - - - - - - -\n");
 
 #endif
@@ -865,12 +879,30 @@ bool OABusRouter::Router::route_bus(int busid, int startLoc, int& numSPV)
             //-------------------------------------------------------------------------------------//
             
             
-            for(int i=0; (i < 4) && !routingSuccess; i++)
+            for(int i=0; (i < 4) && !routingSuccess; i += 2) //++)
             {
                 int source = (i%2 == 0) ? m1 : m2;
                 int target = (i%2 == 1) ? m1 : m2;
                 numSPV = 0;
-                
+
+                /* editted 11/24 16:16 //
+                MultiPin* mpSource = &ckt->multipins[source];
+                Pin *firstPin, *lastPin;
+                for(auto& pinid : mpSource->pins)
+                {
+                    if(pin2bit[pinid] == curBus->bits[0])
+                    {
+                        firstPin = &ckt->pins[pinid];
+                    }
+
+                    if(pin2bit[pinid] == curBus->bits[curBus->bits.size()-1])
+                    {
+                        lastPin = &ckt->pins[pinid];
+                    }
+                }
+                if(refPin->llx == )
+                */
+
                 //if(i >= 2)
                 if(i == 2)
                 {
@@ -881,6 +913,24 @@ bool OABusRouter::Router::route_bus(int busid, int startLoc, int& numSPV)
                 routingSuccess =
                     //route_twopin_net_threshold_SPV(busid, source, target, ll, ur, optimal, numTrial, thSPV, numSPV, tp);
                     route_twopin_net(busid, source, target, ll, ur, optimal, numSPV, tp);
+            
+            
+                // - - - - Count - - - - //
+                if(routingSuccess)
+                {
+                    if(i==0)
+                        successCnt1++;
+                    else
+                        successCnt2++;
+                }
+                else
+                {
+                    if(i==0)
+                        failCnt1++;
+                    else
+                        failCnt2++;
+                }
+                // - - - - - - - - - - - // 
             }
 
             if(routingSuccess)

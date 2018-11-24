@@ -3,6 +3,17 @@
 #include "route.h"
 #include "mymeasure.h"
 
+void OABusRouter::inverse_vector(vector<int> &target)
+{
+    vector<int> flipped;
+    for(int i=0; i < target.size(); i++)
+    {
+        flipped.insert(flipped.begin(), target[i]);
+    }
+
+    target = flipped;
+}
+
 string OABusRouter::direction(int dir)
 {
     switch(dir)
