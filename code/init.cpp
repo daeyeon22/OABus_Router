@@ -8,7 +8,7 @@ using namespace OABusRouter;
 using OABusRouter::intersection;
 using OABusRouter::is_vertical;
 
-
+#define DEBUG_INIT
 
 void OABusRouter::Circuit::remove_redundant_tracks()
 {
@@ -451,7 +451,7 @@ void OABusRouter::Router::construct_rtree()
     vector<RtreeNode> newNodes;
     vector<Constraint> newConsts;
 
-    //vector<PointRtree> ptrtree(numLayers);
+    vector<PointRtree> ptrtree(numLayers);
     rtree_t.trees = vector<SegRtree>(numLayers);
     
     cout << "[INFO] Remove redundant tracks" << endl;
@@ -533,7 +533,7 @@ void OABusRouter::Router::construct_rtree()
                 newNode.vertical = is_vertical(curLayer->id);
                 newNode.width = types[0];
                 seg s1(pt(newNode.x1, newNode.y1), pt(newNode.x2, newNode.y2));
-                //pt p1((n1->x1 + n1->x2)/2, (n1->y1 + n1->y2)/2);
+                pt p1((newNode.x1 + newNode.x2)/2, (newNode.y1 + newNode.y2)/2);
                 
 
                 Constraint newConst;
@@ -569,7 +569,7 @@ void OABusRouter::Router::construct_rtree()
                     
                     curLayer->tracks.push_back(id);
                     rtree_t[l]->insert({s1, id});
-                    //ptrtree[l].insert({p1, id});
+                    ptrtree[l].insert({p1, id});
 
                 }
                 it++;
@@ -632,7 +632,25 @@ void OABusRouter::Router::construct_rtree()
     newConsts.clear();
 
     set<pair<int,int>> edges;
+
+    /*
     vector<SegRtree> rtreeTemp = rtree_t.trees;
+    rtree_t.widths = vector<SegRtree>(numLayers);
+    #pragma omp parallel for num_threads(NUM_THREADS)
+    for(int i=0; i < rtree_t.constraints; i++)
+    {
+        Constraint* curConst = &rtree_t.constraints[i];
+        for(auto& w : curConst->widths)
+        {
+            int offset = rtree_t.get_node(i)->
+            for(
+
+
+        }
+
+    }
+    */
+    
     /*
     #pragma omp parallel for num_threads(NUM_THREADS)
     for(int i=0; i < numTracks; i++)
@@ -768,6 +786,7 @@ void OABusRouter::Router::construct_rtree()
         seg s1(pt(n1->x1, n1->y1), pt(n1->x2, n1->y2));
         offset1 = n1->offset;
 
+        /*
         for(SegRtree::const_query_iterator it = rtree_t.trees[l].qbegin(bgi::nearest(s1, 100)); it != rtree_t.trees[l].qend(); it++)
         {
             if(n1->upper != nullptr && n1->lower != nullptr)
@@ -790,8 +809,8 @@ void OABusRouter::Router::construct_rtree()
                     n1->lower = n2;
             }
         }
+        */
 
-        /*
         x1 = (n1->x1 + n1->x2)/2;
         y1 = (n1->y1 + n1->y2)/2;
 
@@ -826,7 +845,32 @@ void OABusRouter::Router::construct_rtree()
                     n1->lower = n2;
             }
         }
-        */
+        
+        if(n1->upper == nullptr || n1->lower == nullptr)
+        {
+            for(SegRtree::const_query_iterator it = rtree_t.trees[l].qbegin(bgi::nearest(s1, 100)); it != rtree_t.trees[l].qend(); it++)
+            {
+                if(n1->upper != nullptr && n1->lower != nullptr)
+                    break;
+
+                n2 = rtree_t.get_node(it->second);
+                offset2 = n2->offset;
+
+                if(offset1 == offset2)
+                    continue;
+
+                if(offset1 < offset2)
+                {
+                    if(n1->upper == nullptr)
+                        n1->upper = n2;
+                }
+                else if(offset1 > offset2)
+                {
+                    if(n1->lower == nullptr)
+                        n1->lower = n2;
+                }
+            }
+        }
     }
     
     rtree_o.pins = vector<BoxRtree>(numLayers);

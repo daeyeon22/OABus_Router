@@ -62,6 +62,9 @@ void OABusRouter::Router::bus_ordering(int &startLoc, vector<int> &busSorted)
         sort(busSorted.begin(), busSorted.end(), [&,cir](int left, int right){
                 int x1 = cir->buses[left].llx; 
                 int x2 = cir->buses[right].llx; 
+                //int numBits1 = cir->buses[left].numBits; 
+                //int numBits2 = cir->buses[right].numBits; 
+                //return (numBits1 > numBits2);
                 return (x1 > x2);
                 });
     }
@@ -909,7 +912,7 @@ bool OABusRouter::Router::route_bus(int busid, int startLoc, int& numSPV)
                     inverse_vector(curBus->bits);
                     curBus->flip = curBus->flip ? false : true;
                 }
-                
+
                 routingSuccess =
                     //route_twopin_net_threshold_SPV(busid, source, target, ll, ur, optimal, numTrial, thSPV, numSPV, tp);
                     route_twopin_net(busid, source, target, ll, ur, optimal, numSPV, tp);
@@ -918,14 +921,14 @@ bool OABusRouter::Router::route_bus(int busid, int startLoc, int& numSPV)
                 // - - - - Count - - - - //
                 if(routingSuccess)
                 {
-                    if(i==0)
+                    if(!curBus->flip)
                         successCnt1++;
                     else
                         successCnt2++;
                 }
                 else
                 {
-                    if(i==0)
+                    if(!curBus->flip)
                         failCnt1++;
                     else
                         failCnt2++;

@@ -393,7 +393,8 @@ bool OABusRouter::Router::get_search_area(int busid, int m1, int m2, int margin,
                 continue;
             }
 
-           
+          
+
             //printf("(%d %d) (%d %d) M%d Cap %d\n", tile2->x1, tile2->y1, tile2->x2, tile2->y2, tile2->l, tile2->edgeCap);
            
 
@@ -408,8 +409,8 @@ bool OABusRouter::Router::get_search_area(int busid, int m1, int m2, int margin,
             double compactness = 1.0 * numBits * (curBus->width[l2] + spacing[l2]) / tileSize;
             double segment = abs(l1 - l2); 
             
-            if(tile2->edgeCap < numBits)
-                tileWeight *= 3;
+            //if(tile2->edgeCap < numBits)
+            //    tileWeight *= 3;
             //tileWeight = 1.0* numWires / refCap + compactness; // * tileWeight;
             
             //double tileWeight = DELTA * congestion + ALPHA * 1 + BETA * segment + GAMMA * compactness;
@@ -437,7 +438,7 @@ bool OABusRouter::Router::get_search_area(int busid, int m1, int m2, int margin,
             nextNode.backtrace = n1;
             nextNode.depth = dep2;
             nextNode.numSegs = (l1 != l2) ? curNode.numSegs + 1 : curNode.numSegs;
-            nextNode.PS = tileWeight + curNode.PS; // + compactness + curNode.PS;//compactness + tileWeight + segment +  curNode.PS;//compactness + tileWeight + curNode.PS;
+            nextNode.PS = tileWeight + 10*segment + curNode.PS; // + compactness + curNode.PS;//compactness + tileWeight + segment +  curNode.PS;//compactness + tileWeight + curNode.PS;
             
             
             ///////////////////////////////////////////////////////////////////////////////

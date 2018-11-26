@@ -588,12 +588,16 @@ bool OABusRouter::Rtree_t::next_node(int bitid, int n_iter, int n1, int &n2, int
     RtreeNode* node_prev = get_node(n1);
 
     bool valid = false;
-    for(int i=0; i < 10; i++)
+    for(int i=0; i < 20; i++)
     {
         node_iter = (upper) ? node_iter->upper : node_iter->lower;
 
         if(node_iter == nullptr)
+        {
+            //cout << "Break due to null pointer..." << endl;
             break;
+        }
+
 
         bool connected = is_valid({node_iter->id, node_prev->id});
 
@@ -624,20 +628,43 @@ bool OABusRouter::Rtree_t::next_node(int bitid, int n_iter, int n1, int &n2, int
                 maximum_width_constraint(node_iter->id, min(x2, x2), max(x2, x2), w2);
             
             valid = SPV1 && SPV2 && WCV1 && WCV2 ? true : false;
+
+
+            /////////////////////////////////////////////////////////////////////////////
             /*
-            #pragma omp critical(GLOBAL)
+            Bus* curBus = &ckt->buses[rou->bit2bus[bitid]];
+            if(curBus->name == "bus17")
             {
-                if(!valid)
+                if(valid)
+                    cout << "Find successfully" << endl;
+                else
                 {
+                    cout << "Find to fail [error code] : ";
                     if(!SPV1) cout << "1";
                     if(!SPV2) cout << "2";
                     if(!WCV1) cout << "3";
                     if(!WCV2) cout << "4";
                     cout << endl;
                 }
+                if(!WCV2)
+                {
+                    printf("Query point (%d %d) M%d width %d\n", x2, y2, l2, w2);
+                    Constraint* curConst = &constraints[node_iter->id];
+                    for(auto& w : curConst->widths)
+                    {
+                        for(auto& it : curConst->constraint[w])
+                        {
+                            if(is_vertical(l2))
+                                printf("(%d %d) (%d %d) M%d Width %d\n", node_iter->offset, it.lower(), node_iter->offset, it.upper(), l2, w);
+                            else    
+                                printf("(%d %d) (%d %d) M%d Width %d\n", it.lower(), node_iter->offset, it.upper(), node_iter->offset, l2, w);
+                        }
+                    }
+
+                }
             }
             */
-        
+            /////////////////////////////////////////////////////////////////////////////
         }
 
         if(valid)

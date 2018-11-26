@@ -13,6 +13,9 @@ namespace OABusRouter
         vector<BoxRtree> obstacles;
         vector<BoxRtree> wires;
         vector<SegRtree> empties;
+        vector<SegRtree> widths;
+
+
 
         Rtree_o()
         {}
