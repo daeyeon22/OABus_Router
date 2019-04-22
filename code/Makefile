@@ -1,17 +1,20 @@
 EXE = bus_router
 CXX = g++
+SYSTEM = x86-64_linux
+LIBFORMAT = static_pic
 
-CFLAGS = -std=c++11 -fopenmp -m64 -O3 -g -ggdb -DNDEBUG $(LIBINCLUDE)
+CFLAGS = -std=c++11 -fopenmp -m64 -O3 $(LIBINCLUDE)
 
 # include library settings..
-LIBINCLUDE = -I$(SRCHASH) -I$(BOOST)
+LIBINCLUDE = -I$(SRCHASH)/include -I$(BOOST)/include 
 
 # linking flag settings
-LINKCFLAGS = $(CFLAGS) #-static-libstdc++
+LINKCFLAGS = $(CFLAGS) -static-libstdc++ $(LIBGOMP)
 
 # source settings.
-SRCHASH 	= /home/tool/cpplib/sparsehash/install/2.0.3/include
-BOOST 		= /home/tool/cpplib/boost/install/1.67.0/include
+SRCHASH = /home/tool/cpplib/sparsehash/install/2.0.3
+BOOST = /home/tool/cpplib/boost/install/1.67.0
+LIBGOMP = -L/home/tool/gcc/install/5.4.0/lib64/libgomp.a -static
 
 SRC			= parser.o tree.o func.o twopin.o local_area.o util.o\
 			  init.o mymeasure.o main.o route.o writer.o 
