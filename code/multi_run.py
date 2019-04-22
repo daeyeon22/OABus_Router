@@ -34,7 +34,7 @@ def ReadScore( outputFile ):
     inFile = open(outputFile, 'r')
     lines = inFile.readlines()
     score = {}
-    target = [ 'CR', 'Ps', 'Pf', 'cost' ]
+    target = [ 'Cw', 'Cs', 'Cc', 'CR', 'Ps', 'Pf', 'cost' ]
 
     for i in range(len(lines)):
         line = lines[i]

@@ -115,8 +115,8 @@ int main(int argc, char** argv){
 
 #ifdef REPORT
     cout << "[INFO] start Create Plot" << endl;
-    rou->create_plot(benchName.c_str());
 #endif
+    rou->create_plot(benchName.c_str());
 
 #ifdef REPORT
     cout << "[INFO] start Write out file" << endl;
