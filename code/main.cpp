@@ -125,11 +125,11 @@ int main(int argc, char** argv){
 
 #ifdef REPORT
     cout << "[INFO] start Write def & lef file" << endl;
+#endif
     lefName = logDirName + "/" + benchName + ".lef";
     defName = logDirName + "/" + benchName + ".def";
     ckt->lef_write(lefName);
     ckt->def_write(defName);
-#endif
 
     cout << "[INFO] End program" << endl;
 
