@@ -1,11 +1,11 @@
 #!/usr/bin/python
 
-# 
-# This script written by Mgwoo.
-# 2018.02.22.
-# 
-# mgwoo@unist.ac.kr
-
+########################## 
+# Date: 2019/04/23       #
+# Author: Daeyeon, Kim   #
+# Aff: CSDL(Postech)     #
+# daeyeon2@postech.ac.kr #
+##########################
 import os
 import sys
 import subprocess as sp
@@ -35,6 +35,10 @@ def ReadScore( outputFile ):
     lines = inFile.readlines()
     score = {}
     target = [ 'Cw', 'Cs', 'Cc', 'CR', 'Ps', 'Pf', 'cost' ]
+    
+    #initialize
+    for key in target:
+        score[key] = 0.0
 
     for i in range(len(lines)):
         line = lines[i]
@@ -42,7 +46,8 @@ def ReadScore( outputFile ):
         vals = Tokenizer(line, delim)
 
         if vals[2] in target:
-            score[vals[2]] = vals[len(vals)-1]
+            score[vals[2]] += float(vals[len(vals)-1])
+                
 
     return score
 
@@ -142,7 +147,7 @@ if __name__ == '__main__':
         proc.join()
     """
     
-    keys = ['Bench', 'CR', 'Ps', 'Pf', 'cost', 'RT']
+    keys = ['Bench', 'Cw', 'Cs', 'Cc', 'CR', 'Ps', 'Pf', 'cost', 'RT']
     summary = open("%s/summary.txt" % (logDir), "w")
 
     for dic in dics:
